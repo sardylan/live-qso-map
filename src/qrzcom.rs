@@ -13,6 +13,7 @@
  * this program. If not, see <https://www.gnu.org/licenses/>.
  *
  */
+
 use reqwest::{Client, Method};
 use serde::Deserialize;
 use std::fmt::Display;

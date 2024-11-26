@@ -14,11 +14,12 @@
  *
  */
 
-
 use crate::enricher::QSO;
 use crate::models::Point;
 use actix_web::middleware::Logger;
-use actix_web::{get, route, rt, web, App, Error, HttpRequest, HttpResponse, HttpServer, Responder};
+use actix_web::{
+    get, route, rt, web, App, Error, HttpRequest, HttpResponse, HttpServer, Responder,
+};
 use actix_web_rust_embed_responder::{EmbedResponse, IntoResponse, WebEmbedableFile};
 use actix_ws::AggregatedMessage;
 use async_broadcast::Receiver;
@@ -58,7 +59,11 @@ async fn health() -> impl Responder {
     HttpResponse::NoContent()
 }
 
-async fn ws(req: HttpRequest, stream: web::Payload, qso_receiver: web::Data<Receiver<QSO>>) -> Result<HttpResponse, Error> {
+async fn ws(
+    req: HttpRequest,
+    stream: web::Payload,
+    qso_receiver: web::Data<Receiver<QSO>>,
+) -> Result<HttpResponse, Error> {
     let (res, mut session, stream) = actix_ws::handle(&req, stream)?;
 
     let mut rx_stream = stream
@@ -91,7 +96,12 @@ async fn ws(req: HttpRequest, stream: web::Payload, qso_receiver: web::Data<Rece
     Ok(res)
 }
 
-pub async fn run_http_server(http_host: &str, http_port: u16, home_point: Point, qso_receiver: Receiver<QSO>) -> std::io::Result<()> {
+pub async fn run_http_server(
+    http_host: &str,
+    http_port: u16,
+    home_point: Point,
+    qso_receiver: Receiver<QSO>,
+) -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(qso_receiver.clone()))
@@ -103,7 +113,7 @@ pub async fn run_http_server(http_host: &str, http_port: u16, home_point: Point,
             .service(health)
             .service(web::resource("/api/public/v1/map/ws").route(web::get().to(ws)))
     })
-        .bind((http_host, http_port))?
-        .run()
-        .await
+    .bind((http_host, http_port))?
+    .run()
+    .await
 }

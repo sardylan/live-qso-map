@@ -14,7 +14,6 @@
  *
  */
 
-
 use clap::{ArgAction, Parser};
 use log::Level;
 
