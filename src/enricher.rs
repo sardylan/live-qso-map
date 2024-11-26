@@ -14,7 +14,6 @@
  *
  */
 
-
 use crate::qrzcom;
 use crate::receiver::ContactInfo;
 use async_broadcast::Sender;
@@ -32,15 +31,35 @@ pub struct QSO {
 
 impl Display for QSO {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} ({}) [{} {}]", self.call, self.band, self.latitude, self.longitude)
+        write!(
+            f,
+            "{} ({}) [{} {}]",
+            self.call, self.band, self.latitude, self.longitude
+        )
     }
 }
 
 #[derive(Debug)]
 pub enum EnricherError {
-    RecvError(async_channel::RecvError<>),
+    RecvError(async_channel::RecvError),
     SendError(async_broadcast::SendError<QSO>),
     QRZComError(qrzcom::QRZComError),
+}
+
+impl Display for EnricherError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EnricherError::RecvError(e) => {
+                write!(f, "Receive error: {}", e)
+            }
+            EnricherError::SendError(e) => {
+                write!(f, "Send error: {}", e)
+            }
+            EnricherError::QRZComError(e) => {
+                write!(f, "QRZ.com error: {}", e)
+            }
+        }
+    }
 }
 
 impl From<async_channel::RecvError> for EnricherError {
@@ -61,12 +80,31 @@ impl From<qrzcom::QRZComError> for EnricherError {
     }
 }
 
-pub async fn run_enricher(qrzcom_user: &str, qrzcom_password: &str, contact_info_receiver: Receiver<ContactInfo>, qso_sender: Sender<QSO>) -> Result<(), EnricherError> {
+pub async fn run_enricher(
+    qrzcom_user: &str,
+    qrzcom_password: &str,
+    contact_info_receiver: Receiver<ContactInfo>,
+    qso_sender: Sender<QSO>,
+) -> Result<(), EnricherError> {
     loop {
-        let contact_info: ContactInfo = contact_info_receiver.recv().await?;
+        let contact_info = contact_info_receiver.recv().await;
+        if contact_info.is_err() {
+            log::warn!(
+                "Error receiving contact info: {}",
+                contact_info.unwrap_err()
+            );
+            continue;
+        }
+        let contact_info = contact_info?;
+
         log::debug!("Contact info to enrich: {}", contact_info);
 
-        let callsign = qrzcom::call_xml_api(qrzcom_user, qrzcom_password, &contact_info.call).await?;
+        let callsign = qrzcom::call_xml_api(qrzcom_user, qrzcom_password, &contact_info.call).await;
+        if callsign.is_err() {
+            log::warn!("Error retrieving callsign: {}", callsign.unwrap_err());
+            continue;
+        }
+        let callsign = callsign?;
 
         let qso: QSO = QSO {
             call: contact_info.call,
@@ -81,7 +119,9 @@ pub async fn run_enricher(qrzcom_user: &str, qrzcom_password: &str, contact_info
         }
 
         log::trace!("Broadcasting QSO");
-        qso_sender.broadcast(qso).await?;
+        let result = qso_sender.broadcast(qso).await;
+        if result.is_err() {
+            log::warn!("Error sending QSO: {}", result.unwrap_err());
+        }
     }
 }
-

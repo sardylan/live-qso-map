@@ -89,6 +89,7 @@ version = "2.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "24eda4e2a6e042aa4e55ac438a2ae052d3b5da0ecf83d7411e1a368946925208"
 dependencies = [
+ "actix-macros",
  "futures-core",
  "tokio",
 ]
@@ -1198,6 +1199,7 @@ checksum = "78b3ae25bc7c8c38cec158d1f2757ee79e9b3740fbc7ccf0e59e4b08d793fa89"
 name = "live-qso-map"
 version = "0.1.0"
 dependencies = [
+ "actix-rt",
  "actix-web",
  "actix-web-rust-embed-responder",
  "actix-ws",

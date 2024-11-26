@@ -8,6 +8,7 @@ authors = [
 license-file = "LICENSE.md"
 
 [dependencies]
+actix-rt = "2.10.0"
 actix-web = { version = "4.9.0", features = ["macros", "unicode"] }
 actix-web-rust-embed-responder = { version = "2.2.3", features = ["rust-embed", "base64"] }
 actix-ws = "0.3.0"

@@ -14,7 +14,6 @@
  *
  */
 
-
 use async_channel::Sender;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
@@ -45,6 +44,22 @@ impl From<std::io::Error> for ReceiverError {
     }
 }
 
+impl Display for ReceiverError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ReceiverError::UDPSocket(e) => {
+                write!(f, "UDP Socket error: {}", e)
+            }
+            ReceiverError::XMLParsing(e) => {
+                write!(f, "XML Parsing error: {}", e)
+            }
+            ReceiverError::QueueSenderError(e) => {
+                write!(f, "Queue sender error: {}", e)
+            }
+        }
+    }
+}
+
 impl From<serde_xml_rs::Error> for ReceiverError {
     fn from(value: serde_xml_rs::Error) -> Self {
         Self::XMLParsing(value)
@@ -57,7 +72,11 @@ impl From<async_channel::SendError<ContactInfo>> for ReceiverError {
     }
 }
 
-pub async fn run_receiver(bind_host: &str, bind_port: u16, contact_info_sender: Sender<ContactInfo>) -> Result<(), ReceiverError> {
+pub async fn run_receiver(
+    bind_host: &str,
+    bind_port: u16,
+    contact_info_sender: Sender<ContactInfo>,
+) -> Result<(), ReceiverError> {
     let binding = format!("{}:{}", bind_host, bind_port);
     let sock = UdpSocket::bind(binding).await?;
 
@@ -68,11 +87,21 @@ pub async fn run_receiver(bind_host: &str, bind_port: u16, contact_info_sender: 
         let payload = String::from_utf8(buf[..len].to_vec()).unwrap();
         log::debug!("Received {} bytes from {:?}: {}", len, addr, &payload);
 
-        let optional_contact_info: Option<ContactInfo> = parse_contact_info(&payload).await.ok();
-        if let Some(contact_info) = optional_contact_info {
-            log::info!("Received contact info: {}", &contact_info);
-            contact_info_sender.send(contact_info).await?;
+        let contact_info = parse_contact_info(&payload).await;
+        if contact_info.is_err() {
+            log::warn!(
+                "Failed to parse contact info: {}",
+                contact_info.unwrap_err()
+            );
+            continue;
         }
+
+        let contact_info = contact_info?;
+        log::info!("Received contact info: {}", &contact_info);
+        let result = contact_info_sender.send(contact_info).await;
+        if result.is_err() {
+            log::warn!("Failed to send contact info: {}", result.unwrap_err());
+        };
     }
 }
 
