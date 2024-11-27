@@ -23,15 +23,27 @@ use actix_web::{
 use actix_web_rust_embed_responder::{EmbedResponse, IntoResponse, WebEmbedableFile};
 use actix_ws::AggregatedMessage;
 use async_broadcast::InactiveReceiver;
-use rust_embed_for_web::{DynamicFile, RustEmbed};
+use rust_embed_for_web::RustEmbed;
+
+#[cfg(debug_assertions)]
+use rust_embed_for_web::DynamicFile;
+#[cfg(not(debug_assertions))]
+use rust_embed_for_web::EmbeddedFile;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(RustEmbed)]
 #[folder = "assets/"]
 struct Assets;
 
+#[cfg(debug_assertions)]
+type FileType = DynamicFile;
+
+#[cfg(not(debug_assertions))]
+type FileType = EmbeddedFile;
+
 #[route("/assets/{path:.*}", method = "GET", method = "HEAD")]
-async fn serve_assets(path: web::Path<String>) -> EmbedResponse<WebEmbedableFile<DynamicFile>> {
+async fn serve_assets(path: web::Path<String>) -> EmbedResponse<WebEmbedableFile<FileType>> {
     let path = if path.is_empty() {
         "index.html"
     } else {
