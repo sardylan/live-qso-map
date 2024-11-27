@@ -6,22 +6,24 @@ on:
     types:
       - created
 jobs:
-  release:
-    name: release ${{ matrix.target }}
+  test:
+    name: test ${{ matrix.target }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
+            image: rust:bookworm
             archive: tar.gz tar.xz
           - target: x86_64-unknown-linux-musl
+            image: rust:alpine
             archive: tar.gz tar.xz
-          - target: x86_64-pc-windows-gnu
-            archive: zip
-          - target: x86_64-apple-darwin
-            archive: zip
+    #          - target: x86_64-pc-windows-gnu
+    #            archive: zip
+    #          - target: x86_64-apple-darwin
+    #            archive: zip
+    container:
+      image: ${{ matrix.image }}
     steps:
       - uses: actions/checkout@master
-      - run: rustup update stable-${{ matrix.target }} && rustup default stable-${{ matrix.target }}
-      - run: cargo build --verbose
-      - run: cargo test --verbose
+      - run: cargo test
