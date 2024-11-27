@@ -22,7 +22,7 @@ use actix_web::{
 };
 use actix_web_rust_embed_responder::{EmbedResponse, IntoResponse, WebEmbedableFile};
 use actix_ws::AggregatedMessage;
-use async_broadcast::Receiver;
+use async_broadcast::InactiveReceiver;
 use rust_embed_for_web::{DynamicFile, RustEmbed};
 use serde::{Deserialize, Serialize};
 
@@ -62,7 +62,7 @@ async fn health() -> impl Responder {
 async fn ws(
     req: HttpRequest,
     stream: web::Payload,
-    qso_receiver: web::Data<Receiver<QSO>>,
+    qso_receiver: web::Data<InactiveReceiver<QSO>>,
 ) -> Result<HttpResponse, Error> {
     let (res, mut session, stream) = actix_ws::handle(&req, stream)?;
 
@@ -86,7 +86,8 @@ async fn ws(
     });
 
     rt::spawn(async move {
-        let mut qso_receiver = qso_receiver.get_ref().clone();
+        let qso_receiver = qso_receiver.get_ref().clone();
+        let mut qso_receiver = qso_receiver.activate();
         while let Some(qso) = qso_receiver.recv().await.ok() {
             let data = serde_json::to_string(&qso).unwrap();
             session.text(data).await.unwrap();
@@ -100,7 +101,7 @@ pub async fn run_http_server(
     http_host: &str,
     http_port: u16,
     home_point: Point,
-    qso_receiver: Receiver<QSO>,
+    qso_receiver: InactiveReceiver<QSO>,
 ) -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()

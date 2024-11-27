@@ -26,6 +26,7 @@ use crate::config::Config;
 use crate::enricher::QSO;
 use crate::models::Point;
 use crate::receiver::ContactInfo;
+use async_broadcast::InactiveReceiver;
 use clap::Parser;
 
 #[actix_web::main]
@@ -39,7 +40,8 @@ async fn main() -> std::io::Result<()> {
         async_channel::Receiver<ContactInfo>,
     ) = async_channel::unbounded();
     let (qso_sender, qso_receiver): (async_broadcast::Sender<QSO>, async_broadcast::Receiver<QSO>) =
-        async_broadcast::broadcast(10);
+        async_broadcast::broadcast(3);
+    let qso_receiver: InactiveReceiver<QSO> = qso_receiver.deactivate();
 
     let bind_host = configuration.bind_host;
     let bind_port = configuration.bind_port;
