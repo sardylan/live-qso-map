@@ -22,6 +22,6 @@ jobs:
             archive: zip
     steps:
       - uses: actions/checkout@master
-      - run: rustup update ${{ matrix.target }} && rustup default ${{ matrix.target }}
+      - run: rustup update stable-${{ matrix.target }} && rustup default stable-${{ matrix.target }}
       - run: cargo build --verbose
       - run: cargo test --verbose
