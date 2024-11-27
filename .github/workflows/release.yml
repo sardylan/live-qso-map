@@ -1,29 +1,29 @@
 on:
-  push:
-    branches:
-      - main
   release:
     types:
       - created
 jobs:
-  test:
-    name: test ${{ matrix.target }}
+  release:
+    name: release ${{ matrix.target }}
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
-            image: rust:bookworm
-            archive: tar.gz tar.xz
+            archive: tar.gz tar.xz tar.zst
           - target: x86_64-unknown-linux-musl
-            image: rust:alpine
-            archive: tar.gz tar.xz
-    #          - target: x86_64-pc-windows-gnu
-    #            archive: zip
-    #          - target: x86_64-apple-darwin
-    #            archive: zip
-    container:
-      image: ${{ matrix.image }}
+            archive: tar.gz tar.xz tar.zst
+          - target: x86_64-pc-windows-gnu
+            archive: zip
+          - target: x86_64-apple-darwin
+            archive: zip
     steps:
       - uses: actions/checkout@master
-      - run: cargo test
+      - name: Compile and release
+        uses: rust-build/rust-build.action@v1.4.5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          RUSTTARGET: ${{ matrix.target }}
+          ARCHIVE_TYPES: ${{ matrix.archive }}
