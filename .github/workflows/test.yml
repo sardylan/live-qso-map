@@ -6,11 +6,20 @@ on:
     types:
       - created
 jobs:
-  test:
-    name: test
+  test-linux-x86_64-gnu:
+    name: test-linux-x86_64-gnu
     runs-on: ubuntu-latest
     container:
       image: rust:latest
+    steps:
+      - uses: actions/checkout@master
+      - name: Run tests
+        run: cargo test --release
+  test-linux-x86_64-musl:
+    name: test-linux-x86_64-musl
+    runs-on: ubuntu-latest
+    container:
+      image: rust:alpine
     steps:
       - uses: actions/checkout@master
       - name: Run tests
