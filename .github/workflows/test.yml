@@ -1,0 +1,17 @@
+on:
+  push:
+    branches:
+      - main
+  release:
+    types:
+      - created
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    container:
+      image: rust:latest
+    steps:
+      - uses: actions/checkout@master
+      - name: Run tests
+        run: cargo test --release
