@@ -1,16 +1,47 @@
 ---
 version: 2.1
+
+orbs:
+  win: circleci/windows@5.0.0
+
 executors:
   linux-x86_64:
     docker:
       - image: cimg/rust:1.82.0
+  linux-aarch64:
+    resource_class: arm.medium
+    docker:
+      - image: cimg/rust:1.82.0
+  macos:
+    macos:
+      xcode: 12.5.1
+
 jobs:
-  test:
+  test-linux-x86_64:
     executor: linux-x86_64
     steps:
       - checkout
       - run: cargo test --release
+  test-linux-aarch64:
+    executor: linux-aarch64
+    steps:
+      - checkout
+      - run: cargo test --release
+  test-macos:
+    executor: win/server-2022
+    steps:
+      - checkout
+      - run: cargo test --release
+  test-windows-x64:
+    executor: macos
+    steps:
+      - checkout
+      - run: cargo test --release
+
 workflows:
   test_and_build:
     jobs:
-      - test
+      - test-linux-x86_64
+      - test-linux-aarch64
+      - test-macos
+      - test-windows-x64
