@@ -14,7 +14,7 @@ executors:
       - image: cimg/rust:1.82.0
   macos:
     macos:
-      xcode: 12.5.1
+      xcode: 16.1.0
 
 jobs:
   test-linux-x86_64:
@@ -28,12 +28,12 @@ jobs:
       - checkout
       - run: cargo test --release
   test-macos:
-    executor: win/server-2022
+    executor: macos
     steps:
       - checkout
       - run: cargo test --release
   test-windows-x64:
-    executor: macos
+    executor: win/server-2022
     steps:
       - checkout
       - run: cargo test --release
