@@ -21,7 +21,11 @@ jobs:
     executor: linux-x86_64
     steps:
       - checkout
-      - run: cargo test --release
+      - run: cargo install cargo2junit
+      - run: mkdir -p test-results
+      - run: cargo test --no-fail-fast --message-format=json | cargo2junit > test-results/test-results.xml
+      - store_test_results:
+          path: test-results
   build-linux-x86_64:
     executor: linux-x86_64
     steps:
@@ -45,6 +49,7 @@ jobs:
       - checkout
       - run: curl -o rustup https://sh.rustup.rs
       - run: bash rustup -y
+      - run: rustup default stable-x86_64-pc-windows-msvc
       - run: cargo build --release
 
 workflows:
