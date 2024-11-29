@@ -1,0 +1,16 @@
+---
+version: 2.1
+executors:
+  linux-x86_64:
+    docker:
+      - image: cimg/rust:latest
+jobs:
+  test:
+    executor: linux-x86_64
+    steps:
+      - checkout
+      - run: cargo test --release
+workflows:
+  test_and_build:
+    jobs:
+      - test
