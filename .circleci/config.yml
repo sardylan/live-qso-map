@@ -3,7 +3,7 @@ version: 2.1
 executors:
   linux-x86_64:
     docker:
-      - image: cimg/rust:latest
+      - image: cimg/rust
 jobs:
   test:
     executor: linux-x86_64
