@@ -17,26 +17,35 @@ executors:
       xcode: 16.1.0
 
 jobs:
-  test-linux-x86_64:
+  test:
     executor: linux-x86_64
     steps:
       - checkout
       - run: cargo test --release
-  test-linux-aarch64:
+  build-linux-x86_64:
+    executor: linux-x86_64
+    steps:
+      - checkout
+      - run: cargo build --release
+  build-linux-aarch64:
     executor: linux-aarch64
     steps:
       - checkout
-      - run: cargo test --release
-  test-macos:
+      - run: cargo build --release
+  build-macos:
     executor: macos
     steps:
       - checkout
-      - run: cargo test --release
-  test-windows-x64:
+      - run: curl -o rustup https://sh.rustup.rs
+      - run: bash rustup -y
+      - run: cargo build --release
+  build-windows-x64:
     executor: win/server-2022
     steps:
       - checkout
-      - run: cargo test --release
+      - run: curl -o rustup https://sh.rustup.rs
+      - run: bash rustup -y
+      - run: cargo build --release
 
 workflows:
   test_and_build:
