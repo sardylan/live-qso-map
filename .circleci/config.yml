@@ -50,7 +50,16 @@ jobs:
 workflows:
   test_and_build:
     jobs:
-      - test-linux-x86_64
-      - test-linux-aarch64
-      - test-macos
-      - test-windows-x64
+      - test
+      - build-linux-x86_64:
+          requires:
+            - test
+      - build-linux-aarch64:
+          requires:
+            - test
+      - build-macos:
+          requires:
+            - test
+      - build-windows-x64:
+          requires:
+            - test
