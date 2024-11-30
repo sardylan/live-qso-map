@@ -28,3 +28,4 @@ serde_json = { version = "1.0.133", features = ["std"] }
 serde-xml-rs = "0.6.0"
 thiserror = "2.0.3"
 tokio = { version = "1.41.0", features = ["full"] }
+zstd-sys = "1.6.3+zstd.1.5.2"
