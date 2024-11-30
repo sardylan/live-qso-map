@@ -31,11 +31,17 @@ jobs:
     steps:
       - checkout
       - run: cargo build --release
+      - run: mv target/release/live-qso-map target/release/live_qso_map-linux-x86_64
+      - store_artifacts:
+          path: target/release/live_qso_map-linux-x86_64
   build-linux-aarch64:
     executor: linux-aarch64
     steps:
       - checkout
       - run: cargo build --release
+      - run: mv target/release/live-qso-map target/release/live_qso_map-linux-aarch64
+      - store_artifacts:
+          path: target/release/live_qso_map-linux-aarch64
   build-macos:
     executor: macos
     steps:
@@ -43,6 +49,9 @@ jobs:
       - run: curl -o rustup https://sh.rustup.rs
       - run: bash rustup -y
       - run: cargo build --release
+      - run: mv target/release/live-qso-map target/release/live_qso_map-macos
+      - store_artifacts:
+          path: target/release/live_qso_map-macos
   build-windows-x64:
     executor: win/server-2022
     steps:
@@ -51,6 +60,9 @@ jobs:
       - run: bash rustup -y
       - run: rustup default stable-x86_64-pc-windows-msvc
       - run: cargo build --release
+      - run: mv target/release/live-qso-map target/release/live_qso_map-windows-x64
+      - store_artifacts:
+          path: target/release/live_qso_map-windows-x64
 
 workflows:
   test_and_build:
