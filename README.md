@@ -1,5 +1,7 @@
 # live-qso-map
 
+[![CircleCI](https://dl.circleci.com/status-badge/img/gh/sardylan/live-qso-map/tree/main.svg?style=shield)](https://dl.circleci.com/status-badge/redirect/gh/sardylan/live-qso-map/tree/main)
+
 Small tool for displaying QSO in world map in real time
 
 ## Usage
