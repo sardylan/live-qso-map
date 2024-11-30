@@ -32,16 +32,20 @@ jobs:
       - checkout
       - run: cargo build --release
       - run: mv target/release/live-qso-map target/release/live_qso_map-linux-x86_64
-      - store_artifacts:
-          path: target/release/live_qso_map-linux-x86_64
+      - persist_to_workspace:
+          root: target/release
+          paths:
+            - live_qso_map-linux-x86_64
   build-linux-aarch64:
     executor: linux-aarch64
     steps:
       - checkout
       - run: cargo build --release
       - run: mv target/release/live-qso-map target/release/live_qso_map-linux-aarch64
-      - store_artifacts:
-          path: target/release/live_qso_map-linux-aarch64
+      - persist_to_workspace:
+          root: target/release
+          paths:
+            - live_qso_map-linux-aarch64
   build-macos:
     executor: macos
     steps:
@@ -50,8 +54,10 @@ jobs:
       - run: bash rustup -y
       - run: cargo build --release
       - run: mv target/release/live-qso-map target/release/live_qso_map-macos
-      - store_artifacts:
-          path: target/release/live_qso_map-macos
+      - persist_to_workspace:
+          root: target/release
+          paths:
+            - live_qso_map-macos
   build-windows-x64:
     executor: win/server-2022
     steps:
@@ -60,8 +66,17 @@ jobs:
       - run: bash rustup -y
       - run: cargo build --release --target=x86_64-pc-windows-msvc
       - run: mv target/release/live-qso-map target/release/live_qso_map-windows-x64
+      - persist_to_workspace:
+          root: target/release
+          paths:
+            - live_qso_map-windows-x64
+  store-artifacts:
+    executor: default
+    steps:
+      - attach_workspace:
+          at: /workspace
       - store_artifacts:
-          path: target/release/live_qso_map-windows-x64
+          path: /workspace
 
 workflows:
   test_and_build:
@@ -73,29 +88,30 @@ workflows:
           filters:
             tags:
               only: /^v*/
-            branches:
-              ignore: /.*/
       - build-linux-aarch64:
           requires:
             - test
           filters:
             tags:
               only: /^v*/
-            branches:
-              ignore: /.*/
       - build-macos:
           requires:
             - test
           filters:
             tags:
               only: /^v*/
-            branches:
-              ignore: /.*/
       - build-windows-x64:
           requires:
             - test
           filters:
             tags:
               only: /^v*/
-            branches:
-              ignore: /.*/
+      - store-artifacts:
+          requires:
+            - build-linux-x86_64
+            - build-linux-aarch64
+            - build-macos
+            - build-windows-x64
+          filters:
+            tags:
+              only: /^v*/
