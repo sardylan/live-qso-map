@@ -58,8 +58,7 @@ jobs:
       - checkout
       - run: curl -o rustup https://sh.rustup.rs
       - run: bash rustup -y
-      - run: rustup default stable-x86_64-pc-windows-msvc
-      - run: cargo build --release
+      - run: cargo build --release --target=x86_64-pc-windows-msvc
       - run: mv target/release/live-qso-map target/release/live_qso_map-windows-x64
       - store_artifacts:
           path: target/release/live_qso_map-windows-x64
@@ -71,12 +70,32 @@ workflows:
       - build-linux-x86_64:
           requires:
             - test
+          filters:
+            tags:
+              only: /^v*/
+            branches:
+              ignore: /.*/
       - build-linux-aarch64:
           requires:
             - test
+          filters:
+            tags:
+              only: /^v*/
+            branches:
+              ignore: /.*/
       - build-macos:
           requires:
             - test
+          filters:
+            tags:
+              only: /^v*/
+            branches:
+              ignore: /.*/
       - build-windows-x64:
           requires:
             - test
+          filters:
+            tags:
+              only: /^v*/
+            branches:
+              ignore: /.*/
