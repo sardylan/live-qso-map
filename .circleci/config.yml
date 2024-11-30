@@ -71,7 +71,7 @@ jobs:
           paths:
             - live_qso_map-windows-x64
   store-artifacts:
-    executor: default
+    executor: linux-x86_64
     steps:
       - attach_workspace:
           at: /workspace
