@@ -82,13 +82,16 @@ jobs:
 workflows:
   test_and_build:
     jobs:
-      - test
+      - test:
+          filters:
+            tags:
+              only: /^v\d+\.\d+\.\d+$/
       - build-linux-x86_64:
           requires:
             - test
           filters:
             tags:
-              only: /.*/
+              only: /^v\d+\.\d+\.\d+$/
             branches:
               ignore: /.*/
       - build-linux-aarch64:
@@ -96,7 +99,7 @@ workflows:
             - test
           filters:
             tags:
-              only: /.*/
+              only: /^v\d+\.\d+\.\d+$/
             branches:
               ignore: /.*/
       - build-macos:
@@ -104,7 +107,7 @@ workflows:
             - test
           filters:
             tags:
-              only: /.*/
+              only: /^v\d+\.\d+\.\d+$/
             branches:
               ignore: /.*/
       - build-windows-x64:
@@ -112,7 +115,7 @@ workflows:
             - test
           filters:
             tags:
-              only: /.*/
+              only: /^v\d+\.\d+\.\d+$/
             branches:
               ignore: /.*/
       - store-artifacts:
@@ -123,6 +126,6 @@ workflows:
             - build-windows-x64
           filters:
             tags:
-              only: /.*/
+              only: /^v\d+\.\d+\.\d+$/
             branches:
               ignore: /.*/
