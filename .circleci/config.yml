@@ -24,17 +24,25 @@ jobs:
     executor: linux-x86_64
     steps:
       - checkout
-      - run: cargo install cargo2junit
-      - run: mkdir -p test-results
-      - run: RUSTC_BOOTSTRAP="1" cargo test --no-fail-fast -- -Z unstable-options --format json --report-time | cargo2junit > test-results/test-results.xml
+      - run:
+          name: Prepare environment
+          command: |
+            cargo install cargo2junit
+            mkdir -p test-results
+      - run:
+          name: Executing tests
+          command: RUSTC_BOOTSTRAP="1" cargo test --no-fail-fast -- -Z unstable-options --format json --report-time | cargo2junit > test-results/test-results.xml
       - store_test_results:
           path: test-results
   build-linux-x86_64:
     executor: linux-x86_64
     steps:
       - checkout
-      - run: cargo build --release
-      - run: mv target/release/live-qso-map target/release/live_qso_map-linux-x86_64
+      - run:
+          name: Build
+          command: |
+            cargo build --release
+            mv target/release/live-qso-map target/release/live_qso_map-linux-x86_64
       - persist_to_workspace:
           root: target/release
           paths:
@@ -43,8 +51,11 @@ jobs:
     executor: linux-aarch64
     steps:
       - checkout
-      - run: cargo build --release
-      - run: mv target/release/live-qso-map target/release/live_qso_map-linux-aarch64
+      - run:
+          name: Build
+          command: |
+            cargo build --release
+            mv target/release/live-qso-map target/release/live_qso_map-linux-aarch64
       - persist_to_workspace:
           root: target/release
           paths:
@@ -53,10 +64,16 @@ jobs:
     executor: macos
     steps:
       - checkout
-      - run: curl -o rustup https://sh.rustup.rs
-      - run: bash rustup -y
-      - run: cargo build --release
-      - run: mv target/release/live-qso-map target/release/live_qso_map-macos
+      - run:
+          name: Install Rust
+          command: |
+            curl -o rustup https://sh.rustup.rs
+            bash rustup -y
+      - run:
+          name: Build
+          command: |
+            cargo build --release
+            mv target/release/live-qso-map target/release/live_qso_map-macos
       - persist_to_workspace:
           root: target/release
           paths:
@@ -65,11 +82,21 @@ jobs:
     executor: win/server-2022
     steps:
       - checkout
-      - run: curl -o rustup https://sh.rustup.rs
-      - run: bash rustup -y
-      - run: rustup target add x86_64-pc-windows-msvc
-      - run: cargo build --release --target=x86_64-pc-windows-msvc
-      - run: mv target/release/live-qso-map target/release/live_qso_map-windows-x64
+      - run:
+          name: Install Rust
+          command: |
+            curl -o rustup https://sh.rustup.rs
+            bash rustup -y
+      - run:
+          name: Configure Rust
+          command: |
+            rustup target add x86_64-pc-windows-msvc
+            rustup toolchain install stable
+      - run:
+          name: Build
+          command: |
+            cargo build --release --target=x86_64-pc-windows-msvc
+            mv target/release/live-qso-map target/release/live_qso_map-windows-x64
       - persist_to_workspace:
           root: target/release
           paths:
