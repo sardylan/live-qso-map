@@ -64,6 +64,7 @@ jobs:
       - checkout
       - run: curl -o rustup https://sh.rustup.rs
       - run: bash rustup -y
+      - run: rustup target add x86_64-pc-windows-msvc
       - run: cargo build --release --target=x86_64-pc-windows-msvc
       - run: mv target/release/live-qso-map target/release/live_qso_map-windows-x64
       - persist_to_workspace:
