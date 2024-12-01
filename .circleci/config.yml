@@ -88,7 +88,7 @@ workflows:
             - test
           filters:
             tags:
-              only: /^v\d+\.\d+\.\d+$/
+              only: /.*/
             branches:
               ignore: /.*/
       - build-linux-aarch64:
@@ -96,7 +96,7 @@ workflows:
             - test
           filters:
             tags:
-              only: /^v\d+\.\d+\.\d+$/
+              only: /.*/
             branches:
               ignore: /.*/
       - build-macos:
@@ -104,7 +104,7 @@ workflows:
             - test
           filters:
             tags:
-              only: /^v\d+\.\d+\.\d+$/
+              only: /.*/
             branches:
               ignore: /.*/
       - build-windows-x64:
@@ -112,7 +112,7 @@ workflows:
             - test
           filters:
             tags:
-              only: /^v\d+\.\d+\.\d+$/
+              only: /.*/
             branches:
               ignore: /.*/
       - store-artifacts:
@@ -123,6 +123,6 @@ workflows:
             - build-windows-x64
           filters:
             tags:
-              only: /^v\d+\.\d+\.\d+$/
+              only: /.*/
             branches:
               ignore: /.*/
