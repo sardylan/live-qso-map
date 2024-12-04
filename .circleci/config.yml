@@ -79,7 +79,7 @@ jobs:
           paths:
             - live_qso_map-macos
   build-windows-x64:
-    executor: win/server-2019
+    executor: win/server-2022
     steps:
       - checkout
       - run:
@@ -87,11 +87,7 @@ jobs:
           command: |
             curl -o rustup https://sh.rustup.rs
             bash rustup -y
-      - run:
-          name: Configure Rust
-          command: |
             rustup target add x86_64-pc-windows-msvc
-            rustup toolchain install stable
       - run:
           name: Build
           command: |
