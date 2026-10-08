@@ -205,12 +205,17 @@ and what else was considered.
 
 ## R14. Configuration (FR-032, FR-033)
 
-- **Decision**: `clap` 4 with `derive` and `env`. Every option has a long flag and a `LQM_*` environment
-  variable, and clap's own precedence gives command line over environment. Values from the TOML file
-  (`--config`/`LQM_CONFIG`, read with `serde` and `toml`) fill whatever both left unset. Built-in
-  defaults come last. Lists use repeatable flags or comma-separated environment values, for example
-  `--band-color 20m=#1f77b4` or `LQM_BAND_COLORS="20m=#1f77b4,40m=#ff7f0e"`.
+- **Decision** (revised in T023): `clap` 4 with `derive` only. `Config::load` reads every `LQM_*`
+  variable through an injected lookup function, applying command line, then environment, then the
+  TOML file (`--config`/`LQM_CONFIG`, read with `serde` and `toml`), then built-in defaults. Lists use
+  repeatable flags or comma-separated environment values, for example `--band-color 20m=#1f77b4` or
+  `LQM_BAND_COLORS="20m=#1f77b4,40m=#ff7f0e"`.
+- **Why not clap's `env` feature**: clap reads the process environment directly, so tests could only
+  exercise precedence by mutating it, and `std::env::set_var` is `unsafe` in edition 2024, which
+  `#![forbid(unsafe_code)]` rules out. The help text still names each variable.
 - **Alternatives**: `figment` or `config-rs`, which bring more layers and dependencies than needed.
+
+---
 
 ## R15. Frontend (owner decision)
 

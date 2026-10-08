@@ -79,7 +79,7 @@ UDP ──► ingest (detect → parse → normalise → station defaults → id
 | `reqwest` (rustls only, no default features) | HTTPS client for QRZ.com, HamQTH, QRZCQ and the cty.dat download, with timeouts | `ureq` is blocking (`spawn_blocking` per lookup); hyper-util client needs much more code; std has no HTTP |
 | `rustls` (ring, std, tls12; no default features) | selects the `ring` crypto provider for reqwest (`rustls-no-provider`), installed once at startup | reqwest's default `rustls` feature pulls `aws-lc-rs`, which needs cmake and a C toolchain to cross-compile to musl/armv7 (R17) |
 | `quick-xml` | parse QARTest messages and provider XML responses | hand-written scanning is fragile (entities, CDATA); `roxmltree` builds a DOM that is not needed |
-| `clap` (derive, env) | command line plus `LQM_*` environment with built-in precedence (FR-032) | hand-rolled argv/env parsing: error-prone, no help text |
+| `clap` (derive) | command-line parsing; `LQM_*` environment is read by `Config::load` through an injectable lookup (R14) | hand-rolled argv/env parsing: error-prone, no help text |
 | `serde` (derive) | deserialise the TOML file; serialise the WebSocket JSON | none practical |
 | `toml` | configuration file format (FR-032) | none in std |
 | `serde_json` | WebSocket protocol encoding | hand-written JSON: error-prone |

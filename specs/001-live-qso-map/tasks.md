@@ -81,14 +81,14 @@ position, identity, history, the WebSocket view type and the pipeline wiring.
 
 ### Tests first (write, run, confirm they FAIL)
 
-- [ ] T005 [P] Write unit tests in `src/errors.rs` (`docs/rust-guidelines.md` §1.6):
+- [X] T005 [P] Write unit tests in `src/errors.rs` (`docs/rust-guidelines.md` §1.6):
   - `Display` is not empty for every variant;
   - `From<std::io::Error>`, `From<toml::de::Error>`, `From<quick_xml::Error>`,
     `From<reqwest::Error>`, `From<serde_json::Error>` and `From<tokio::task::JoinError>` produce the
     matching variants;
   - `Error` implements `std::error::Error`, and `source()` returns the wrapped error for every
     variant that wraps one (`docs/rust-guidelines.md` §1.6).
-- [ ] T006 [P] Write unit tests in `src/adif/parse.rs` for the R6 parser:
+- [X] T006 [P] Write unit tests in `src/adif/parse.rs` for the R6 parser:
   - one record;
   - a header before `<EOH>`, which is skipped;
   - three records in one datagram give three records (FR-003);
@@ -100,18 +100,18 @@ position, identity, history, the WebSocket view type and the pipeline wiring.
   - a malformed record (non-numeric length, length past the end of the input) is skipped and the
     records before and after it are still returned, with errors reported per record;
   - empty input gives zero records.
-- [ ] T007 [P] Write unit tests in `src/adif/write.rs`:
+- [X] T007 [P] Write unit tests in `src/adif/write.rs`:
   - writing then parsing a record returns the same fields;
   - the output length uses bytes;
   - `format_lat(39.3125)` returns `N039 18.750`, and `format_lon(-122.08)` returns `W122 04.800`;
   - `parse_lat`/`parse_lon` reverse them, and reject out-of-range or malformed text.
-- [ ] T008 [P] Write unit tests in `src/band.rs`:
+- [X] T008 [P] Write unit tests in `src/band.rs`:
   - `band_from_mhz(7.0)` is `40m`, `14.2` is `20m`, `144.3` is `2m`, `432.1` is `70cm`, `50.1` is `6m`;
   - band edges are inclusive (`7.3` is `40m`);
   - `band_from_mhz(5.0)` is `None` (outside every ADIF band);
   - `band_from_metres("40")` is `40m` and `"2"` is `2m`;
   - `is_adif_band("20m")` is true and `"21m"` is false.
-- [ ] T009 [P] Write unit tests in `src/maidenhead.rs`:
+- [X] T009 [P] Write unit tests in `src/maidenhead.rs`:
   - `JM49NH` gives a centre of about (39.3125, 9.125);
   - `FN42` gives the centre (42.5, -71.0);
   - lowercase is accepted;
@@ -120,13 +120,13 @@ position, identity, history, the WebSocket view type and the pipeline wiring.
   - characters out of range (`SS00`, `JM4X`) are invalid;
   - `to_locator6(39.3125, 9.125)` returns `JM49NH`;
   - `precision_of("JM49")` is `Locator4`, and `"JM49NH"` or `"JM49NH52"` is `Locator6`.
-- [ ] T010 [P] Write unit tests in `src/position.rs`:
+- [X] T010 [P] Write unit tests in `src/position.rs`:
   - `Precision` ordering is `Country < Locator4 < Locator6 < Coordinates`;
   - `Position::new` returns `Err(Error::InvalidPosition { .. })` for a latitude outside ±90 or a
     longitude outside ±180;
   - `as_str` and serde give `coordinates`, `locator6`, `locator4` and `country`;
   - `PositionSource` strings are `logger`, `qrz`, `hamqth`, `qrzcq`, `cty` and `config`.
-- [ ] T011 [P] Write unit tests in `src/ingest/identity.rs` (data-model "Identity"):
+- [X] T011 [P] Write unit tests in `src/ingest/identity.rs` (data-model "Identity"):
   - with a logger id, the canonical form is `L|IS0MZK|3809734F4`;
   - without one, the composite form is `C|IS0MZK|DL5QFN|40M|SSB|20261008|1504` (time truncated to
     `HHMM`);
@@ -134,7 +134,7 @@ position, identity, history, the WebSocket view type and the pipeline wiring.
   - `station_call` falls back from `STATION_CALLSIGN` to the configured default, then to empty;
     a different `OPERATOR` value does not change the identity;
   - a missing `BAND` or `MODE` becomes an empty component.
-- [ ] T012 [P] Write unit tests in `src/history.rs` (data-model "History"):
+- [X] T012 [P] Write unit tests in `src/history.rs` (data-model "History"):
   - `upsert` of a new id is `Accepted`;
   - the same id with a higher `rev` is `Accepted`, and the stored `sort_key` is unchanged even when
     TIME_ON changed (FR-028);
@@ -143,7 +143,7 @@ position, identity, history, the WebSocket view type and the pipeline wiring.
   - with capacity 3, a 4th insert evicts the oldest `sort_key`;
   - capacity 0 never evicts;
   - `len()` works.
-- [ ] T013 [P] Write unit tests in `src/config.rs` for precedence and validation (contracts/configuration.md):
+- [X] T013 [P] Write unit tests in `src/config.rs` for precedence and validation (contracts/configuration.md):
   - the defaults match the table;
   - a TOML value is used when neither the CLI nor the environment sets it;
   - an environment value overrides TOML;
@@ -156,7 +156,7 @@ position, identity, history, the WebSocket view type and the pipeline wiring.
   - `Debug` of the config never contains a password (redacted newtype).
 
   Use `Cli::try_parse_from` and an injected env map, not the process environment.
-- [ ] T014 [P] Write unit tests in `src/web/protocol.rs` (contracts/websocket-protocol.md):
+- [X] T014 [P] Write unit tests in `src/web/protocol.rs` (contracts/websocket-protocol.md):
   - `hello` serialises with `type`, `protocol=1`, `limits=[10,20,50,100,200,500,null]`,
     `default_limit=20`, `bands`, `fallback_color` and `tiles`;
   - `snapshot` and `upsert` match the contract shape;
@@ -167,7 +167,7 @@ position, identity, history, the WebSocket view type and the pipeline wiring.
 
 ### Implementation
 
-- [ ] T015 Implement `src/errors.rs` following `docs/rust-guidelines.md` §1 (no error-handling crates). Define an `enum Error`:
+- [X] T015 Implement `src/errors.rs` following `docs/rust-guidelines.md` §1 (no error-handling crates). Define an `enum Error`:
   - wrapping variants that keep the original error for `source()`: `Io(std::io::Error)`,
     `Toml(toml::de::Error)`, `Xml(quick_xml::Error)`, `Http(reqwest::Error)`,
     `Json(serde_json::Error)`, `Task(tokio::task::JoinError)`;
@@ -176,14 +176,14 @@ position, identity, history, the WebSocket view type and the pipeline wiring.
     `Provider { provider: &'static str, message: String }`, `InvalidPosition { lat: f64, lon: f64 }`.
 
   Hand-write `impl Display`, `impl std::error::Error` with `source()`, and a `From` impl per wrapping variant. Declare `pub type Result<T> = std::result::Result<T, Error>;`. Every module imports `use crate::errors::{Error, Result};`. T005 must pass.
-- [ ] T016 Implement `AdifRecord` in `src/adif/mod.rs`: an ordered map from uppercase name to value, with `get`, `set_if_absent` (FR-017: never overwrite), `set`, `iter` and `fields_sorted`. Then implement `parse_datagram(&[u8]) -> (Vec<AdifRecord>, Vec<Error>)` in `src/adif/parse.rs`, recovering per record. T006 must pass.
-- [ ] T017 [P] Implement `src/adif/write.rs`: `to_adif_string(&AdifRecord)`, `format_lat`/`format_lon` (ADIF `XDDD MM.MMM`) and `parse_lat`/`parse_lon`. T007 must pass.
-- [ ] T018 [P] Implement `src/band.rs`: the static ADIF 3.1 band table (2190m to submm) with lower and upper limits in MHz, `band_from_mhz`, `band_from_metres` and `is_adif_band`. T008 must pass.
-- [ ] T019 [P] Implement `src/maidenhead.rs`: `centre(&str) -> Option<(f64, f64)>` for 4, 6 and 8 characters, `precision_of`, `to_locator6` and `is_valid` (R10). T009 must pass.
-- [ ] T020 [P] Implement `src/position.rs`: `Precision` (Ord, Serialize as lowercase), `PositionSource`, and `Position { lat, lon, precision, source }` with a validating constructor. Also define `LookupCandidate { source: PositionSource, position: Option<Position>, fields: AdifRecord }` here (data-model "LookupCandidate"), because both the Foundational pipeline (T025) and US2 use it. T010 must pass.
-- [ ] T021 [P] Implement `src/ingest/identity.rs`: `enum Identity { Logger{..}, Composite{..} }`, `Identity::from_record(&AdifRecord, logger_id: Option<&str>, default_station: Option<&str>)` and `canonical() -> String`. Add `pub mod identity;` to `src/ingest/mod.rs`. T011 must pass.
-- [ ] T022 Implement `EnrichedQso` and `History` in `src/history.rs`, with rev-checked `upsert`, a stable `sort_key`, eviction, `latest` and `len` (data-model "History"). The `sort_key` timestamp is parsed from `QSO_DATE` and `TIME_ON` into a UTC unix-seconds `i64` without extra crates. T012 must pass.
-- [ ] T023 Implement `src/config.rs`:
+- [X] T016 Implement `AdifRecord` in `src/adif/mod.rs`: an ordered map from uppercase name to value, with `get`, `set_if_absent` (FR-017: never overwrite), `set`, `iter` and `fields_sorted`. Then implement `parse_datagram(&[u8]) -> (Vec<AdifRecord>, Vec<Error>)` in `src/adif/parse.rs`, recovering per record. T006 must pass.
+- [X] T017 [P] Implement `src/adif/write.rs`: `to_adif_string(&AdifRecord)`, `format_lat`/`format_lon` (ADIF `XDDD MM.MMM`) and `parse_lat`/`parse_lon`. T007 must pass.
+- [X] T018 [P] Implement `src/band.rs`: the static ADIF 3.1 band table (2190m to submm) with lower and upper limits in MHz, `band_from_mhz`, `band_from_metres` and `is_adif_band`. T008 must pass.
+- [X] T019 [P] Implement `src/maidenhead.rs`: `centre(&str) -> Option<(f64, f64)>` for 4, 6 and 8 characters, `precision_of`, `to_locator6` and `is_valid` (R10). T009 must pass.
+- [X] T020 [P] Implement `src/position.rs`: `Precision` (Ord, Serialize as lowercase), `PositionSource`, and `Position { lat, lon, precision, source }` with a validating constructor. Also define `LookupCandidate { source: PositionSource, position: Option<Position>, fields: AdifRecord }` here (data-model "LookupCandidate"), because both the Foundational pipeline (T025) and US2 use it. T010 must pass.
+- [X] T021 [P] Implement `src/ingest/identity.rs`: `enum Identity { Logger{..}, Composite{..} }`, `Identity::from_record(&AdifRecord, logger_id: Option<&str>, default_station: Option<&str>)` and `canonical() -> String`. Add `pub mod identity;` to `src/ingest/mod.rs`. T011 must pass.
+- [X] T022 Implement `EnrichedQso` and `History` in `src/history.rs`, with rev-checked `upsert`, a stable `sort_key`, eviction, `latest` and `len` (data-model "History"). The `sort_key` timestamp is parsed from `QSO_DATE` and `TIME_ON` into a UTC unix-seconds `i64` without extra crates. T012 must pass.
+- [X] T023 Implement `src/config.rs`:
   - a clap `Cli` struct whose flags and env vars follow the contracts/configuration.md table, all
     `Option`;
   - a serde `FileConfig` struct;
@@ -195,8 +195,8 @@ position, identity, history, the WebSocket view type and the pipeline wiring.
     `6m #637939`, `2m #843c39`, `70cm #7b4173`).
 
   T013 must pass.
-- [ ] T024 Implement `src/web/protocol.rs`: the `ServerMessage` enum (`Hello`, `Snapshot`, `Upsert`) and `ClientMessage` (`SetLimit`, `Unknown`), with serde `tag = "type"` and `rename_all = "snake_case"`, plus `QsoView` and `From<&EnrichedQso>`. T014 must pass.
-- [ ] T025 Implement the skeleton of `src/pipeline.rs`:
+- [X] T024 Implement `src/web/protocol.rs`: the `ServerMessage` enum (`Hello`, `Snapshot`, `Upsert`) and `ClientMessage` (`SetLimit`, `Unknown`), with serde `tag = "type"` and `rename_all = "snake_case"`, plus `QsoView` and `From<&EnrichedQso>`. T014 must pass.
+- [X] T025 Implement the skeleton of `src/pipeline.rs`:
   - `pub struct Pipeline` holding `Arc<Mutex<History>>`, a `broadcast::Sender<HistoryChange>` (capacity
     `broadcast_queue`) and an `async_channel` for `QsoEvent` (capacity `ingest_queue`);
   - `HistoryChange::Upsert(Arc<EnrichedQso>)`;
@@ -218,7 +218,7 @@ position, identity, history, the WebSocket view type and the pipeline wiring.
 
   Write these unit tests in `src/pipeline.rs` first: `publish` of a stale rev sends nothing; `start`
   with ports 0 returns non-zero addresses; `shutdown` completes within 1 s.
-- [ ] T026 Run `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings` and `cargo test` over the crate (`Cargo.toml`, `src/`). All must pass before Phase 3.
+- [X] T026 Run `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings` and `cargo test` over the crate (`Cargo.toml`, `src/`). All must pass before Phase 3.
 
 **Checkpoint**: the foundation is ready and the user story phases can begin.
 
