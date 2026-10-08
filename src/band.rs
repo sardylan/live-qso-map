@@ -37,6 +37,17 @@ const BANDS: &[(&str, f64, f64)] = &[
     ("submm", 300000.0, 7500000.0),
 ];
 
+/// Every ADIF band name, in frequency order.
+pub const BANDS_IN_ORDER: [&str; BANDS.len()] = {
+    let mut names = [""; BANDS.len()];
+    let mut i = 0;
+    while i < BANDS.len() {
+        names[i] = BANDS[i].0;
+        i += 1;
+    }
+    names
+};
+
 pub fn band_from_mhz(mhz: f64) -> Option<&'static str> {
     BANDS
         .iter()

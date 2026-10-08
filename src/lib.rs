@@ -3,6 +3,7 @@
 
 pub mod adif;
 pub mod band;
+pub mod band_filter;
 pub mod config;
 pub mod enrich;
 pub mod errors;

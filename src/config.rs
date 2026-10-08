@@ -12,6 +12,7 @@ use clap::Parser;
 use serde::{Deserialize, Serialize};
 
 use crate::band::canonical_band;
+use crate::band_filter::{BandSet, parse_setting};
 use crate::errors::{Error, Result};
 use crate::maidenhead;
 
@@ -135,6 +136,10 @@ pub struct Cli {
     /// BAND=#RRGGBB, repeatable [env: LQM_BAND_COLORS, comma-separated]
     #[arg(long = "band-color")]
     pub band_color: Vec<String>,
+    /// Bands to consider: ADIF bands or groups (lf-mf, hf, hf-contest, warc, vhf, uhf, shf, ehf),
+    /// comma-separated or repeated; prefix with - to exclude [env: LQM_BANDS] [default: all]
+    #[arg(long = "bands")]
+    pub bands: Vec<String>,
 }
 
 /// A secret value whose `Debug` output is redacted.
@@ -272,6 +277,8 @@ pub struct Config {
     pub lookup: LookupConfig,
     pub country_data: CountryDataConfig,
     pub map: MapConfig,
+    /// Considered bands (feature 003); `None` means every band, no filter.
+    pub band_filter: Option<BandSet>,
 }
 
 impl Default for Config {
@@ -298,6 +305,7 @@ impl Default for Config {
                 url: "https://www.country-files.com/cty/cty.dat".into(),
                 max_age_days: 30,
             },
+            band_filter: None,
             map: MapConfig {
                 style_url: None,
                 style_attribution: None,
@@ -316,6 +324,7 @@ impl Default for Config {
 #[derive(Debug, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct FileConfig {
+    bands: Option<Vec<String>>,
     bind_address: Option<IpAddr>,
     udp_port: Option<u32>,
     http_port: Option<u32>,
@@ -816,6 +825,16 @@ impl Config {
             ));
         }
 
+        // A higher layer replaces the whole list (feature 003, research R4).
+        let band_entries: Vec<String> = if !cli.bands.is_empty() {
+            cli.bands.clone()
+        } else if let Some(raw) = env("LQM_BANDS") {
+            vec![raw]
+        } else {
+            file.bands.unwrap_or_default()
+        };
+        let band_filter = parse_setting(&band_entries)?;
+
         let config = Config {
             bind_address,
             udp_port,
@@ -835,6 +854,7 @@ impl Config {
             },
             country_data,
             map,
+            band_filter,
         };
         Ok((config, warnings))
     }
@@ -1237,6 +1257,54 @@ style_attribution = "file credit"
                 None,
             ),
             "map.tile_attribution",
+        );
+    }
+
+    // --- band selection (feature 003, T003) ---------------------------------------------------
+
+    fn band_names(c: &Config) -> Vec<&str> {
+        c.band_filter.as_ref().unwrap().bands().to_vec()
+    }
+
+    #[test]
+    fn band_filter_defaults_to_none() {
+        let (c, _) = load(&[], &[], None).unwrap();
+        assert_eq!(c.band_filter, None);
+        let (c, _) = load(&[], &[("LQM_BANDS", "")], None).unwrap();
+        assert_eq!(c.band_filter, None);
+    }
+
+    #[test]
+    fn band_filter_layers_replace_the_whole_list() {
+        let file = "bands = [\"hf-contest\"]\n";
+        let (c, _) = load(&[], &[], Some(file)).unwrap();
+        assert_eq!(band_names(&c), ["160m", "80m", "40m", "20m", "15m", "10m"]);
+
+        let (c, _) = load(&[], &[("LQM_BANDS", "hf,-60m")], Some(file)).unwrap();
+        assert_eq!(
+            band_names(&c),
+            [
+                "160m", "80m", "40m", "30m", "20m", "17m", "15m", "12m", "10m"
+            ]
+        );
+
+        let (c, _) = load(
+            &["--bands", "warc", "--bands", "2m"],
+            &[("LQM_BANDS", "hf")],
+            Some(file),
+        )
+        .unwrap();
+        assert_eq!(band_names(&c), ["30m", "17m", "12m", "2m"]);
+        let (c, _) = load(&["--bands", "warc,2m"], &[("LQM_BANDS", "hf")], Some(file)).unwrap();
+        assert_eq!(band_names(&c), ["30m", "17m", "12m", "2m"]);
+    }
+
+    #[test]
+    fn band_filter_errors() {
+        config_err(load(&["--bands", "hf-dx"], &[], None), "bands");
+        config_err(
+            load(&[], &[], Some("bands = [\"warc\", \"-warc\"]\n")),
+            "bands",
         );
     }
 }

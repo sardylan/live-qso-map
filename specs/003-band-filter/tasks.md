@@ -30,7 +30,7 @@ the frontend (Node via nvm: `~/.nvm/versions/node/v26.11.1/bin/node`).
 
 ## Phase 1: Setup
 
-- [ ] T001 Add `pub mod band_filter;` to `src/lib.rs` and create an empty `src/band_filter.rs` with a module doc comment (`//! Band selection: groups, exclusions and the effective band set (feature 003, research R1).`). `cargo build` must pass.
+- [X] T001 Add `pub mod band_filter;` to `src/lib.rs` and create an empty `src/band_filter.rs` with a module doc comment (`//! Band selection: groups, exclusions and the effective band set (feature 003, research R1).`). `cargo build` must pass.
 
 ---
 
@@ -41,7 +41,7 @@ story uses.
 
 ### Tests first (write, run, confirm they FAIL)
 
-- [ ] T002 [P] Write unit tests in `src/band_filter.rs`:
+- [X] T002 [P] Write unit tests in `src/band_filter.rs`:
   - **group table (SC-005)**: `GROUPS` contains exactly `lf-mf`, `hf`, `hf-contest`, `warc`, `vhf`,
     `uhf`, `shf`, `ehf`, with the members from data-model.md; every member is an ADIF band
     (`band::is_adif_band`); every group's members are strictly increasing by `band::band_rank`.
@@ -57,7 +57,7 @@ story uses.
     filter).
   - **behaviour**: `BandSet::contains` ignores case; `Display` is space-separated in frequency
     order; `BandSet::bands()` returns them in frequency order.
-- [ ] T003 [P] Extend the unit tests in `src/config.rs` (contracts/configuration.md, delta):
+- [X] T003 [P] Extend the unit tests in `src/config.rs` (contracts/configuration.md, delta):
   - the default `band_filter` is `None`;
   - TOML `bands = ["hf-contest"]` gives the 6 contest bands;
   - `LQM_BANDS="hf,-60m"` overrides TOML;
@@ -68,7 +68,7 @@ story uses.
 
 ### Implementation
 
-- [ ] T004 Implement `src/band_filter.rs` per data-model.md:
+- [X] T004 Implement `src/band_filter.rs` per data-model.md:
   - `pub const GROUPS: &[(&str, &[&str])]`;
   - `enum Target { Band(&'static str), Group(&'static str) }` and `struct SelectionEntry { exclude,
     target }`;
@@ -79,7 +79,7 @@ story uses.
 
   Every band name comes from `band::canonical_band` (canonical `&'static str`), and the result is
   sorted by `band_rank`. T002 must pass.
-- [ ] T005 Add the `bands` setting to `src/config.rs`:
+- [X] T005 Add the `bands` setting to `src/config.rs`:
   - `Cli.bands: Vec<String>` (`#[arg(long = "bands")]`, repeatable), with a help text naming
     `LQM_BANDS` and the groups;
   - `FileConfig.bands: Option<Vec<String>>`;
@@ -87,7 +87,7 @@ story uses.
   - `Config.band_filter: Option<BandSet>` (default `None`), filled with `band_filter::parse_setting`.
 
   T003 must pass.
-- [ ] T006 Run `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings` and `cargo test` over the crate (`Cargo.toml`, `src/`). All must pass.
+- [X] T006 Run `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings` and `cargo test` over the crate (`Cargo.toml`, `src/`). All must pass.
 
 **Checkpoint**: the selection model is ready.
 
