@@ -14,6 +14,7 @@ we deliberately gave up. Records the *why*, not just the *what*.
 | ID | Status | Title | Date |
 |----|--------|-------|------|
 | TR-001 | proposed | Drop identical resends before enrichment, order versions by revision | 2026-10-08 |
+| TR-002 | proposed | Removals continue the revision sequence and leave a tombstone | 2026-10-08 |
 | TR-003 | proposed | Pin MapLibre 5.24.0 instead of 6.x | 2026-10-08 |
 
 ## Decisions
@@ -56,6 +57,45 @@ In the context of uncached lookups and frequent logger resends, facing quota cos
 
 - Positive: Identical resends are free; corrections are deterministic regardless of worker count.
 - Negative / debt accepted: Gate and history must share the same capacity rule; extra state to test.
+
+## TR-002: Removals continue the revision sequence and leave a tombstone
+
+- Status: proposed
+- Date: 2026-10-08
+- Phase: plan
+- Deciders: project owner
+- Links: specs/002-band-filter/research.md#r3-drop-point-and-removal-when-a-correction-moves-onto-an-ignored-band
+<!-- key: 7ab95e3fb9a8 -->
+
+### Context & problem
+
+Feature 002 removes a QSO when a correction moves it onto an ignored band. With several enrichment workers, an older revision of the same QSO can still be in lookups when the removal arrives.
+
+### Decision drivers
+
+- A removed QSO must not reappear (FR-008, FR-012)
+- Removals must obey the same newest-wins rule as corrections
+- A correction back onto a considered band must reappear
+
+### Options considered
+
+| Option | Pros | Cons / what it sacrifices |
+|--------|------|---------------------------|
+| Continue the revision sequence + history tombstone (chosen) | stale in-flight revisions cannot resurrect a removed QSO; a later correction back has a higher rev and reappears | extra bounded tombstone state and one more rule in upsert |
+| Forget the QSO in gate and history | simplest | an older revision still being enriched can put the removed QSO back on the map |
+
+### Decision
+
+The gate assigns the removal the next rev; History::remove keeps a tombstone id→rev (capped like the history); upserts with rev <= tombstone are stale.
+
+### Y-statement
+
+In the context of removals racing parallel enrichment, facing stale revisions resurrecting removed QSOs, we decided for revision-numbered removals with tombstones, and neglected forgetting the QSO, to achieve consistent newest-wins semantics, accepting a bounded tombstone map.
+
+### Consequences
+
+- Positive: Removals and corrections share one ordering rule; works with any worker count.
+- Negative / debt accepted: Tombstones must be capped and tested; upsert gains a check.
 
 ## TR-003: Pin MapLibre 5.24.0 instead of 6.x
 
