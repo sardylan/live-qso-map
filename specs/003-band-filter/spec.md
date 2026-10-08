@@ -2,7 +2,7 @@
 
 **Feature Branch**: `003-band-filter`
 **Created**: 2026-10-09
-**Status**: Draft
+**Status**: Complete (2026-10-09). See `checklists/verification.md`.
 **Input**: User description: "Add a configuration for specify which bands have to be considered.
 Ignored bands must not appear in frontend and must be ignored in the whole backend pipeline."
 

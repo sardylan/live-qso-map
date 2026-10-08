@@ -31,8 +31,7 @@
 | `--bands hf,2m,-60m`: startup log | ✅ `bands considered: 160m 80m 40m 30m 20m 17m 15m 12m 10m 2m` |
 | `--bands hf-dx`, `--bands warc,-warc` | ✅ exit 1 with the documented messages |
 
-## Pending manual check (needs a browser)
+## Browser check
 
-- **T028**: open a marker's popup, then send the QARTest correction onto 60m (quickstart §4). The
-  popup closes and the marker disappears. The decision (`popupToClose`) is unit-tested; the glue
-  needs a visual check.
+- **T028**: the owner tested in a browser on 2026-10-09 and reported it working: the popup closes and
+  the marker disappears when the QSO is corrected onto an ignored band.
