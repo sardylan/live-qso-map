@@ -110,7 +110,7 @@ pages. The legend lists only considered bands, in frequency order.
     band or an out-of-band frequency is not (unknown band while a filter is active);
   - `FREQ=14.025` with no `BAND` is allowed once `normalise` has derived the band (HR-3);
   - `events_from_datagram` with the filter returns no event for a 2m ADIF record.
-- [ ] T008 [P] [US1] Extend the unit tests in `src/web/protocol.rs`: `ServerMessage::hello(&map, Some(&hf_contest))`, with a palette holding 160m, 60m, 20m and 2m, sends `bands` = `[160m, 20m]` in that order; `hello(&map, None)` keeps all four, in frequency order.
+- [ ] T008 [P] [US1] Extend the unit tests in `src/web/protocol.rs`: `ServerMessage::hello(&map, Some(&hf_contest))`, with a palette holding 160m, 60m, 20m and 2m, sends `bands` = `[160m, 20m]` in that order; `hello(&map, None)` keeps all four, in frequency order. Both calls MUST still serialise `"protocol": 2` and the same `basemap` as `hello(&map)` did before (feature 002); only `bands` is filtered.
 - [ ] T009 [P] [US1] Write integration test `tests/band_filter.rs::only_considered_bands_reach_the_map`:
   - start the service with `test_config()`, `band_filter = hf-contest` and a counting lookup source
     (as in `tests/resend_gate.rs`);
@@ -130,7 +130,7 @@ pages. The legend lists only considered bands, in frequency order.
 
   Pass `config.band_filter.clone()` from `pipeline::spawn_tasks` in `src/pipeline.rs`. T007 must
   pass.
-- [ ] T011 [US1] In `src/web/protocol.rs`, change `ServerMessage::hello(map)` to `hello(map, filter: Option<&BandSet>)`, keeping only palette bands that `filter` contains (all when `None`), still sorted by `band_rank`. Pass the filter through `web::serve` (`src/web/mod.rs`) and `Session::on_connect` (`src/web/session.rs`), and update the existing callers and tests. T008 must pass.
+- [ ] T011 [US1] In `src/web/protocol.rs`, change `ServerMessage::hello(map)` to `hello(map, filter: Option<&BandSet>)`, keeping only palette bands that `filter` contains (all when `None`), still sorted by `band_rank`. Pass the filter through `web::serve` (`src/web/mod.rs`) and `Session::on_connect` (`src/web/session.rs`), and update the existing callers and tests. T008 must pass. Keep the `protocol` (2) and `basemap` fields from feature 002 unchanged; only `bands` is filtered.
 - [ ] T012 [US1] Run `cargo test --test band_filter` and confirm T009 passes. Then run quickstart §2 with the real binary.
 
 **Checkpoint**: User Story 1 works on its own.
@@ -183,6 +183,13 @@ onto a considered band shows it again.
     `remove`);
   - `applyRemove` of an unknown id changes nothing;
   - after `applyRemove`, an upsert with the same id and any rev is added as new.
+
+  Also extend `web/view.test.js` for `popupToClose(openKey, diff)` (FR-012):
+  - `false` when no popup is open (`openKey` null);
+  - `true` when `openKey` is in `diff.remove`;
+  - `false` when `openKey` is only in `diff.update`, because the glue refreshes the content
+    instead;
+  - `false` when `openKey` is not in the diff.
 - [ ] T021 [P] [US3] Write integration test `tests/band_filter.rs::correction_onto_ignored_band_removes_the_qso`:
   - filter `hf-contest`, with the country-data fixture as the only source;
   - send a QARTest `contactinfo` (adapt packet #3, K6QA, `<txfreq>1402500</txfreq>`, 20m) and expect
@@ -205,8 +212,15 @@ onto a considered band shows it again.
   - otherwise drop silently (debug log).
 
   `ingest::run` needs a `Pipeline` handle; pass it from `spawn_tasks`. T021 must pass.
-- [ ] T027 [P] [US3] Implement `applyRemove(state, id)` in `src/web/assets/map-state.js`. T020 must pass.
-- [ ] T028 [US3] Handle `{"type":"remove"}` in `src/web/assets/app.js`: call `applyRemove`, then `render()`. Glue only.
+- [ ] T027 [P] [US3] Implement `applyRemove(state, id)` in `src/web/assets/map-state.js` and `popupToClose(openKey, diff)` in `src/web/assets/view.js`. T020 must pass.
+- [ ] T028 [US3] Handle `{"type":"remove"}` in `src/web/assets/app.js`. Glue only.
+  - Call `applyRemove(state, message.id)`, then `render()`. In the MapLibre page, `render()` already
+    computes `diffLayers(current, next)`, and `shouldRender` lets `setData` update both the
+    `qso-markers` and `qso-lines` sources, so the marker and line disappear.
+  - Track the open popup and its marker key. In `render()`, close it when `popupToClose(openKey,
+    diff)` is true, and refresh its content (`setDOMContent`) when the key is in `diff.update`
+    (FR-012: a removed QSO must not stay visible in an open popup).
+  - Check by hand: open a popup, send the correction onto 60m, and the popup closes.
 
 **Checkpoint**: all user stories work on their own.
 
@@ -228,7 +242,7 @@ onto a considered band shows it again.
     `specs/001-live-qso-map/contracts/configuration.md`.
 
   Every band list must be in frequency order (HR-2).
-- [ ] T031 [P] Add a note on the `remove` message to `specs/001-live-qso-map/contracts/websocket-protocol.md`, pointing to `specs/003-band-filter/contracts/websocket-protocol.md`.
+- [ ] T031 [P] Add a note on the `remove` message, pointing to `specs/003-band-filter/contracts/websocket-protocol.md`, to both `specs/002-maplibre/contracts/websocket-protocol.md` (the current protocol 2 delta) and `specs/001-live-qso-map/contracts/websocket-protocol.md`.
 - [ ] T032 Run the complete quality gates: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test`, `node --test web/`. Then run quickstart §1–§4 and record SC-001 to SC-005 in `specs/003-band-filter/checklists/verification.md`.
 
 ---

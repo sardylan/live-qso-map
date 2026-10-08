@@ -1,6 +1,6 @@
 # Contract: WebSocket Protocol (delta to feature 001)
 
-`protocol` stays `1`: pages built for feature 001 already ignore unknown message types. Everything
+`protocol` stays `2` (set by feature 002): pages already ignore unknown message types. Everything
 else in `specs/001-live-qso-map/contracts/websocket-protocol.md` is unchanged.
 
 ## `hello`: band list

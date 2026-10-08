@@ -67,7 +67,8 @@ records the design decisions that follow from the spec and from feature 001's ar
 
 ## R5. Legend and colours (FR-010)
 
-- **Decision**: `ServerMessage::hello(map, filter)` sends only palette entries whose band is in the
+- **Decision**: `ServerMessage::hello(map, filter)` keeps feature 002's `protocol` (2) and
+  `basemap` unchanged and sends only palette entries whose band is in the
   effective set, still in frequency order (`bands_in_order`). Colours configured for ignored bands
   stay in `Config` (accepted, the confirmed default) and are never sent. A considered band without a
   palette entry is not listed in the legend and draws in the fallback colour, as in feature 001.
@@ -77,7 +78,11 @@ records the design decisions that follow from the spec and from feature 001's ar
 - **Decision**: a new server message, `{"type":"remove","id":"…"}`. The page applies it with
   `applyRemove(state, id)` in `map-state.js` (pure, tested), then `diffLayers` as usual. Removals
   are not tied to the page's window: a page that never showed the QSO ignores them. The protocol
-  version stays 1, because pages already ignore unknown message types (feature 001 contract).
+  version stays 2 (set by feature 002), because pages already ignore unknown message types.
+- **Open popups** (analyze C1): on the MapLibre page (feature 002), popups are static snapshots. When
+  a removal deletes the marker whose popup is open, the page closes the popup, and it refreshes the
+  content when that marker changes. The decision is the pure `view.js::popupToClose(openKey, diff)`,
+  so a removed QSO never stays on screen (FR-012).
 - **Snapshots**: they are built from the history, so a removed QSO is absent from them.
 
 ## R7. Dependencies

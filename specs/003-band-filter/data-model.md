@@ -72,3 +72,6 @@ HistoryChange = Upsert(Arc<EnrichedQso>) | Remove { id: String }
 
 `applyRemove(state, id)` deletes the QSO from `state.qsos`. A later upsert with the same id is
 treated as new, regardless of `rev`, because the page no longer holds it.
+
+`popupToClose(openKey, diff)` in `view.js`: `true` when the marker of the open popup is in
+`diff.remove`. When it is in `diff.update`, the glue refreshes the popup content instead (FR-012).

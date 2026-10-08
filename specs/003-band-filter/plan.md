@@ -88,9 +88,10 @@ src/
 │   └── mod.rs           # + band check after normalise; removal via Pipeline::remove               [tests]
 ├── pipeline.rs          # + HistoryChange::Remove, Pipeline::remove, startup log of effective set  [tests]
 └── web/
-    ├── protocol.rs      # + ServerMessage::Remove; hello(map, filter) filters bands                 [tests]
+    ├── protocol.rs      # + ServerMessage::Remove; hello(map, filter) filters bands, keeps protocol 2 + basemap                 [tests]
     ├── session.rs       # + Remove → `remove` message                                               [tests]
     └── assets/
+        ├── view.js      # + popupToClose (open popup of a removed marker)               [node tests]
         ├── map-state.js # + applyRemove                                                             [node tests]
         └── app.js       # + handle `remove` (glue only)
 

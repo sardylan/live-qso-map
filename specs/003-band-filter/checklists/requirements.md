@@ -44,4 +44,7 @@
   only exclusions starts from every band, the effective set is logged at startup, and dropped QSOs
   are logged at debug level.
 - Renumbered from 002 to 003 on 2026-10-09 (number 002 reassigned to the MapLibre feature).
-- Depends on feature 001 (branch created from `001-live-qso-map`, not yet merged into `main`).
+- Depends on features 001 and 002. Rebased onto `main` (001 and 002 merged) on 2026-10-09.
+- `/speckit-analyze` after the rebase (2026-10-09): F1 (protocol stays 2), F2 (hello keeps
+  `basemap`), C1 (close the open popup of a removed marker), U1 (T028 on the MapLibre page),
+  L1 (this note) and L2 (T031 targets) were applied.
