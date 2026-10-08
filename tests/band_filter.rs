@@ -210,3 +210,65 @@ async fn correction_onto_ignored_band_removes_the_qso() {
     assert_eq!(service.history_len(), 1);
     service.shutdown().await;
 }
+
+#[tokio::test]
+async fn mixed_stream_respects_the_filter() {
+    use live_qso_map::band::BANDS_IN_ORDER;
+
+    let calls = Arc::new(AtomicUsize::new(0));
+    let hf = resolve(&["hf"]).unwrap();
+    let mut config = test_config();
+    config.band_filter = Some(hf.clone());
+    let service = start(config, Some(vec![counting_source(calls.clone())]))
+        .await
+        .unwrap();
+
+    // 1,000 callsign-only QSOs cycling over every ADIF band plus "no band" (SC-001, SC-002).
+    let choices: Vec<&str> = BANDS_IN_ORDER.iter().copied().chain([""]).collect();
+    let mut expected = 0;
+    let mut batch = Vec::new();
+    for i in 0..1000usize {
+        let band = choices[i % choices.len()];
+        if hf.contains(band) {
+            expected += 1;
+        }
+        let band_field = if band.is_empty() {
+            String::new()
+        } else {
+            format!("<BAND:{}>{band} ", band.len())
+        };
+        let call = format!("M{i:04}");
+        let time = format!("{:02}{:02}{:02}", 10 + i / 3600, (i / 60) % 60, i % 60);
+        batch.extend(
+            format!("<CALL:{}>{call} <QSO_DATE:8>20261009 <TIME_ON:6>{time} {band_field}<MODE:2>CW <EOR>", call.len())
+                .into_bytes(),
+        );
+        if (i + 1) % 50 == 0 {
+            send_udp(service.udp_addr, &batch).await;
+            batch.clear();
+        }
+    }
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
+    while service.history_len() < expected && tokio::time::Instant::now() < deadline {
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    tokio::time::sleep(Duration::from_millis(200)).await;
+
+    let history = service.pipeline().lock_history().latest(None);
+    assert_eq!(
+        history.len(),
+        expected,
+        "every considered QSO and nothing else"
+    );
+    assert!(
+        history
+            .iter()
+            .all(|q| hf.contains(q.record.get("BAND").unwrap_or_default()))
+    );
+    assert_eq!(
+        calls.load(Ordering::SeqCst),
+        expected,
+        "lookups only for considered QSOs"
+    );
+    service.shutdown().await;
+}

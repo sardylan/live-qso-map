@@ -1,5 +1,8 @@
 # Contract: WebSocket Protocol
 
+> **Added by feature 003**: the server message `{"type":"remove","id":…}` and the band-filtered
+> `hello.bands`; the protocol stays 2. See [`../../003-band-filter/contracts/websocket-protocol.md`](../../003-band-filter/contracts/websocket-protocol.md).
+
 > **Changed by feature 002**: protocol version 2. `hello.tiles` is replaced by `hello.basemap`. See
 > [`../../002-maplibre/contracts/websocket-protocol.md`](../../002-maplibre/contracts/websocket-protocol.md).
 

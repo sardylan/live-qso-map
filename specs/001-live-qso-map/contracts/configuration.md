@@ -4,6 +4,9 @@
 > map defaults to the OpenFreeMap vector style (`style_url`, `style_attribution`). See
 > [`../../002-maplibre/contracts/configuration.md`](../../002-maplibre/contracts/configuration.md).
 
+> **Added by feature 003**: the `bands` setting (band selection). See
+> [`../../003-band-filter/contracts/configuration.md`](../../003-band-filter/contracts/configuration.md).
+
 **Precedence** (FR-032): command line, then environment (`LQM_*`), then the TOML file, then built-in
 defaults.
 **File**: `--config <path>` / `LQM_CONFIG`. Optional; when omitted, only the command line,

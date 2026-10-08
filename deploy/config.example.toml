@@ -11,6 +11,18 @@
 # broadcast_queue = 1024
 # log_level = "info"           # error, warn, info, debug, trace
 
+# Bands to consider; everything else is dropped at ingest and never shown (feature 003).
+# Entries are ADIF bands or groups, in any mix; prefix with - to exclude. Groups (frequency order):
+#   lf-mf      2190m 630m 560m
+#   hf         160m 80m 60m 40m 30m 20m 17m 15m 12m 10m
+#   hf-contest 160m 80m 40m 20m 15m 10m
+#   warc       30m 17m 12m
+#   vhf        8m 6m 5m 4m 2m 1.25m
+#   uhf        70cm 33cm 23cm
+#   shf        13cm 9cm 6cm 3cm 1.25cm
+#   ehf        6mm 4mm 2.5mm 2mm 1mm submm
+# bands = ["hf-contest", "-60m"]   # not set = every band
+
 [station]
 # Used only when an incoming QSO lacks them.
 # callsign = "IS0MZK"

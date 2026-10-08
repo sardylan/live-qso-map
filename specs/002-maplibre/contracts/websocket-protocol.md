@@ -1,5 +1,8 @@
 # Contract: WebSocket Protocol (delta to feature 001)
 
+> **Added by feature 003**: the server message `{"type":"remove","id":…}` and the band-filtered
+> `hello.bands`; the protocol stays 2. See [`../../003-band-filter/contracts/websocket-protocol.md`](../../003-band-filter/contracts/websocket-protocol.md).
+
 - **Protocol version**: **2**. `hello.tiles` is replaced by `hello.basemap`.
 - **Unchanged**: everything else, including snapshots, upserts, `set_limit` and the band list in
   frequency order.

@@ -86,7 +86,9 @@ Every setting can be given three ways, and the first one found wins:
 The full list is in
 [`specs/001-live-qso-map/contracts/configuration.md`](specs/001-live-qso-map/contracts/configuration.md),
 with the base-map changes in
-[`specs/002-maplibre/contracts/configuration.md`](specs/002-maplibre/contracts/configuration.md),
+[`specs/002-maplibre/contracts/configuration.md`](specs/002-maplibre/contracts/configuration.md)
+and the band selection in
+[`specs/003-band-filter/contracts/configuration.md`](specs/003-band-filter/contracts/configuration.md),
 and [`deploy/config.example.toml`](deploy/config.example.toml) is a commented starting point.
 The most common settings:
 
@@ -99,6 +101,7 @@ The most common settings:
 | QRZ.com credentials | `LQM_QRZ_USERNAME`, `LQM_QRZ_PASSWORD` | none |
 | HamQTH credentials | `LQM_HAMQTH_USERNAME`, `LQM_HAMQTH_PASSWORD` | none |
 | QRZCQ credentials | `LQM_QRZCQ_USERNAME`, `LQM_QRZCQ_PASSWORD` | none |
+| Bands to consider | `--bands hf-contest,-60m` / `LQM_BANDS` | every band |
 | Band colours | `--band-color 20m=#1f77b4` (repeatable) | built-in palette |
 | Base map style (MapLibre style JSON) | `--style-url` / `LQM_STYLE_URL`, `--style-attribution` | OpenFreeMap Liberty, with its credit |
 | Raster tiles instead of a style | `--tile-url` / `LQM_TILE_URL`, `--tile-attribution` (required) | none |
@@ -112,6 +115,22 @@ Passwords are never written to the logs. Prefer environment variables for them.
 > authentication or source filtering. Anyone who can reach the UDP port can put QSOs on your map.
 > When the service runs on the Internet, restrict the UDP port with a firewall to your station's
 > address.
+
+### Band selection
+
+`--bands` (or `LQM_BANDS`, or `bands = [...]` in the file) limits the map to some bands. QSOs on
+other bands, or with no known band, are dropped as soon as they arrive. They cost no callbook
+lookups and never reach the map, and the legend lists only the considered bands.
+
+- **Entries**: ADIF band names (`20m`, `70cm`) or groups, in any mix. Prefix an entry with `-` to
+  exclude it.
+- **Groups**: `lf-mf`, `hf` (160m–10m), `hf-contest` (160m 80m 40m 20m 15m 10m), `warc`, `vhf`,
+  `uhf`, `shf`, `ehf`.
+- **Examples**: `hf,2m,-60m` is every HF band plus 2m, without 60m. `-60m` alone is every band except
+  60m.
+- **Startup**: the service logs the effective set (`bands considered: …`), and stops when an entry is
+  unknown or the selection leaves no bands.
+- **Corrections**: when a logger corrects a QSO onto an ignored band, it disappears from the map.
 
 The history lives in memory only and is lost on restart.
 

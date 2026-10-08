@@ -231,13 +231,13 @@ onto a considered band shows it again.
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T029 [P] Add `tests/band_filter.rs::mixed_stream_respects_the_filter` (SC-001, SC-002):
+- [X] T029 [P] Add `tests/band_filter.rs::mixed_stream_respects_the_filter` (SC-001, SC-002):
   - send 1,000 ADIF QSOs cycling over every ADIF band, plus some with no band, 50 per datagram (the
     macOS 9216-byte limit), with filter `hf`;
   - assert the history holds exactly the QSOs on `hf` bands;
   - assert a counting source was called exactly that many times;
   - assert every stored QSO's band is in `hf`.
-- [ ] T030 [P] Document `bands`:
+- [X] T030 [P] Document `bands`:
   - add a commented `bands = ["hf-contest", "-60m"]` example with the group list to
     `deploy/config.example.toml`;
   - add a configuration row and a short "Band selection" section to `README.md`;
@@ -245,8 +245,8 @@ onto a considered band shows it again.
     `specs/001-live-qso-map/contracts/configuration.md`.
 
   Every band list must be in frequency order (HR-2).
-- [ ] T031 [P] Add a note on the `remove` message, pointing to `specs/003-band-filter/contracts/websocket-protocol.md`, to both `specs/002-maplibre/contracts/websocket-protocol.md` (the current protocol 2 delta) and `specs/001-live-qso-map/contracts/websocket-protocol.md`.
-- [ ] T032 Run the complete quality gates: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test`, `node --test web/`. Then run quickstart §1–§4 and record SC-001 to SC-005 in `specs/003-band-filter/checklists/verification.md`.
+- [X] T031 [P] Add a note on the `remove` message, pointing to `specs/003-band-filter/contracts/websocket-protocol.md`, to both `specs/002-maplibre/contracts/websocket-protocol.md` (the current protocol 2 delta) and `specs/001-live-qso-map/contracts/websocket-protocol.md`.
+- [X] T032 Run the complete quality gates: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test`, `node --test web/`. Then run quickstart §1–§4 and record SC-001 to SC-005 in `specs/003-band-filter/checklists/verification.md`.
 
 ---
 
