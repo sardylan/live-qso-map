@@ -222,9 +222,11 @@ and what else was considered.
     Longitudes are unwrapped so lines that cross the antimeridian draw continuously.
   - **Markers**: `L.marker` with a coloured `divIcon`, so that `setZIndexOffset` can stack markers by
     QSO time (FR-028). This is not possible with SVG circle markers.
-  - **Logic**: all state lives in a pure module, `map-state.js` (window of the last N, grouping by
-    position, colour of the most recent QSO, revision rule). The DOM and Leaflet layer is kept thin.
-- **Testing**: `map-state.js` is tested with Node's built-in runner (`node --test`), with **no npm
+  - **Logic**: all decisions live in pure modules. `map-state.js` handles the window of the last N,
+    grouping by position, the colour of the most recent QSO, the revision rule and `diffLayers`.
+    `connection.js` handles the reconnect backoff, the post-connect handshake and the remembered N.
+    `app.js` is DOM and Leaflet glue only.
+- **Testing**: `map-state.js`, `connection.js` and `geodesic.js` are tested with Node's built-in runner (`node --test`), with **no npm
   packages**. Node is a developer-only tool: it is not needed to build or run the service.
 - **Alternatives**: embedding Leaflet in the binary, which is offline-friendly but unnecessary because
   tiles need the Internet anyway; a TypeScript bundler, rejected by the owner; the

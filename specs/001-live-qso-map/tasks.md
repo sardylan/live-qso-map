@@ -180,7 +180,7 @@ position, identity, history, the WebSocket view type and the pipeline wiring.
 - [ ] T017 [P] Implement `src/adif/write.rs`: `to_adif_string(&AdifRecord)`, `format_lat`/`format_lon` (ADIF `XDDD MM.MMM`) and `parse_lat`/`parse_lon`. T007 must pass.
 - [ ] T018 [P] Implement `src/band.rs`: the static ADIF 3.1 band table (2190m to submm) with lower and upper limits in MHz, `band_from_mhz`, `band_from_metres` and `is_adif_band`. T008 must pass.
 - [ ] T019 [P] Implement `src/maidenhead.rs`: `centre(&str) -> Option<(f64, f64)>` for 4, 6 and 8 characters, `precision_of`, `to_locator6` and `is_valid` (R10). T009 must pass.
-- [ ] T020 [P] Implement `src/position.rs`: `Precision` (Ord, Serialize as lowercase), `PositionSource`, and `Position { lat, lon, precision, source }` with a validating constructor. T010 must pass.
+- [ ] T020 [P] Implement `src/position.rs`: `Precision` (Ord, Serialize as lowercase), `PositionSource`, and `Position { lat, lon, precision, source }` with a validating constructor. Also define `LookupCandidate { source: PositionSource, position: Option<Position>, fields: AdifRecord }` here (data-model "LookupCandidate"), because both the Foundational pipeline (T025) and US2 use it. T010 must pass.
 - [ ] T021 [P] Implement `src/ingest/identity.rs`: `enum Identity { Logger{..}, Composite{..} }`, `Identity::from_record(&AdifRecord, logger_id: Option<&str>, default_station: Option<&str>)` and `canonical() -> String`. Add `pub mod identity;` to `src/ingest/mod.rs`. T011 must pass.
 - [ ] T022 Implement `EnrichedQso` and `History` in `src/history.rs`, with rev-checked `upsert`, a stable `sort_key`, eviction, `latest` and `len` (data-model "History"). The `sort_key` timestamp is parsed from `QSO_DATE` and `TIME_ON` into a UTC unix-seconds `i64` without extra crates. T012 must pass.
 - [ ] T023 Implement `src/config.rs`:
@@ -206,8 +206,10 @@ position, identity, history, the WebSocket view type and the pipeline wiring.
     `src/pipeline.rs`. It binds UDP and HTTP (port 0 is allowed), spawns every task, and returns
     `RunningService { udp_addr, http_addr, subscribe() -> broadcast::Receiver<HistoryChange>,
     history_len(), shutdown().await }`;
-  - `LookupSources` is a `#[doc(hidden)] pub` override (`Option<Vec<LookupSource>>`, with
-    `LookupSource` as defined in T054). `None` means "build the sources from config";
+  - define in `src/pipeline.rs`, using std types only (no `futures` crate):
+    `pub type LookupSource = Arc<dyn Fn(String) -> Pin<Box<dyn Future<Output = Result<Option<LookupCandidate>>> + Send>> + Send + Sync>;`
+    and `#[doc(hidden)] pub type LookupSources = Option<Vec<LookupSource>>;`. `None` means "build
+    the sources from config";
   - `pub async fn run(config) -> Result<()>` in `src/pipeline.rs` = `start(config, None)`, then wait
     for Ctrl+C/SIGTERM, then `shutdown()`. `src/lib.rs` re-exports both
     (`pub use pipeline::{run, start};`);
@@ -315,8 +317,8 @@ send the quickstart §2 datagram. Both show one 40m marker at JO62QM with a line
   Spawn the workers and the UDP loop from `pipeline::start`.
 - [ ] T040 [US1] Implement `src/web/session.rs` as a pure state machine: `Session::on_connect(&History) -> Vec<ServerMessage>` and `on_change(&HistoryChange) -> Vec<ServerMessage>`. Then implement the async driver in `src/web/mod.rs`: on upgrade, **subscribe to the broadcast first**, then take the snapshot under the history lock, then loop over `tokio::select!` of socket messages and broadcast receives. The driver sends through the `MessageSink` trait; the WebSocket adapter implements it. A send error ends the session quietly. T030 must pass.
 - [ ] T041 [US1] Implement the axum router in `src/web/mod.rs`:
-  - `GET /`, `/app.js`, `/map-state.js`, `/geodesic.js`, `/connection.js` and `/app.css`, served from
-    `include_str!`
+  - `GET /`, `/app.js`, `/map-state.js`, `/geodesic.js` and `/app.css`, served from `include_str!`
+    (`/connection.js` is added in T068, when the file exists)
     with the right content types;
   - `GET /ws`;
   - `GET /healthz` returning JSON with the history length, the active session count (an `AtomicUsize`)
@@ -346,8 +348,8 @@ send the quickstart §2 datagram. Both show one 40m marker at JO62QM with a line
     `bands`; feed `hello`, `snapshot` and `upsert` into `map-state`, call `diffLayers`, and apply each
     `add`/`update`/`remove` to Leaflet (an `L.marker` with a coloured `divIcon` and
     `setZIndexOffset(zRank*1000)`, a popup listing call, band, mode, UTC time and position
-    source/precision (FR-026), and an `L.polyline(greatCircle(...))` per marker). Connection
-    handling is delegated to `connection.js` (US3).
+    source/precision (FR-026), and an `L.polyline(greatCircle(...))` per marker). In US1, `app.js`
+    opens a single WebSocket with no retry; US3 (T070) replaces this with `connection.js`.
 - [ ] T045 [US1] Run the quickstart §2 and §3 manually in two browsers and confirm the Independent Test. Run `cargo test --test adif_udp --test ws_protocol` and `node --test web/`; all must pass.
 
 **Checkpoint**: User Story 1 works on its own. This is the MVP.
@@ -435,10 +437,8 @@ and mainland Italy (SC-007). Quickstart §5 works with real credentials.
   - all sources empty gives `None`.
 - [ ] T054 [P] [US2] Write integration test `tests/lookup_resolution.rs`:
   - start the service with `pipeline::start(config, Some(sources))`, using the cty fixture and two
-    fake providers, where
-    `LookupSource = Arc<dyn Fn(String) -> Pin<Box<dyn Future<Output = Result<Option<LookupCandidate>>> + Send>> + Send + Sync>`,
-    using std types only and no `futures` crate; production builds sources from the `Provider` enum and
-    cty data);
+    fake providers built as `pipeline::LookupSource` closures (T025). Production builds its sources
+    from the `Provider` enum and the cty data;
   - send callsign-only ADIF QSOs and assert the broadcast `remote` precision and source for each
     scenario of US2;
   - assert that a QSO with `GRIDSQUARE` triggers no provider call (US2 scenario 5);
@@ -446,7 +446,7 @@ and mainland Italy (SC-007). Quickstart §5 works with real credentials.
 
 ### Implementation for User Story 2
 
-- [ ] T055 [US2] Implement `src/enrich/cty.rs` parsing and lookup: `CountryData::parse(&str)`, `lookup(call) -> Option<LookupCandidate>` (R13 rules) and `LookupCandidate { source, position, fields }`. Put `LookupCandidate` in `src/enrich/mod.rs` if it is shared. T048 must pass.
+- [ ] T055 [US2] Implement `src/enrich/cty.rs` parsing and lookup: `CountryData::parse(&str)`, `lookup(call) -> Option<LookupCandidate>` (R13 rules), using `LookupCandidate` from `src/position.rs` (T020). T048 must pass.
 - [ ] T056 [US2] Implement the cty.dat refresh in `src/enrich/cty.rs`: `load_or_refresh(path, url, max_age_days, fetch)`, using `reqwest` for the real fetcher and writing to a temp file followed by a rename. Call it from `pipeline::start` before the UDP listener starts, bounded by `timeout_secs × 4` (plan "Implementation Notes"). T049 must pass.
 - [ ] T057 [US2] Implement `src/enrich/provider/mod.rs`:
   - `enum LookupOutcome { Found(LookupCandidate), NotFound, NeedsLogin }`, the return type of each
@@ -512,7 +512,7 @@ it shows 100; at All it shows 150; a second page at 20 is unaffected. Quickstart
 ### Implementation for User Story 3
 
 - [ ] T067 [US3] Implement `set_limit` and lag handling in `src/web/session.rs`, and in the `MessageSink`-based driver in `src/web/mod.rs` handle `broadcast::error::RecvError::Lagged` by sending the snapshot. Validate the limit against the allowed set. T064 must pass.
-- [ ] T068 [US3] Implement `setLimit` and visible-window recomputation in `src/web/assets/map-state.js`, and implement `src/web/assets/connection.js` (`backoffDelay`, `onOpen`, `onHello`, `loadLimit`, `saveLimit`). T065 must pass.
+- [ ] T068 [US3] Implement `setLimit` and visible-window recomputation in `src/web/assets/map-state.js`, and implement `src/web/assets/connection.js` (`backoffDelay`, `onOpen`, `onHello`, `loadLimit`, `saveLimit`). Add the `GET /connection.js` route (`text/javascript`, `include_str!`) to the router in `src/web/mod.rs`. T065 must pass.
 - [ ] T069 [US3] Add the selector to the page:
   - `index.html`/`app.css`: a `<select>` with 10, 20, 50, 100, 200, 500 and All (default 20) in a
     corner control;

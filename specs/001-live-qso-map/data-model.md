@@ -176,6 +176,19 @@ visible: QsoView[]                   // last `limit` by sort_key
 markers: Map<"lat,lon", { qsos: QsoView[] /* visible only, sorted */, color, zIndex, station }>
 ```
 
+`diffLayers(prev, next)` compares two `markers` maps and returns `{add, update, remove}` by marker
+key, so that `app.js` only applies the result to Leaflet.
+
 Each marker's colour comes from the band of its most recent visible QSO. Its z-index is the rank of
 that QSO in time order. Its line runs from the station position of that QSO. A marker with no visible
 QSOs is removed.
+
+## Connection state (`connection.js`)
+
+```text
+attempt: number        // reset by onOpen
+limit:   number | null // loaded from / saved to sessionStorage, default 20
+```
+
+- `backoffDelay(attempt, rand)`: 1, 2, 4, 8, 16, then 30 s, with ±20% jitter.
+- `onHello(state)`: returns the `set_limit` message to send after every (re)connect.
