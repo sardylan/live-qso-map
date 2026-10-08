@@ -1,5 +1,7 @@
 //! Enrichment workers: station position, remote position, then publish (plan "Summary").
 
+pub mod cty;
+pub mod provider;
 pub mod resolve;
 pub mod station;
 
@@ -10,13 +12,56 @@ use tokio::sync::watch;
 use crate::config::Config;
 use crate::history::{EnrichedQso, qso_timestamp};
 use crate::ingest::QsoEvent;
-use crate::pipeline::Pipeline;
+use crate::pipeline::{LookupSource, Pipeline};
+use crate::position::PositionSource;
 
-/// Builds the enriched QSO for one event.
-pub fn enrich(event: QsoEvent, config: &Config) -> EnrichedQso {
+/// Lookup sources plus their tie-break order (the configured providers, then `cty`).
+#[derive(Clone)]
+pub struct Lookups {
+    pub sources: Arc<Vec<LookupSource>>,
+    pub order: Arc<Vec<PositionSource>>,
+}
+
+impl Lookups {
+    pub fn new(sources: Vec<LookupSource>, config: &Config) -> Self {
+        let mut order: Vec<PositionSource> = config
+            .lookup
+            .provider_order
+            .iter()
+            .map(|kind| match kind {
+                crate::config::ProviderKind::Qrz => PositionSource::Qrz,
+                crate::config::ProviderKind::HamQth => PositionSource::HamQth,
+                crate::config::ProviderKind::QrzCq => PositionSource::QrzCq,
+            })
+            .collect();
+        order.push(PositionSource::Cty);
+        Self {
+            sources: Arc::new(sources),
+            order: Arc::new(order),
+        }
+    }
+}
+
+/// Builds the enriched QSO for one event: station position, then the logger's remote position,
+/// else the best lookup result (FR-011 – FR-019).
+pub async fn enrich(event: QsoEvent, config: &Config, lookups: &Lookups) -> EnrichedQso {
     let mut record = event.record;
     let station = station::apply_station(&mut record, &config.station);
-    let remote = resolve::logger_position(&record);
+    let mut remote = resolve::logger_position(&record);
+    if remote.is_none() && !lookups.sources.is_empty() {
+        let call = record.get("CALL").unwrap_or_default().trim().to_string();
+        let (position, fields) = resolve::resolve_remote(
+            &call,
+            &lookups.sources,
+            &lookups.order,
+            config.lookup.timeout,
+        )
+        .await;
+        for (name, value) in fields.iter() {
+            record.set_if_absent(name, value);
+        }
+        remote = position;
+    }
     match &remote {
         Some(position) => resolve::write_position_fields(&mut record, position),
         None => tracing::warn!(
@@ -44,6 +89,7 @@ pub async fn run_worker(
     queue: async_channel::Receiver<QsoEvent>,
     pipeline: Pipeline,
     config: Arc<Config>,
+    lookups: Lookups,
     mut shutdown: watch::Receiver<bool>,
 ) {
     loop {
@@ -54,7 +100,7 @@ pub async fn run_worker(
                 Err(_) => return,
             },
         };
-        let qso = enrich(event, &config);
+        let qso = enrich(event, &config, &lookups).await;
         if !pipeline.publish(qso) {
             tracing::debug!("dropping a stale QSO version");
         }

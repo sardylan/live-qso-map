@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<QRZCQDatabase version="1.0">
+  <Callsign>
+    <call>DO1XYZ</call>
+    <name>Test Operator</name>
+    <qth>Exampledorf</qth>
+    <continent>EU</continent>
+    <country>Germany</country>
+    <locator>JO43WH</locator>
+    <latitude>53.3199308</latitude>
+    <longitude>9.8597973</longitude>
+    <dxcc>230</dxcc>
+    <itu>28</itu>
+    <cq>14</cq>
+    <iota></iota>
+    <prefix>DL</prefix>
+  </Callsign>
+  <Session>
+    <Key>c7d1a5b0f4e94e3a8f7e1d2c3b4a5968</Key>
+    <GMTime>Thu Oct 8 15:04:05 2026</GMTime>
+  </Session>
+</QRZCQDatabase>

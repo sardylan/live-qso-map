@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<QRZDatabase version="1.34" xmlns="http://xmldata.qrz.com">
+  <Callsign>
+    <call>DL5QFN</call>
+    <land>Germany</land>
+    <dxcc>230</dxcc>
+    <lat>52.500000</lat>
+    <lon>13.000000</lon>
+    <grid>JO62</grid>
+    <geoloc>grid</geoloc>
+    <cqzone>14</cqzone>
+    <ituzone>28</ituzone>
+  </Callsign>
+  <Session>
+    <Key>2331uf894c4bd29f3923f3bacf02c532d7bd9</Key>
+  </Session>
+</QRZDatabase>

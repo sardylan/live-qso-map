@@ -367,8 +367,8 @@ and mainland Italy (SC-007). Quickstart §5 works with real credentials.
 
 ### Fixtures
 
-- [ ] T046 [P] [US2] Create `tests/fixtures/cty-excerpt.dat` by downloading the current `https://www.country-files.com/cty/cty.dat` and copying exactly the entity blocks for Germany (DL), China (BY), United States (K), Switzerland (HB), Italy (I), Sardinia (IS), Sicily (*IT9, WAE-only), plus one entity that has `=EXACT` callsigns and per-alias `(cq)[itu]<lat/lon>` overrides. Record the source date in `tests/fixtures/README.md`.
-- [ ] T047 [P] [US2] Create provider response fixtures from the structures documented in research.md R12. Replace any example personal data with fictitious values, and note in `tests/fixtures/README.md` that the files are reconstructed from documentation.
+- [X] T046 [P] [US2] Create `tests/fixtures/cty-excerpt.dat` by downloading the current `https://www.country-files.com/cty/cty.dat` and copying exactly the entity blocks for Germany (DL), China (BY), United States (K), Switzerland (HB), Italy (I), Sardinia (IS), Sicily (*IT9, WAE-only), plus one entity that has `=EXACT` callsigns and per-alias `(cq)[itu]<lat/lon>` overrides. Record the source date in `tests/fixtures/README.md`.
+- [X] T047 [P] [US2] Create provider response fixtures from the structures documented in research.md R12. Replace any example personal data with fictitious values, and note in `tests/fixtures/README.md` that the files are reconstructed from documentation.
   - QRZ.com, in `tests/fixtures/qrz/`: `login_ok.xml` (`<Session><Key>`), `login_bad_password.xml`,
     `lookup_user.xml` (lat/lon with `geoloc=user`), `lookup_grid.xml` (`geoloc=grid`, 4-character grid),
     `lookup_dxcc.xml` (`geoloc=dxcc`), `not_found.xml`, `session_timeout.xml` (no `<Key>`).
@@ -380,7 +380,7 @@ and mainland Italy (SC-007). Quickstart §5 works with real credentials.
 
 ### Tests for User Story 2 (write first, confirm they FAIL)
 
-- [ ] T048 [P] [US2] Write unit tests in `src/enrich/cty.rs` (R13) using `tests/fixtures/cty-excerpt.dat`:
+- [X] T048 [P] [US2] Write unit tests in `src/enrich/cty.rs` (R13) using `tests/fixtures/cty-excerpt.dat`:
   - parsing gives the expected entity count;
   - longitudes are converted from +W to +E (Germany is about 10°E, not 10°W);
   - the longest prefix wins (`IS0ABC` is Sardinia, `IT9ABC` is Sicily, `I1ABC` is Italy) (SC-007);
@@ -395,13 +395,13 @@ and mainland Italy (SC-007). Quickstart §5 works with real credentials.
 
   The result `LookupCandidate` has precision `Country`, source `cty`, and fields `COUNTRY`, `CQZ`,
   `ITUZ` and `CONT`. (`DXCC` is not in cty.dat, so it is absent.)
-- [ ] T049 [P] [US2] Write unit tests in `src/enrich/cty.rs` for refresh logic using a temp dir and an injected clock/fetcher. Assert the outcome for each case:
+- [X] T049 [P] [US2] Write unit tests in `src/enrich/cty.rs` for refresh logic using a temp dir and an injected clock/fetcher. Assert the outcome for each case:
   - file missing, fetch succeeds: the file is written, then loaded;
   - file younger than `max_age_days`: no fetch;
   - file older than `max_age_days`, fetch fails: the old file is used and a warn is logged;
   - no file and the fetch fails: `None` and a warn;
   - `max_age_days = 0` and the file exists: no fetch.
-- [ ] T050 [P] [US2] [R:YELLOW] Write unit tests in `src/enrich/provider/qrz.rs` using `tests/fixtures/qrz/`:
+- [X] T050 [P] [US2] [R:YELLOW] Write unit tests in `src/enrich/provider/qrz.rs` using `tests/fixtures/qrz/`:
   - the login response gives the key;
   - a bad password gives `Err(Error::Provider { provider: "qrz", .. })`;
   - the `geoloc` mapping of R11: `user`/`geocode`/`zip` are `Coordinates`; `grid` takes its precision
@@ -411,21 +411,21 @@ and mainland Italy (SC-007). Quickstart §5 works with real credentials.
   - not found gives `Ok(LookupOutcome::NotFound)`;
   - a missing `<Key>` gives `Ok(LookupOutcome::NeedsLogin)`;
   - unknown elements are ignored.
-- [ ] T051 [P] [US2] [R:YELLOW] Write unit tests in `src/enrich/provider/hamqth.rs` using `tests/fixtures/hamqth/`:
+- [X] T051 [P] [US2] [R:YELLOW] Write unit tests in `src/enrich/provider/hamqth.rs` using `tests/fixtures/hamqth/`:
   - the namespaced XML parses;
   - latitude/longitude give `Coordinates`;
   - grid only gives a locator precision;
   - `adif` gives `DXCC`, and `cq`/`itu`/`continent`/`country` give `CQZ`/`ITUZ`/`CONT`/`COUNTRY`;
   - "Callsign not found" gives `Ok(LookupOutcome::NotFound)`;
   - "Session does not exist or expired" gives `Ok(LookupOutcome::NeedsLogin)`.
-- [ ] T052 [P] [US2] [R:YELLOW] Write unit tests in `src/enrich/provider/qrzcq.rs` using `tests/fixtures/qrzcq/`:
+- [X] T052 [P] [US2] [R:YELLOW] Write unit tests in `src/enrich/provider/qrzcq.rs` using `tests/fixtures/qrzcq/`:
   - latitude/longitude give `Coordinates`;
   - `locator` gives a locator precision;
   - `dxcc`, `cq`, `itu`, `continent` and `country` are mapped;
   - "Not found: X" gives `Ok(LookupOutcome::NotFound)`;
   - "Session Timeout" gives `Ok(LookupOutcome::NeedsLogin)`;
   - "Premium Required" gives `Err(Error::Provider { provider: "qrzcq", .. })`.
-- [ ] T053 [P] [US2] Write unit tests in `src/enrich/resolve.rs` for selection (R11). Inject candidate futures:
+- [X] T053 [P] [US2] Write unit tests in `src/enrich/resolve.rs` for selection (R11). Inject candidate futures:
   - coordinates, locator6 and country together give coordinates (US2 scenario 1);
   - locator4 and country give locator4 (scenario 2);
   - a tie at the same precision is won by the first in `provider_order`, and `cty` loses ties;
@@ -435,7 +435,7 @@ and mainland Italy (SC-007). Quickstart §5 works with real credentials.
   - non-position fields are filled from the winner first, then the others in order, never overwriting
     logger values (FR-017);
   - all sources empty gives `None`.
-- [ ] T054 [P] [US2] Write integration test `tests/lookup_resolution.rs`:
+- [X] T054 [P] [US2] Write integration test `tests/lookup_resolution.rs`:
   - start the service with `pipeline::start(config, Some(sources))`, using the cty fixture and two
     fake providers built as `pipeline::LookupSource` closures (T025). Production builds its sources
     from the `Provider` enum and the cty data;
@@ -446,9 +446,9 @@ and mainland Italy (SC-007). Quickstart §5 works with real credentials.
 
 ### Implementation for User Story 2
 
-- [ ] T055 [US2] Implement `src/enrich/cty.rs` parsing and lookup: `CountryData::parse(&str)`, `lookup(call) -> Option<LookupCandidate>` (R13 rules), using `LookupCandidate` from `src/position.rs` (T020). T048 must pass.
-- [ ] T056 [US2] Implement the cty.dat refresh in `src/enrich/cty.rs`: `load_or_refresh(path, url, max_age_days, fetch)`, using `reqwest` for the real fetcher and writing to a temp file followed by a rename. Call it from `pipeline::start` before the UDP listener starts, bounded by `timeout_secs × 4` (plan "Implementation Notes"). T049 must pass.
-- [ ] T057 [US2] Implement `src/enrich/provider/mod.rs`:
+- [X] T055 [US2] Implement `src/enrich/cty.rs` parsing and lookup: `CountryData::parse(&str)`, `lookup(call) -> Option<LookupCandidate>` (R13 rules), using `LookupCandidate` from `src/position.rs` (T020). T048 must pass.
+- [X] T056 [US2] Implement the cty.dat refresh in `src/enrich/cty.rs`: `load_or_refresh(path, url, max_age_days, fetch)`, using `reqwest` for the real fetcher and writing to a temp file followed by a rename. Call it from `pipeline::start` before the UDP listener starts, bounded by `timeout_secs × 4` (plan "Implementation Notes"). T049 must pass.
+- [X] T057 [US2] Implement `src/enrich/provider/mod.rs`:
   - `enum LookupOutcome { Found(LookupCandidate), NotFound, NeedsLogin }`, the return type of each
     provider's response parser as `Result<LookupOutcome>`. It is an outcome, not an error type, so it
     complies with `docs/rust-guidelines.md` §1.2;
@@ -459,11 +459,11 @@ and mainland Italy (SC-007). Quickstart §5 works with real credentials.
   - a shared `reqwest::Client` with a timeout of `timeout_secs`;
   - a `name()` used for `provider_order` and `PositionSource`;
   - credential URLs are never logged.
-- [ ] T058 [P] [US2] [R:YELLOW] Implement `src/enrich/provider/qrz.rs`: login `https://xmldata.qrz.com/xml/current/?username=;password=;agent=live-qso-map-<version>` (URL-encode the credentials), lookup `?s=KEY;callsign=C`, and parse with `quick-xml` into a `LookupCandidate` using the geoloc mapping. T050 must pass.
-- [ ] T059 [P] [US2] [R:YELLOW] Implement `src/enrich/provider/hamqth.rs`: login `https://www.hamqth.com/xml.php?u=&p=`, lookup `?id=SID&callsign=C&prg=liveqsomap`, and namespace-aware parsing. T051 must pass.
-- [ ] T060 [P] [US2] [R:YELLOW] Implement `src/enrich/provider/qrzcq.rs`: login `https://ssl.qrzcq.com/xml?username=&password=&agent=`, lookup `?s=KEY&callsign=C&agent=`, and parsing. T052 must pass.
-- [ ] T061 [US2] Implement the selection in `src/enrich/resolve.rs`: `resolve_remote(call, sources: &[LookupSource], order, timeout) -> (Option<Position>, AdifRecord fields)`, running every source with `tokio::time::timeout` concurrently (`futures`-free: spawn each source and collect `JoinHandle`s), picking by precision then order, and merging fields. T053 must pass.
-- [ ] T062 [US2] Wire `resolve_remote` into the worker in `src/enrich/mod.rs`: when `logger_position` is `None`, call it with the enabled providers (from config) plus cty, and write the fields with `set_if_absent` and the position fields. Build the providers and cty data in `pipeline::start`. T054 must pass.
+- [X] T058 [P] [US2] [R:YELLOW] Implement `src/enrich/provider/qrz.rs`: login `https://xmldata.qrz.com/xml/current/?username=;password=;agent=live-qso-map-<version>` (URL-encode the credentials), lookup `?s=KEY;callsign=C`, and parse with `quick-xml` into a `LookupCandidate` using the geoloc mapping. T050 must pass.
+- [X] T059 [P] [US2] [R:YELLOW] Implement `src/enrich/provider/hamqth.rs`: login `https://www.hamqth.com/xml.php?u=&p=`, lookup `?id=SID&callsign=C&prg=liveqsomap`, and namespace-aware parsing. T051 must pass.
+- [X] T060 [P] [US2] [R:YELLOW] Implement `src/enrich/provider/qrzcq.rs`: login `https://ssl.qrzcq.com/xml?username=&password=&agent=`, lookup `?s=KEY&callsign=C&agent=`, and parsing. T052 must pass.
+- [X] T061 [US2] Implement the selection in `src/enrich/resolve.rs`: `resolve_remote(call, sources: &[LookupSource], order, timeout) -> (Option<Position>, AdifRecord fields)`, running every source with `tokio::time::timeout` concurrently (`futures`-free: spawn each source and collect `JoinHandle`s), picking by precision then order, and merging fields. T053 must pass.
+- [X] T062 [US2] Wire `resolve_remote` into the worker in `src/enrich/mod.rs`: when `logger_position` is `None`, call it with the enabled providers (from config) plus cty, and write the fields with `set_if_absent` and the position fields. Build the providers and cty data in `pipeline::start`. T054 must pass.
 - [ ] T063 [US2] Run quickstart §5 with real QRZ/HamQTH credentials (if available) and verify the popup source and precision. Record any differences from the fixtures in `tests/fixtures/README.md`.
 
 **Checkpoint**: User Stories 1 and 2 both work on their own.

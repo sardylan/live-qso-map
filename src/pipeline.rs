@@ -117,9 +117,56 @@ impl RunningService {
     }
 }
 
+/// A lookup source answering from the country data.
+pub fn cty_source(data: Arc<crate::enrich::cty::CountryData>) -> LookupSource {
+    Arc::new(move |call: String| {
+        let candidate = data.lookup(&call);
+        Box::pin(async move { Ok(candidate) })
+    })
+}
+
+/// A lookup source answering from an online provider.
+pub fn provider_source(client: Arc<crate::enrich::provider::ProviderClient>) -> LookupSource {
+    Arc::new(move |call: String| {
+        let client = Arc::clone(&client);
+        Box::pin(async move { client.lookup(&call).await })
+    })
+}
+
+/// Builds the production sources: every provider with credentials, then the country data
+/// (downloaded or refreshed first, R13).
+async fn build_sources(config: &Config) -> Result<Vec<LookupSource>> {
+    let http = crate::enrich::provider::http_client(config.lookup.timeout)?;
+    let mut sources: Vec<LookupSource> = crate::enrich::provider::clients(&config.lookup, &http)
+        .into_iter()
+        .map(provider_source)
+        .collect();
+    let cty = &config.country_data;
+    let refresh = crate::enrich::cty::load_or_refresh(
+        &cty.path,
+        &cty.url,
+        cty.max_age_days,
+        std::time::SystemTime::now(),
+        |url| crate::enrich::cty::fetch_url(http.clone(), url),
+    );
+    match tokio::time::timeout(config.lookup.timeout * 4, refresh).await {
+        Ok(Some(data)) => sources.push(cty_source(Arc::new(data))),
+        Ok(None) => {}
+        Err(_) => {
+            tracing::warn!("country data not ready in time; country-level positions disabled")
+        }
+    }
+    Ok(sources)
+}
+
 /// Binds the UDP and HTTP listeners (port 0 is allowed) and spawns every task.
 pub async fn start(config: Config, sources: LookupSources) -> Result<RunningService> {
     crate::install_crypto_provider();
+    let sources = match sources {
+        Some(sources) => sources,
+        None => build_sources(&config).await?,
+    };
+    let lookups = crate::enrich::Lookups::new(sources, &config);
     let udp = UdpSocket::bind((config.bind_address, config.udp_port)).await?;
     let http = TcpListener::bind((config.bind_address, config.http_port)).await?;
     let udp_addr = udp.local_addr()?;
@@ -135,7 +182,7 @@ pub async fn start(config: Config, sources: LookupSources) -> Result<RunningServ
         shutdown_rx,
         udp,
         http,
-        sources,
+        lookups,
     );
 
     tracing::info!(%udp_addr, %http_addr, "live-qso-map started");
@@ -155,7 +202,7 @@ fn spawn_tasks(
     shutdown: watch::Receiver<bool>,
     udp: UdpSocket,
     http: TcpListener,
-    _sources: LookupSources,
+    lookups: crate::enrich::Lookups,
 ) {
     let (queue_tx, queue_rx) = async_channel::bounded(config.ingest_queue);
     tasks.spawn(crate::ingest::run(
@@ -169,6 +216,7 @@ fn spawn_tasks(
             queue_rx.clone(),
             pipeline.clone(),
             Arc::clone(&config),
+            lookups.clone(),
             shutdown.clone(),
         ));
     }
@@ -231,12 +279,15 @@ mod tests {
     }
 
     fn test_config() -> Config {
-        Config {
+        let mut config = Config {
             bind_address: IpAddr::V4(Ipv4Addr::LOCALHOST),
             udp_port: 0,
             http_port: 0,
             ..Config::default()
-        }
+        };
+        config.country_data.path = "/nonexistent/cty.dat".into();
+        config.country_data.url = "http://127.0.0.1:9/cty.dat".into();
+        config
     }
 
     #[test]

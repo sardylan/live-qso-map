@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<HamQTH version="2.8" xmlns="https://www.hamqth.com">
+<search>
+	<callsign>ok2xyz</callsign>
+	<nick>Test</nick>
+	<qth>Exampletown</qth>
+	<country>Czech Republic</country>
+	<adif>503</adif>
+	<itu>28</itu>
+	<cq>15</cq>
+	<grid>jo70gg</grid>
+	<adr_name>Test Operator</adr_name>
+	<adr_city></adr_city>
+	<iota>EU-000</iota>
+	<latitude>50.07</latitude>
+	<longitude>14.42</longitude>
+	<continent>EU</continent>
+	<utc_offset>-1</utc_offset>
+</search>
+</HamQTH>

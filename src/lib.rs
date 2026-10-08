@@ -13,6 +13,7 @@ pub mod mode;
 pub mod pipeline;
 pub mod position;
 pub mod web;
+pub mod xml;
 
 pub use pipeline::{run, start};
 

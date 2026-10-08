@@ -142,6 +142,7 @@ src/
 │       ├── hamqth.rs    #                                                           [tests: fixture XML, namespace, errors]
 │       └── qrzcq.rs     #                                                           [tests: fixture XML, errors]
 ├── history.rs           # History (rev-checked upsert, stable sort key, eviction)   [tests]
+├── xml.rs               # flatten shallow XML (provider responses, QARTest)       [tests]
 ├── pipeline.rs          # start() → RunningService (test-friendly), run(); wires channels, workers, history, broadcast, servers
 └── web/
     ├── mod.rs           # axum router: /, assets, /ws, /healthz

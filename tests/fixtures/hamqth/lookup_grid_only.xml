@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<HamQTH version="2.8" xmlns="https://www.hamqth.com">
+<search>
+	<callsign>hb9xyz</callsign>
+	<country>Switzerland</country>
+	<adif>287</adif>
+	<grid>JN47</grid>
+	<continent>EU</continent>
+</search>
+</HamQTH>

@@ -19,6 +19,8 @@ pub fn test_config() -> Config {
     config.station.callsign = Some("IS0MZK".into());
     config.station.locator = Some("JM49NH".into());
     config.country_data.path = "/nonexistent/cty.dat".into();
+    // A closed local port: tests never download from the Internet.
+    config.country_data.url = "http://127.0.0.1:9/cty.dat".into();
     config.country_data.max_age_days = 0;
     config
 }
