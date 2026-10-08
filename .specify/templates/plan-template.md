@@ -27,7 +27,9 @@
       parsing/conversion logic has edge-case and malformed-input tests planned.
 - [ ] **II. Rust Safety & Quality**: no `unsafe` (or justified below); no
       `unwrap`/`expect`/`panic!` for recoverable errors in runtime paths; plan for
-      `cargo fmt --check` and `cargo clippy --all-targets -- -D warnings` to pass.
+      `cargo fmt --check` and `cargo clippy --all-targets -- -D warnings` to pass;
+      design follows `docs/rust-guidelines.md` (crate `enum Error` + `Result<T>` alias,
+      no error-handling crates).
 - [ ] **III. Simplicity & Minimal Dependencies**: each new crate justified in the table
       below; still a single self-contained binary; no speculative abstractions.
 

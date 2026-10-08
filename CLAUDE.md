@@ -1,6 +1,7 @@
 # live-qso-map Development Guidelines
 
 Project principles: `.specify/memory/constitution.md`.
+Rust implementation rules (binding): `docs/rust-guidelines.md`.
 
 <!-- SPECKIT START -->
 <!-- Managed by .specify/scripts/bash/update-agent-context.sh; edit outside these markers. -->

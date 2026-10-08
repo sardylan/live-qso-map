@@ -1,32 +1,28 @@
 <!--
 Sync Impact Report
 ==================
-Version change: (none, uninitialized template) → 1.0.0
-Bump rationale: initial ratification of the project constitution.
+Version change: 1.0.0 → 1.1.0
+Bump rationale: MINOR, because Principle II's guidance is materially expanded. A binding reference to
+the Rust implementation guidelines is added, and the first rule there is the crate-wide Error/Result
+pattern. No principle is removed or redefined.
 
-Modified principles: n/a (initial adoption)
-  - [PRINCIPLE_1_NAME] → I. Test-First Development (NON-NEGOTIABLE)
-  - [PRINCIPLE_2_NAME] → II. Rust Safety & Quality Gates
-  - [PRINCIPLE_3_NAME] → III. Simplicity & Minimal Dependencies
-  - [PRINCIPLE_4_NAME], [PRINCIPLE_5_NAME] → removed (project adopts three principles)
+Modified principles:
+  - II. Rust Safety & Quality Gates (title unchanged): adds the MUST rule to follow
+    docs/rust-guidelines.md and the crate-wide `Error` enum / `Result<T>` alias rule.
 
-Added sections:
-  - Technical Constraints (was [SECTION_2_NAME])
-  - Development Workflow (was [SECTION_3_NAME])
-  - Governance
-
+Added sections: none (new external document docs/rust-guidelines.md)
 Removed sections: none
 
 Templates:
-  - .specify/templates/plan-template.md   ✅ created (Constitution Check gates for I–III)
-  - .specify/templates/spec-template.md   ✅ created (no new mandatory sections required)
-  - .specify/templates/tasks-template.md  ✅ created (tests-first ordering, quality-gate tasks)
-  - .specify/templates/commands/*.md      ⚠ not present (none to validate)
-  - README.md                             ⚠ not present (create when project scope is detailed)
+  - .specify/templates/plan-template.md   ✅ updated (Constitution Check II mentions the guidelines)
+  - .specify/templates/spec-template.md   ✅ no change needed
+  - .specify/templates/tasks-template.md  ✅ no change needed (no new task category)
+  - .specify/templates/commands/*.md      ⚠ not present
+  - CLAUDE.md                             ✅ updated (pointer outside the managed SPECKIT block)
 
 Follow-up TODOs:
-  - Project scope will be expanded (contest QSO live map details pending). Revisit
-    Technical Constraints once ingestion sources and UI target are decided.
+  - specs/001-live-qso-map: re-run /speckit-analyze. plan.md (R16) and tasks.md (T005, T015)
+    already follow the pattern; no conflict expected.
 -->
 
 # live-qso-map Constitution
@@ -63,6 +59,9 @@ only reliable evidence that the tool behaves correctly before it goes on air.
   documented as impossible to violate.
 - Invalid or unexpected input (malformed QSO data, network glitches) MUST be logged
   and skipped. It MUST NOT crash the process.
+- Rust code MUST follow `docs/rust-guidelines.md`. In particular, every fallible
+  function MUST return the crate-wide `Result<T>` alias over a single, hand-written
+  `enum Error` defined in `src/errors.rs`. No error-handling crates are allowed.
 
 Rationale: a crash mid-contest loses live tracking. The compiler and linters are cheap
 guards that catch whole classes of defects before they reach the operator.
@@ -120,4 +119,4 @@ connectivity. Fewer moving parts mean an easier setup and fewer failures on the 
 - Compliance review: every plan's Constitution Check and every code review MUST verify
   adherence to Principles I–III. Unjustified violations block the merge.
 
-**Version**: 1.0.0 | **Ratified**: 2026-10-08 | **Last Amended**: 2026-10-08
+**Version**: 1.1.0 | **Ratified**: 2026-10-08 | **Last Amended**: 2026-10-08
