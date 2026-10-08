@@ -3,6 +3,7 @@
 pub mod detect;
 pub mod gate;
 pub mod identity;
+pub mod qartest;
 
 use std::net::SocketAddr;
 use std::time::Instant;
@@ -69,7 +70,7 @@ pub fn events_from_datagram(
 ) -> Vec<QsoEvent> {
     match detect(data) {
         SourceFormat::Adif => adif_events(data, from, station),
-        SourceFormat::QarTest => Vec::new(),
+        SourceFormat::QarTest => qartest_events(data, from, station),
         SourceFormat::Unrecognised => {
             tracing::warn!(%from, len = data.len(), "dropping datagram in an unrecognised format");
             Vec::new()
@@ -87,6 +88,24 @@ fn adif_events(data: &[u8], from: SocketAddr, station: &StationConfig) -> Vec<Qs
         .filter_map(|record| normalise(record, from, station))
         .map(|record| QsoEvent::new(EventKind::New, record, None, station))
         .collect()
+}
+
+fn qartest_events(data: &[u8], from: SocketAddr, station: &StationConfig) -> Vec<QsoEvent> {
+    match qartest::parse(data) {
+        Ok(Some(message)) => normalise(message.record, from, station)
+            .map(|record| {
+                let mut event = QsoEvent::new(message.kind, record, message.logger_id, station);
+                event.previous = message.previous;
+                event
+            })
+            .into_iter()
+            .collect(),
+        Ok(None) => Vec::new(),
+        Err(e) => {
+            tracing::warn!(%from, "skipping malformed QARTest message: {e}");
+            Vec::new()
+        }
+    }
 }
 
 /// Checks the fields the pipeline needs and fills `STATION_CALLSIGN` from the configuration.

@@ -109,7 +109,15 @@ pub fn flatten(xml: &str) -> Result<Flat> {
                         .insert(name, text);
                 }
             }
-            Event::Eof => break,
+            Event::Eof => {
+                if let Some((name, _)) = stack.pop() {
+                    return Err(quick_xml::Error::IllFormed(
+                        quick_xml::errors::IllFormedError::MissingEndTag(name),
+                    )
+                    .into());
+                }
+                break;
+            }
             _ => {}
         }
     }
@@ -145,5 +153,6 @@ mod tests {
     #[test]
     fn malformed_xml_is_an_error() {
         assert!(flatten("<a><b></a>").is_err());
+        assert!(flatten("<a><b>text</b>").is_err(), "unclosed root");
     }
 }

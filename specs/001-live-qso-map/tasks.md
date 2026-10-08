@@ -586,19 +586,19 @@ tests depend only on the Foundational phase.
 
 ### Tests for User Story 5 (write first, confirm they FAIL)
 
-- [ ] T077 [P] [US5] Write unit tests in `src/mode.rs` (R8):
+- [X] T077 [P] [US5] Write unit tests in `src/mode.rs` (R8):
   - `LSB` gives `SSB` with `LSB`, and `USB` gives `SSB` with `USB`;
   - `CW`, `RTTY`, `FM`, `AM` and `FT8` pass through;
   - `FT4` gives `MFSK` with `FT4`;
   - `PSK31` gives `PSK` with `PSK31`;
   - lowercase input is accepted;
   - an unknown `XYZ` gives `XYZ` with no submode.
-- [ ] T078 [P] [US5] Extend the unit tests in `src/ingest/detect.rs` for the QARTest branch of R5:
+- [X] T078 [P] [US5] Extend the unit tests in `src/ingest/detect.rs` for the QARTest branch of R5:
   - each of the 10 reference packets is detected as `QarTest`;
   - `<contactinfo>` XML whose `<logger>` is `N1MM Logger+` is `Unrecognised`;
   - `<ADX>` is `Unrecognised`;
   - malformed XML is `Unrecognised`.
-- [ ] T079 [P] [US5] Write unit tests in `src/ingest/qartest.rs`, loading packets from the reference capture with a small helper that splits on the `BEGIN PACKET`/`END PACKET` markers. Assert:
+- [X] T079 [P] [US5] Write unit tests in `src/ingest/qartest.rs`, loading packets from the reference capture with a small helper that splits on the `BEGIN PACKET`/`END PACKET` markers. Assert:
   - **packet #1 (DL5QFN)** converts exactly to the contracts/udp-input.md expected record:
     `CALL`, `STATION_CALLSIGN=IS0MZK`, `QSO_DATE=20261008`, `TIME_ON=150404`, `FREQ=7.000000`,
     `BAND=40m`, `MODE=SSB`, `SUBMODE=LSB`, `RST_SENT=59`, `RST_RCVD=59`, `SRX_STRING=14`, `PFX=DL5`,
@@ -613,7 +613,7 @@ tests depend only on the Foundational phase.
   - **all three `exch1/2/3` set** are joined with single spaces;
   - **XML entities** such as `&amp;` are decoded;
   - **a missing `call` or `timestamp`** gives an error and the datagram is skipped.
-- [ ] T080 [P] [US5] Write integration test `tests/qartest_replay.rs` (SC-009):
+- [X] T080 [P] [US5] Write integration test `tests/qartest_replay.rs` (SC-009):
   - start the service with `pipeline::start` on port 0, with `tests/fixtures/cty-excerpt.dat` and no
     online providers;
   - capture warnings with a counting `tracing` layer installed through
@@ -629,10 +629,10 @@ tests depend only on the Foundational phase.
 
 ### Implementation for User Story 5
 
-- [ ] T081 [P] [US5] Implement `src/mode.rs`: `map_mode(&str) -> (String, Option<String>)`. T077 must pass.
-- [ ] T082 [US5] Implement the QARTest branch of `detect` in `src/ingest/detect.rs` using `quick-xml`: read the root element name and the `logger` or `soft` text without building a DOM. T078 must pass.
-- [ ] T083 [US5] Implement `src/ingest/qartest.rs`: `parse(&[u8]) -> Result<Option<QsoEvent>>` (`None` for score and delete), reading events into a flat map and applying the FR-004a table using `band`, `mode` and `adif` helpers. Add `pub mod qartest;` to `src/ingest/mod.rs`. T079 must pass.
-- [ ] T084 [US5] Route `SourceFormat::QarTest` in the UDP loop in `src/ingest/mod.rs` through `qartest::parse`, then the identity (logger id), then the gate. A `Correction` without a logger id passes `previous` to the gate. T080 must pass.
+- [X] T081 [P] [US5] Implement `src/mode.rs`: `map_mode(&str) -> (String, Option<String>)`. T077 must pass.
+- [X] T082 [US5] Implement the QARTest branch of `detect` in `src/ingest/detect.rs` using `quick-xml`: read the root element name and the `logger` or `soft` text without building a DOM. T078 must pass.
+- [X] T083 [US5] Implement `src/ingest/qartest.rs`: `parse(&[u8]) -> Result<Option<QsoEvent>>` (`None` for score and delete), reading events into a flat map and applying the FR-004a table using `band`, `mode` and `adif` helpers. Add `pub mod qartest;` to `src/ingest/mod.rs`. T079 must pass.
+- [X] T084 [US5] Route `SourceFormat::QarTest` in the UDP loop in `src/ingest/mod.rs` through `qartest::parse`, then the identity (logger id), then the gate. A `Correction` without a logger id passes `previous` to the gate. T080 must pass.
 
 **Checkpoint**: all user stories work on their own.
 

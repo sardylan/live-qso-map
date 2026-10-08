@@ -9,10 +9,35 @@ pub enum SourceFormat {
 
 pub fn detect(data: &[u8]) -> SourceFormat {
     let data = trim_start(data);
+    if data.starts_with(b"<") && is_qartest(data) {
+        return SourceFormat::QarTest;
+    }
     if looks_like_adif(data) {
         return SourceFormat::Adif;
     }
     SourceFormat::Unrecognised
+}
+
+const QARTEST_ROOTS: &[&str] = &[
+    "contactinfo",
+    "contactreplace",
+    "contactdelete",
+    "dynamicresults",
+];
+
+/// Well-formed XML whose root is a QARTest message and whose `<logger>`/`<soft>` names QARTest.
+fn is_qartest(data: &[u8]) -> bool {
+    let Ok(text) = std::str::from_utf8(data) else {
+        return false;
+    };
+    let Ok(flat) = crate::xml::flatten(text) else {
+        return false;
+    };
+    QARTEST_ROOTS.contains(&flat.root.as_str())
+        && flat
+            .get(&flat.root, "logger")
+            .or_else(|| flat.get(&flat.root, "soft"))
+            .is_some_and(|name| name.starts_with("QARTest"))
 }
 
 fn trim_start(data: &[u8]) -> &[u8] {
@@ -78,5 +103,43 @@ mod tests {
         let mut data = vec![0xEF, 0xBB, 0xBF];
         data.extend_from_slice(b"<CALL:4>K1AA <EOR>");
         assert_eq!(detect(&data), SourceFormat::Adif);
+    }
+
+    fn reference_packets() -> Vec<Vec<u8>> {
+        crate::ingest::qartest::reference_packets(include_str!(
+            "../../specs/001-live-qso-map/reference/qartest-16.9.1-cqww-ssb.txt"
+        ))
+    }
+
+    #[test]
+    fn every_reference_packet_is_qartest() {
+        let packets = reference_packets();
+        assert_eq!(packets.len(), 10);
+        for p in &packets {
+            assert_eq!(
+                detect(p),
+                SourceFormat::QarTest,
+                "{}",
+                String::from_utf8_lossy(p)
+            );
+        }
+    }
+
+    #[test]
+    fn other_loggers_xml_is_unrecognised() {
+        let n1mm = br#"<?xml version="1.0"?><contactinfo><logger>N1MM Logger+</logger><call>K1A</call></contactinfo>"#;
+        assert_eq!(detect(n1mm), SourceFormat::Unrecognised);
+        assert_eq!(
+            detect(br#"<?xml version="1.0"?><ADX><HEADER/></ADX>"#),
+            SourceFormat::Unrecognised
+        );
+        assert_eq!(
+            detect(b"<contactinfo><logger>QARTest</logger>"),
+            SourceFormat::Unrecognised
+        );
+        assert_eq!(
+            detect(b"<contactinfo><soft>QARTest</soft></contactinfo>"),
+            SourceFormat::QarTest
+        );
     }
 }
