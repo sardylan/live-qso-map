@@ -1,5 +1,9 @@
 # Contract: Configuration
 
+> **Changed by feature 002**: `tile_url`/`tile_attribution` no longer have defaults, and the base
+> map defaults to the OpenFreeMap vector style (`style_url`, `style_attribution`). See
+> [`../../002-maplibre/contracts/configuration.md`](../../002-maplibre/contracts/configuration.md).
+
 **Precedence** (FR-032): command line, then environment (`LQM_*`), then the TOML file, then built-in
 defaults.
 **File**: `--config <path>` / `LQM_CONFIG`. Optional; when omitted, only the command line,

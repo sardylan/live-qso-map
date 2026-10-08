@@ -1,5 +1,8 @@
 # Contract: WebSocket Protocol
 
+> **Changed by feature 002**: protocol version 2. `hello.tiles` is replaced by `hello.basemap`. See
+> [`../../002-maplibre/contracts/websocket-protocol.md`](../../002-maplibre/contracts/websocket-protocol.md).
+
 **Endpoint**: `GET /ws` on `http_port` (default 8080), upgraded to WebSocket. There is one connection
 per open page (FR-020).
 **Encoding**: UTF-8 JSON text frames. Each frame holds one object with a `type` discriminator.

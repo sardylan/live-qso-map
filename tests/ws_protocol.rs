@@ -39,6 +39,13 @@ async fn every_page_receives_hello_snapshot_and_live_upserts() {
         let hello = next_json(ws, Duration::from_secs(2)).await.unwrap();
         assert_eq!(hello["type"], "hello");
         assert_eq!(hello["default_limit"], 20);
+        assert_eq!(hello["protocol"], 2);
+        assert_eq!(hello["basemap"]["kind"], "style");
+        assert_eq!(
+            hello["basemap"]["url"],
+            "https://tiles.openfreemap.org/styles/liberty"
+        );
+        assert!(hello.get("tiles").is_none());
         let snapshot = next_json(ws, Duration::from_secs(2)).await.unwrap();
         assert_eq!(snapshot["type"], "snapshot");
         assert_eq!(snapshot["qsos"].as_array().unwrap().len(), 0);

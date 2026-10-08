@@ -233,16 +233,16 @@ configuring both is rejected.
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T027 [P] Document the base map:
+- [X] T027 [P] Document the base map:
   - in `deploy/config.example.toml`, add commented `style_url`/`style_attribution`, mark `tile_*`
     as the raster alternative, and explain the conflict;
   - in `README.md`, replace Leaflet with MapLibre, describe the globe toggle, list the base-map
     settings and the WebGL requirement;
   - in `specs/001-live-qso-map/contracts/configuration.md` and `websocket-protocol.md`, add a note
     pointing to the 002 deltas (protocol 2, `basemap`).
-- [ ] T028 [P] Extend `tests/ws_protocol.rs::every_page_receives_hello_snapshot_and_live_upserts` to assert that `hello.protocol == 2` and that `hello.basemap.kind == "style"` with the default configuration.
+- [X] T028 [P] Extend `tests/ws_protocol.rs::every_page_receives_hello_snapshot_and_live_upserts` to assert that `hello.protocol == 2` and that `hello.basemap.kind == "style"` with the default configuration.
 - [ ] T029 Run quickstart §6 (SC-002: at least 30 fps with 2,000 QSOs in globe and flat) using `scripts/send_burst.sh 2000` and the browser Performance panel. Record the measured fps, plus the machine (CPU, GPU, OS) and browser version, in `specs/002-maplibre/checklists/verification.md`.
-- [ ] T030 Run the complete quality gates: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test`, `node --test web/`. Grep `src/` and `README.md` for leftover `leaflet`/`L.` references. Finalise `specs/002-maplibre/checklists/verification.md` with SC-001 to SC-003. SC-003 (live QSO within 2 s) is evidenced by the unchanged test `tests/ws_protocol.rs::every_page_receives_hello_snapshot_and_live_upserts`.
+- [X] T030 Run the complete quality gates: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test`, `node --test web/`. Grep `src/` and `README.md` for leftover `leaflet`/`L.` references. Finalise `specs/002-maplibre/checklists/verification.md` with SC-001 to SC-003. SC-003 (live QSO within 2 s) is evidenced by the unchanged test `tests/ws_protocol.rs::every_page_receives_hello_snapshot_and_live_upserts`.
 
 ---
 

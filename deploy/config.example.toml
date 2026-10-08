@@ -41,6 +41,10 @@
 # max_age_days = 30            # 0 = never re-download an existing file
 
 [map]
+# Base map: either a MapLibre vector style...
+# style_url = "https://tiles.openfreemap.org/styles/liberty"   # default (OpenFreeMap, no key)
+# style_attribution = "..."                                    # HTML credit (OpenFreeMap's for the default style)
+# ...or raster tiles (not both; tile_attribution is then required):
 # tile_url = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
 # tile_attribution = "&copy; OpenStreetMap contributors"
 # fallback_color = "#7f7f7f"

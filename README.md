@@ -5,6 +5,7 @@ A live map of every QSO an amateur radio station makes during a contest.
 Your logger sends each QSO over UDP. live-qso-map converts it to ADIF, works out where the other
 station is, and pushes it to every open map page. Each QSO shows up as a band-coloured marker
 with a great-circle line from your station. Each viewer chooses how many recent QSOs to show.
+The map opens as a 3D globe; each viewer can switch to a flat map.
 
 It is contest-agnostic. It runs as one self-contained binary on a Raspberry Pi or mini PC, on a
 VM, or in a container, and needs only one UDP port and one TCP port.
@@ -60,6 +61,20 @@ Notes:
 - **Country data**: cty.dat is downloaded at startup and refreshed after 30 days. If the download
   fails, the cached copy is used.
 
+## The map page
+
+The page renders with [MapLibre GL JS](https://maplibre.org/) 5.24.0, loaded from cdnjs and
+checked with Subresource Integrity.
+
+- **Globe or flat**: pages open as a globe. The **Flat/Globe** button switches the view, and each
+  browser remembers its own choice.
+- **Base map**: by default, the free [OpenFreeMap](https://openfreemap.org) vector style, with no
+  API key. Any MapLibre style URL can be configured, or raster tiles instead (see Configuration).
+  If the base map can't be reached, QSOs are still drawn on an empty background and a banner
+  says so.
+- **WebGL**: the page needs it. Browsers without WebGL get a message suggesting to enable hardware
+  acceleration.
+
 ## Configuration
 
 Every setting can be given three ways, and the first one found wins:
@@ -70,6 +85,8 @@ Every setting can be given three ways, and the first one found wins:
 
 The full list is in
 [`specs/001-live-qso-map/contracts/configuration.md`](specs/001-live-qso-map/contracts/configuration.md),
+with the base-map changes in
+[`specs/002-maplibre/contracts/configuration.md`](specs/002-maplibre/contracts/configuration.md),
 and [`deploy/config.example.toml`](deploy/config.example.toml) is a commented starting point.
 The most common settings:
 
@@ -83,6 +100,11 @@ The most common settings:
 | HamQTH credentials | `LQM_HAMQTH_USERNAME`, `LQM_HAMQTH_PASSWORD` | none |
 | QRZCQ credentials | `LQM_QRZCQ_USERNAME`, `LQM_QRZCQ_PASSWORD` | none |
 | Band colours | `--band-color 20m=#1f77b4` (repeatable) | built-in palette |
+| Base map style (MapLibre style JSON) | `--style-url` / `LQM_STYLE_URL`, `--style-attribution` | OpenFreeMap Liberty, with its credit |
+| Raster tiles instead of a style | `--tile-url` / `LQM_TILE_URL`, `--tile-attribution` (required) | none |
+
+A style and raster tiles can't be configured together. Raster tiles need an attribution, as
+their usage terms require.
 
 Passwords are never written to the logs. Prefer environment variables for them.
 
