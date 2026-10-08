@@ -3,6 +3,13 @@
 
 /** The `style` option for the map: a style URL, or a raster style built from a tile template. */
 export function buildStyle(basemap) {
+  if (basemap.kind === 'raster') {
+    return {
+      version: 8,
+      sources: { basemap: { type: 'raster', tiles: [basemap.url], tileSize: 256 } },
+      layers: [{ id: 'basemap', type: 'raster', source: 'basemap' }],
+    };
+  }
   return basemap.url;
 }
 

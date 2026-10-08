@@ -117,7 +117,13 @@ pub struct Cli {
     /// Re-download cty.dat after this many days, 0 = never [env: LQM_CTY_MAX_AGE_DAYS] [default: 30]
     #[arg(long)]
     pub cty_max_age_days: Option<u64>,
-    /// Map tile URL template [env: LQM_TILE_URL]
+    /// Base map style URL, MapLibre style JSON [env: LQM_STYLE_URL] [default: OpenFreeMap Liberty]
+    #[arg(long)]
+    pub style_url: Option<String>,
+    /// Base map style attribution, HTML [env: LQM_STYLE_ATTRIBUTION]
+    #[arg(long)]
+    pub style_attribution: Option<String>,
+    /// Raster tile URL template instead of a style [env: LQM_TILE_URL]
     #[arg(long)]
     pub tile_url: Option<String>,
     /// Map tile attribution [env: LQM_TILE_ATTRIBUTION]
@@ -230,8 +236,15 @@ pub enum BaseMap {
 }
 
 impl MapConfig {
-    /// The configured style, or the OpenFreeMap default with its credit.
+    /// Raster tiles when configured, else the configured style, else the OpenFreeMap default
+    /// with its credit. `Config::load` rejects configuring both.
     pub fn basemap(&self) -> BaseMap {
+        if let Some(url) = &self.tile_url {
+            return BaseMap::Raster {
+                url: url.clone(),
+                attribution: self.tile_attribution.clone().unwrap_or_default(),
+            };
+        }
         match &self.style_url {
             Some(url) => BaseMap::Style {
                 url: url.clone(),
@@ -361,6 +374,8 @@ struct FileCountryData {
 #[derive(Debug, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct FileMap {
+    style_url: Option<String>,
+    style_attribution: Option<String>,
     tile_url: Option<String>,
     tile_attribution: Option<String>,
     fallback_color: Option<String>,
@@ -750,15 +765,29 @@ impl Config {
         }
         apply_band_entries(&mut bands, cli.band_color.iter().map(String::as_str))?;
         let map = MapConfig {
-            style_url: None,
-            style_attribution: None,
+            style_url: layer(
+                "map.style_url",
+                cli.style_url.clone(),
+                env,
+                "LQM_STYLE_URL",
+                file.map.style_url,
+            )?
+            .filter(|u| !u.trim().is_empty()),
+            style_attribution: layer(
+                "map.style_attribution",
+                cli.style_attribution.clone(),
+                env,
+                "LQM_STYLE_ATTRIBUTION",
+                file.map.style_attribution,
+            )?,
             tile_url: layer(
                 "map.tile_url",
                 cli.tile_url.clone(),
                 env,
                 "LQM_TILE_URL",
                 file.map.tile_url,
-            )?,
+            )?
+            .filter(|u| !u.trim().is_empty()),
             tile_attribution: layer(
                 "map.tile_attribution",
                 cli.tile_attribution.clone(),
@@ -769,6 +798,23 @@ impl Config {
             fallback_color,
             bands,
         };
+        if map.style_url.is_some() && map.tile_url.is_some() {
+            return Err(config_error(
+                "map.style_url",
+                "style_url and tile_url are mutually exclusive",
+            ));
+        }
+        if map.tile_url.is_some()
+            && map
+                .tile_attribution
+                .as_deref()
+                .is_none_or(|a| a.trim().is_empty())
+        {
+            return Err(config_error(
+                "map.tile_attribution",
+                "raster tiles need an attribution (FR-009)",
+            ));
+        }
 
         let config = Config {
             bind_address,
@@ -1080,5 +1126,117 @@ fallback_color = "#000000"
             Some(PathBuf::from("/b.toml"))
         );
         assert_eq!(config_path(&cli(&[]), &|_| None), None);
+    }
+
+    // --- base map (feature 002, T017) ---------------------------------------------------------
+
+    #[test]
+    fn style_settings_follow_precedence() {
+        let file = r#"
+[map]
+style_url = "https://file/style.json"
+style_attribution = "file credit"
+"#;
+        let (c, _) = load(&[], &[], Some(file)).unwrap();
+        assert_eq!(
+            c.map.basemap(),
+            BaseMap::Style {
+                url: "https://file/style.json".into(),
+                attribution: "file credit".into()
+            }
+        );
+        let (c, _) = load(
+            &[],
+            &[("LQM_STYLE_URL", "https://env/style.json")],
+            Some(file),
+        )
+        .unwrap();
+        assert_eq!(c.map.style_url.as_deref(), Some("https://env/style.json"));
+        let (c, _) = load(
+            &[
+                "--style-url",
+                "https://cli/style.json",
+                "--style-attribution",
+                "cli credit",
+            ],
+            &[
+                ("LQM_STYLE_URL", "https://env/style.json"),
+                ("LQM_STYLE_ATTRIBUTION", "env credit"),
+            ],
+            Some(file),
+        )
+        .unwrap();
+        assert_eq!(
+            c.map.basemap(),
+            BaseMap::Style {
+                url: "https://cli/style.json".into(),
+                attribution: "cli credit".into()
+            }
+        );
+    }
+
+    #[test]
+    fn custom_style_without_attribution_has_empty_credit() {
+        let (c, _) = load(&["--style-url", "https://s/style.json"], &[], None).unwrap();
+        assert_eq!(
+            c.map.basemap(),
+            BaseMap::Style {
+                url: "https://s/style.json".into(),
+                attribution: String::new()
+            }
+        );
+    }
+
+    #[test]
+    fn tile_url_gives_raster() {
+        let (c, _) = load(
+            &["--tile-url", "https://t/{z}/{x}/{y}.png"],
+            &[("LQM_TILE_ATTRIBUTION", "&copy; tiles")],
+            None,
+        )
+        .unwrap();
+        assert_eq!(
+            c.map.basemap(),
+            BaseMap::Raster {
+                url: "https://t/{z}/{x}/{y}.png".into(),
+                attribution: "&copy; tiles".into()
+            }
+        );
+    }
+
+    #[test]
+    fn style_and_tiles_are_mutually_exclusive() {
+        let r = load(
+            &["--style-url", "https://s/style.json"],
+            &[
+                ("LQM_TILE_URL", "https://t/{z}/{x}/{y}.png"),
+                ("LQM_TILE_ATTRIBUTION", "x"),
+            ],
+            None,
+        );
+        config_err(r, "map.style_url");
+        let file = "[map]\nstyle_url = \"https://s\"\ntile_url = \"https://t\"\ntile_attribution = \"x\"\n";
+        config_err(load(&[], &[], Some(file)), "map.style_url");
+    }
+
+    #[test]
+    fn raster_tiles_need_an_attribution() {
+        config_err(
+            load(&["--tile-url", "https://t/{z}/{x}/{y}.png"], &[], None),
+            "map.tile_attribution",
+        );
+        config_err(
+            load(
+                &[
+                    "--tile-url",
+                    "https://t/{z}/{x}/{y}.png",
+                    "--tile-attribution",
+                    "  ",
+                ],
+                &[],
+                None,
+            ),
+            "map.tile_attribution",
+        );
     }
 }

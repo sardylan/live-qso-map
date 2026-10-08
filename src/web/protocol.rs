@@ -290,4 +290,18 @@ mod tests {
         assert!(is_allowed_limit(None));
         assert!(!is_allowed_limit(Some(7)));
     }
+
+    #[test]
+    fn raster_basemap_shape() {
+        let mut map = map_config();
+        map.style_url = None;
+        map.style_attribution = None;
+        map.tile_url = Some("https://t/{z}/{x}/{y}.png".into());
+        map.tile_attribution = Some("tiles".into());
+        let v = serde_json::to_value(ServerMessage::hello(&map)).unwrap();
+        assert_eq!(
+            v["basemap"],
+            json!({"kind": "raster", "url": "https://t/{z}/{x}/{y}.png", "attribution": "tiles"})
+        );
+    }
 }

@@ -44,3 +44,11 @@ test('shouldRender needs a loaded map and a non-empty diff', () => {
   assert.equal(shouldRender(true, { ...empty, update: [{}] }), true);
   assert.equal(shouldRender(true, { ...empty, remove: ['k'] }), true);
 });
+
+test('a raster base map becomes a version-8 raster style', () => {
+  assert.deepEqual(buildStyle({ kind: 'raster', url: 'https://t/{z}/{x}/{y}.png', attribution: 'a' }), {
+    version: 8,
+    sources: { basemap: { type: 'raster', tiles: ['https://t/{z}/{x}/{y}.png'], tileSize: 256 } },
+    layers: [{ id: 'basemap', type: 'raster', source: 'basemap' }],
+  });
+});

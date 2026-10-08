@@ -170,7 +170,7 @@ configuring both is rejected.
 
 ### Tests for User Story 2 (write first, confirm they FAIL)
 
-- [ ] T017 [P] [US2] Extend the unit tests in `src/config.rs`:
+- [X] T017 [P] [US2] Extend the unit tests in `src/config.rs`:
   - `--style-url`/`LQM_STYLE_URL`/TOML `map.style_url` and the matching `*_style_attribution`
     follow the CLI > env > file precedence;
   - only `tile_url` set (and `tile_attribution`) gives `BaseMap::Raster`;
@@ -180,20 +180,20 @@ configuring both is rejected.
     "map.style_url", .. }` with a message saying they are mutually exclusive;
   - `tile_url` with a missing or blank `tile_attribution` gives `Error::Config { setting:
     "map.tile_attribution", .. }` (FR-009).
-- [ ] T018 [P] [US2] Extend `web/view.test.js`: `buildStyle({kind:"raster", url:"https://t/{z}/{x}/{y}.png", attribution:"a"})` returns `{version: 8, sources: {basemap: {type: "raster", tiles: ["https://t/{z}/{x}/{y}.png"], tileSize: 256}}, layers: [{id: "basemap", type: "raster", source: "basemap"}]}`.
-- [ ] T019 [P] [US2] Extend the unit tests in `src/web/protocol.rs`: a raster `MapConfig` serialises `basemap` as `{"kind":"raster","url":…,"attribution":…}`.
+- [X] T018 [P] [US2] Extend `web/view.test.js`: `buildStyle({kind:"raster", url:"https://t/{z}/{x}/{y}.png", attribution:"a"})` returns `{version: 8, sources: {basemap: {type: "raster", tiles: ["https://t/{z}/{x}/{y}.png"], tileSize: 256}}, layers: [{id: "basemap", type: "raster", source: "basemap"}]}`.
+- [X] T019 [P] [US2] Extend the unit tests in `src/web/protocol.rs`: a raster `MapConfig` serialises `basemap` as `{"kind":"raster","url":…,"attribution":…}`.
 
 ### Implementation for User Story 2
 
-- [ ] T020 [US2] In `src/config.rs`:
+- [X] T020 [US2] In `src/config.rs`:
   - add the `Cli` flags `--style-url` and `--style-attribution`, the env vars `LQM_STYLE_URL` and
     `LQM_STYLE_ATTRIBUTION`, and the `FileMap` keys `style_url` and `style_attribution`;
   - add the conflict validation and the raster-attribution validation;
   - make `MapConfig::basemap()` return `Raster` when `tile_url` is set.
 
   T017 and T019 must pass.
-- [ ] T021 [P] [US2] Implement the raster branch of `buildStyle` in `src/web/assets/view.js`. T018 must pass.
-- [ ] T022 [US2] Run quickstart §3 with the real binary: the default style, raster tiles, and the conflict error.
+- [X] T021 [P] [US2] Implement the raster branch of `buildStyle` in `src/web/assets/view.js`. T018 must pass.
+- [X] T022 [US2] Run quickstart §3 with the real binary: the default style, raster tiles, and the conflict error.
 
 **Checkpoint**: User Stories 1 and 2 work on their own.
 
