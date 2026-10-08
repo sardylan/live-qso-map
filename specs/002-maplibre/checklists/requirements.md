@@ -6,7 +6,7 @@
 
 ## Content Quality
 
-- [ ] No implementation details (languages, frameworks, APIs)
+- [x] No implementation details (languages, frameworks, APIs)
 - [x] Focused on user value and business needs
 - [x] Written for non-technical stakeholders
 - [x] All mandatory sections completed
@@ -38,6 +38,6 @@
   the base-map-unreachable case has tasks (E1), `shouldRender` is a pure, tested helper (D1), the
   machine is recorded for SC-002 (A1), and SC-003's evidence is named (E2).
   F1 still applies: `003-band-filter` T008/T011 must keep `hello.basemap` when rebased after 002.
-- "No implementation details" is unchecked by design. The feature is a library replacement requested
+- "No implementation details" was accepted as justified by the owner on 2026-10-09 (analysis option A). The feature is a library replacement requested
   by the owner, so the spec names Leaflet, MapLibre and the existing frontend modules to define
   parity. Planning will keep the requirements behavioural.
