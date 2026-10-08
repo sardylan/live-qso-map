@@ -2,7 +2,8 @@
 
 **Feature Branch**: `002-maplibre`
 **Created**: 2026-10-09
-**Status**: Ready for planning (clarified 2026-10-09).
+**Status**: Complete (2026-10-09). SC-002 was accepted as observed; see
+`checklists/verification.md`.
 **Input**: User description: "Replace Leaflet with MapLibre GL JS"
 
 Terms follow `docs/ham-radio.md` §2. Band lists follow HR-2: always in frequency order.
