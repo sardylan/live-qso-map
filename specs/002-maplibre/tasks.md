@@ -33,7 +33,7 @@ named in each task.
 
 ## Phase 1: Setup
 
-- [ ] T001 Create empty ES modules `src/web/assets/view.js` and `src/web/assets/layers.js`, each with a header comment stating it is pure (no DOM, no MapLibre). Add the routes `GET /view.js` and `GET /layers.js` (`text/javascript`, `include_str!`) to `src/web/mod.rs`. `cargo build` must pass.
+- [X] T001 Create empty ES modules `src/web/assets/view.js` and `src/web/assets/layers.js`, each with a header comment stating it is pure (no DOM, no MapLibre). Add the routes `GET /view.js` and `GET /layers.js` (`text/javascript`, `include_str!`) to `src/web/mod.rs`. `cargo build` must pass.
 
 ---
 
@@ -44,7 +44,7 @@ renders through it.
 
 ### Tests first (write, run, confirm they FAIL)
 
-- [ ] T002 [P] Update the unit tests in `src/config.rs`:
+- [X] T002 [P] Update the unit tests in `src/config.rs`:
   - the default `Config` has `map.tile_url == None` and `map.tile_attribution == None` (previously
     the OpenStreetMap URL and credit);
   - the default `MapConfig::basemap()` is `BaseMap::Style { url:
@@ -52,12 +52,12 @@ renders through it.
     R2> }`.
 
   Adapt `defaults_match_the_contract` to the new defaults.
-- [ ] T003 [P] Update the unit tests in `src/web/protocol.rs`: `hello` serialises `"protocol": 2` and `"basemap": {"kind":"style","url":…,"attribution":…}`, and has no `tiles` key. Adapt `hello_shape` and the `map_config()` test helper.
-- [ ] T004 [P] Write `web/view.test.js` for `buildStyle`: `buildStyle({kind:"style", url:"https://s/style.json", attribution:"a"})` returns `"https://s/style.json"`.
+- [X] T003 [P] Update the unit tests in `src/web/protocol.rs`: `hello` serialises `"protocol": 2` and `"basemap": {"kind":"style","url":…,"attribution":…}`, and has no `tiles` key. Adapt `hello_shape` and the `map_config()` test helper.
+- [X] T004 [P] Write `web/view.test.js` for `buildStyle`: `buildStyle({kind:"style", url:"https://s/style.json", attribution:"a"})` returns `"https://s/style.json"`.
 
 ### Implementation
 
-- [ ] T005 In `src/config.rs`:
+- [X] T005 In `src/config.rs`:
   - `MapConfig.tile_url` and `tile_attribution` become `Option<String>` with no default;
   - add `MapConfig.style_url: Option<String>` and `style_attribution: Option<String>`;
   - add `pub enum BaseMap { Style { url, attribution }, Raster { url, attribution } }` with
@@ -67,9 +67,9 @@ renders through it.
     `DEFAULT_STYLE_ATTRIBUTION`).
 
   T002 must pass.
-- [ ] T006 In `src/web/protocol.rs`, set `PROTOCOL_VERSION = 2`, replace `Tiles`/`tiles` with `basemap: BaseMap` (from `map.basemap()`), and update the other callers. T003 must pass.
-- [ ] T007 [P] Implement `buildStyle(basemap)` for `kind: "style"` in `src/web/assets/view.js`. T004 must pass.
-- [ ] T008 Run `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test` and `node --test web/` (`Cargo.toml`, `src/`, `web/`). All must pass.
+- [X] T006 In `src/web/protocol.rs`, set `PROTOCOL_VERSION = 2`, replace `Tiles`/`tiles` with `basemap: BaseMap` (from `map.basemap()`), and update the other callers. T003 must pass.
+- [X] T007 [P] Implement `buildStyle(basemap)` for `kind: "style"` in `src/web/assets/view.js`. T004 must pass.
+- [X] T008 Run `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test` and `node --test web/` (`Cargo.toml`, `src/`, `web/`). All must pass.
 
 **Checkpoint**: the server sends `hello.basemap`, and the style can be built.
 

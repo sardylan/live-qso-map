@@ -9,7 +9,7 @@ use std::str::FromStr;
 use std::time::Duration;
 
 use clap::Parser;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::band::canonical_band;
 use crate::errors::{Error, Result};
@@ -31,6 +31,12 @@ const DEFAULT_BANDS: &[(&str, &str)] = &[
     ("2m", "#843c39"),
     ("70cm", "#7b4173"),
 ];
+
+/// Default base map: OpenFreeMap Liberty (feature 002, research R2).
+pub const DEFAULT_STYLE_URL: &str = "https://tiles.openfreemap.org/styles/liberty";
+
+/// OpenFreeMap's required credit: its style carries no attribution of its own (FR-009).
+pub const DEFAULT_STYLE_ATTRIBUTION: &str = "<a href=\"https://openfreemap.org\" target=\"_blank\">OpenFreeMap</a> \u{a9} <a href=\"https://www.openmaptiles.org/\" target=\"_blank\">OpenMapTiles</a> Data from <a href=\"https://www.openstreetmap.org/copyright\" target=\"_blank\">OpenStreetMap</a>";
 
 const LOG_LEVELS: &[&str] = &["error", "warn", "info", "debug", "trace"];
 
@@ -207,10 +213,36 @@ pub struct CountryDataConfig {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct MapConfig {
-    pub tile_url: String,
-    pub tile_attribution: String,
+    pub style_url: Option<String>,
+    pub style_attribution: Option<String>,
+    pub tile_url: Option<String>,
+    pub tile_attribution: Option<String>,
     pub fallback_color: String,
     pub bands: BTreeMap<String, String>,
+}
+
+/// The background map sent to pages as `hello.basemap` (feature 002, data-model).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(tag = "kind", rename_all = "lowercase")]
+pub enum BaseMap {
+    Style { url: String, attribution: String },
+    Raster { url: String, attribution: String },
+}
+
+impl MapConfig {
+    /// The configured style, or the OpenFreeMap default with its credit.
+    pub fn basemap(&self) -> BaseMap {
+        match &self.style_url {
+            Some(url) => BaseMap::Style {
+                url: url.clone(),
+                attribution: self.style_attribution.clone().unwrap_or_default(),
+            },
+            None => BaseMap::Style {
+                url: DEFAULT_STYLE_URL.to_string(),
+                attribution: DEFAULT_STYLE_ATTRIBUTION.to_string(),
+            },
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -254,8 +286,10 @@ impl Default for Config {
                 max_age_days: 30,
             },
             map: MapConfig {
-                tile_url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png".into(),
-                tile_attribution: "&copy; OpenStreetMap contributors".into(),
+                style_url: None,
+                style_attribution: None,
+                tile_url: None,
+                tile_attribution: None,
                 fallback_color: "#7f7f7f".into(),
                 bands: DEFAULT_BANDS
                     .iter()
@@ -716,22 +750,22 @@ impl Config {
         }
         apply_band_entries(&mut bands, cli.band_color.iter().map(String::as_str))?;
         let map = MapConfig {
+            style_url: None,
+            style_attribution: None,
             tile_url: layer(
                 "map.tile_url",
                 cli.tile_url.clone(),
                 env,
                 "LQM_TILE_URL",
                 file.map.tile_url,
-            )?
-            .unwrap_or(defaults.map.tile_url),
+            )?,
             tile_attribution: layer(
                 "map.tile_attribution",
                 cli.tile_attribution.clone(),
                 env,
                 "LQM_TILE_ATTRIBUTION",
                 file.map.tile_attribution,
-            )?
-            .unwrap_or(defaults.map.tile_attribution),
+            )?,
             fallback_color,
             bands,
         };
@@ -819,11 +853,20 @@ mod tests {
             "https://www.country-files.com/cty/cty.dat"
         );
         assert_eq!(c.country_data.max_age_days, 30);
+        assert_eq!(c.map.tile_url, None);
+        assert_eq!(c.map.tile_attribution, None);
+        assert_eq!(c.map.style_url, None);
+        assert_eq!(c.map.style_attribution, None);
         assert_eq!(
-            c.map.tile_url,
-            "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+            c.map.basemap(),
+            BaseMap::Style {
+                url: "https://tiles.openfreemap.org/styles/liberty".into(),
+                attribution: DEFAULT_STYLE_ATTRIBUTION.into(),
+            }
         );
-        assert_eq!(c.map.tile_attribution, "&copy; OpenStreetMap contributors");
+        assert!(DEFAULT_STYLE_ATTRIBUTION.contains("OpenFreeMap"));
+        assert!(DEFAULT_STYLE_ATTRIBUTION.contains("OpenMapTiles"));
+        assert!(DEFAULT_STYLE_ATTRIBUTION.contains("OpenStreetMap"));
         assert_eq!(c.map.fallback_color, "#7f7f7f");
         assert_eq!(c.map.bands.get("40m").map(String::as_str), Some("#d62728"));
         assert_eq!(c.map.bands.get("20m").map(String::as_str), Some("#1f77b4"));

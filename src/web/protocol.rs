@@ -5,11 +5,11 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use crate::adif::AdifRecord;
-use crate::config::MapConfig;
+use crate::config::{BaseMap, MapConfig};
 use crate::history::{EnrichedQso, format_rfc3339, qso_timestamp};
 use crate::position::Position;
 
-pub const PROTOCOL_VERSION: u32 = 1;
+pub const PROTOCOL_VERSION: u32 = 2;
 pub const DEFAULT_LIMIT: usize = 20;
 /// Limits a page may select; `None` means All.
 pub const LIMITS: [Option<usize>; 7] = [
@@ -48,12 +48,6 @@ pub fn bands_in_order(bands: &BTreeMap<String, String>) -> Vec<BandColor> {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct Tiles {
-    pub url: String,
-    pub attribution: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ServerMessage {
     Hello {
@@ -62,7 +56,7 @@ pub enum ServerMessage {
         default_limit: usize,
         bands: Vec<BandColor>,
         fallback_color: String,
-        tiles: Tiles,
+        basemap: BaseMap,
     },
     Snapshot {
         limit: Option<usize>,
@@ -81,10 +75,7 @@ impl ServerMessage {
             default_limit: DEFAULT_LIMIT,
             bands: bands_in_order(&map.bands),
             fallback_color: map.fallback_color.clone(),
-            tiles: Tiles {
-                url: map.tile_url.clone(),
-                attribution: map.tile_attribution.clone(),
-            },
+            basemap: map.basemap(),
         }
     }
 }
@@ -161,8 +152,10 @@ mod tests {
         bands.insert("10m".to_string(), "#393b79".to_string());
         bands.insert("160m".to_string(), "#8c564b".to_string());
         MapConfig {
-            tile_url: "https://tile.example/{z}/{x}/{y}.png".into(),
-            tile_attribution: "attr".into(),
+            style_url: Some("https://style.example/style.json".into()),
+            style_attribution: Some("attr".into()),
+            tile_url: None,
+            tile_attribution: None,
             fallback_color: "#7f7f7f".into(),
             bands,
         }
@@ -200,7 +193,7 @@ mod tests {
             v,
             json!({
                 "type": "hello",
-                "protocol": 1,
+                "protocol": 2,
                 "limits": [10, 20, 50, 100, 200, 500, null],
                 "default_limit": 20,
                 "bands": [
@@ -209,7 +202,7 @@ mod tests {
                     {"band": "10m", "color": "#393b79"}
                 ],
                 "fallback_color": "#7f7f7f",
-                "tiles": {"url": "https://tile.example/{z}/{x}/{y}.png", "attribution": "attr"}
+                "basemap": {"kind": "style", "url": "https://style.example/style.json", "attribution": "attr"}
             })
         );
     }

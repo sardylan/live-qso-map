@@ -28,6 +28,8 @@ const APP_JS: &str = include_str!("assets/app.js");
 const MAP_STATE_JS: &str = include_str!("assets/map-state.js");
 const GEODESIC_JS: &str = include_str!("assets/geodesic.js");
 const APP_CSS: &str = include_str!("assets/app.css");
+const VIEW_JS: &str = include_str!("assets/view.js");
+const LAYERS_JS: &str = include_str!("assets/layers.js");
 const CONNECTION_JS: &str = include_str!("assets/connection.js");
 
 #[derive(Clone)]
@@ -65,6 +67,8 @@ pub async fn serve(
             get(|| asset("text/javascript", GEODESIC_JS)),
         )
         .route("/app.css", get(|| asset("text/css", APP_CSS)))
+        .route("/view.js", get(|| asset("text/javascript", VIEW_JS)))
+        .route("/layers.js", get(|| asset("text/javascript", LAYERS_JS)))
         .route(
             "/connection.js",
             get(|| asset("text/javascript", CONNECTION_JS)),
