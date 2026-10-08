@@ -1,31 +1,33 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 1.1.0 → 1.2.0
+Version change: 1.2.0 → 1.3.0
 Bump rationale: MINOR, because guidance is materially expanded. Technical Constraints gains a binding
-reference to the ham radio domain rules in docs/ham-radio.md (§1, HR-1 to HR-11), and Compliance
-review now covers them. No principle is removed or redefined.
+reference to the HTTP/WebSocket interface rules in docs/http-api.md (API-1 to API-5): JSON payloads
+on every HTTP endpoint and WebSocket message, and JSON error bodies. Compliance review now covers
+them. No principle is removed or redefined.
 
 Modified principles: none (I–III unchanged)
 
 Modified sections:
-  - Technical Constraints: domain rules in docs/ham-radio.md §1 are binding; the old placeholder
-    bullet about domain constraints is replaced.
-  - Governance / Compliance review: also verifies the domain rules.
+  - Technical Constraints: new bullet; interface rules in docs/http-api.md are binding.
+  - Governance / Compliance review: also verifies the interface rules.
 
-Added sections: none (new external document docs/ham-radio.md)
+Added sections: none (new external document docs/http-api.md)
 Removed sections: none
 
 Templates:
-  - .specify/templates/plan-template.md   ✅ updated (Constitution Check gains a "Domain rules" gate)
-  - .specify/templates/spec-template.md   ✅ updated (points specs to the domain glossary and rules)
-  - .specify/templates/tasks-template.md  ✅ no change needed
+  - .specify/templates/plan-template.md   ✅ updated (Constitution Check gains an "Interface rules" gate)
+  - .specify/templates/spec-template.md   ✅ no change needed (specs state what, contracts state shapes)
+  - .specify/templates/tasks-template.md  ✅ no change needed (contract tests already expected)
   - .specify/templates/commands/*.md      ⚠ not present
   - CLAUDE.md                             ✅ updated (pointer outside the managed SPECKIT block)
 
-Follow-up TODOs:
-  - specs/001-live-qso-map: checked against HR-1 to HR-11. One violation of HR-2 was found and fixed:
-    the band legend was alphabetical because hello.bands was a JSON object.
+Follow-up TODOs (current code vs API-3):
+  - unknown paths answer 404 with an empty body (src/web/mod.rs fallback);
+  - wrong methods answer 405 with an empty body (axum default);
+  - failed WebSocket upgrades on /ws answer with a plain-text body (axum rejection).
+  API-1, API-2 and API-4 are already met (/healthz JSON; WebSocket JSON text frames with `type`).
 -->
 
 # live-qso-map Constitution
@@ -95,6 +97,9 @@ connectivity. Fewer moving parts mean an easier setup and fewer failures on the 
 - Amateur radio domain rules MUST be followed: `docs/ham-radio.md` §1 (HR-1 to HR-11).
   Examples: UTC everywhere, bands always in frequency order, "country" means a DXCC/WAE
   entity. §2 of that document is the shared glossary that specifications and code use.
+- Interfaces exposed over HTTP MUST follow `docs/http-api.md` (API-1 to API-5): every REST
+  request and response body and every WebSocket message is JSON, and every error response has a
+  JSON body. The map page's static files are not payloads and are exempt.
 - Feature-specific constraints (ingestion sources, rendering, contest formats) are defined
   in each feature's specification.
 
@@ -123,7 +128,8 @@ connectivity. Fewer moving parts mean an easier setup and fewer failures on the 
     expanded.
   - PATCH: clarifications, wording and typo fixes that do not change meaning.
 - Compliance review: every plan's Constitution Check and every code review MUST verify
-  adherence to Principles I–III and to the domain rules in `docs/ham-radio.md` §1.
+  adherence to Principles I–III, to the domain rules in `docs/ham-radio.md` §1 and to the
+  interface rules in `docs/http-api.md`.
   Unjustified violations block the merge.
 
-**Version**: 1.2.0 | **Ratified**: 2026-10-08 | **Last Amended**: 2026-10-09
+**Version**: 1.3.0 | **Ratified**: 2026-10-08 | **Last Amended**: 2026-10-09

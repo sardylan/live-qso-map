@@ -35,6 +35,9 @@
 - [ ] **Domain rules** (`docs/ham-radio.md` §1): UTC times, bands in frequency order
       (never alphabetical), ADIF band/mode names, DXCC/WAE entities as countries, positions
       keep precision and source, dupes are kept.
+- [ ] **Interface rules** (`docs/http-api.md`): HTTP bodies and WebSocket messages are JSON
+      (text frames with `type`); every error response has a JSON `{"error","message"}` body;
+      snake_case fields, UTC times, arrays where order matters; contract tests planned.
 
 ### Dependency Justification
 

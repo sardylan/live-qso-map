@@ -3,6 +3,7 @@
 Project principles: `.specify/memory/constitution.md`.
 Rust implementation rules (binding): `docs/rust-guidelines.md`.
 Ham radio domain rules (binding, §1) and glossary (§2): `docs/ham-radio.md`.
+HTTP/WebSocket interface rules (binding): `docs/http-api.md`.
 
 <!-- SPECKIT START -->
 <!-- Managed by .specify/scripts/bash/update-agent-context.sh; edit outside these markers. -->
