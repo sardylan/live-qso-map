@@ -26,6 +26,27 @@ pub fn is_allowed_limit(limit: Option<usize>) -> bool {
     LIMITS.contains(&limit)
 }
 
+/// One legend entry. Bands travel as an ordered list because JSON objects have no reliable key
+/// order, and bands must always appear in frequency order (docs/ham-radio.md HR-2).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct BandColor {
+    pub band: String,
+    pub color: String,
+}
+
+/// The configured palette in frequency order.
+pub fn bands_in_order(bands: &BTreeMap<String, String>) -> Vec<BandColor> {
+    let mut list: Vec<BandColor> = bands
+        .iter()
+        .map(|(band, color)| BandColor {
+            band: band.clone(),
+            color: color.clone(),
+        })
+        .collect();
+    list.sort_by_key(|b| crate::band::band_rank(&b.band).unwrap_or(usize::MAX));
+    list
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Tiles {
     pub url: String,
@@ -39,7 +60,7 @@ pub enum ServerMessage {
         protocol: u32,
         limits: Vec<Option<usize>>,
         default_limit: usize,
-        bands: BTreeMap<String, String>,
+        bands: Vec<BandColor>,
         fallback_color: String,
         tiles: Tiles,
     },
@@ -58,7 +79,7 @@ impl ServerMessage {
             protocol: PROTOCOL_VERSION,
             limits: LIMITS.to_vec(),
             default_limit: DEFAULT_LIMIT,
-            bands: map.bands.clone(),
+            bands: bands_in_order(&map.bands),
             fallback_color: map.fallback_color.clone(),
             tiles: Tiles {
                 url: map.tile_url.clone(),
@@ -137,6 +158,8 @@ mod tests {
     fn map_config() -> MapConfig {
         let mut bands = std::collections::BTreeMap::new();
         bands.insert("40m".to_string(), "#d62728".to_string());
+        bands.insert("10m".to_string(), "#393b79".to_string());
+        bands.insert("160m".to_string(), "#8c564b".to_string());
         MapConfig {
             tile_url: "https://tile.example/{z}/{x}/{y}.png".into(),
             tile_attribution: "attr".into(),
@@ -180,7 +203,11 @@ mod tests {
                 "protocol": 1,
                 "limits": [10, 20, 50, 100, 200, 500, null],
                 "default_limit": 20,
-                "bands": {"40m": "#d62728"},
+                "bands": [
+                    {"band": "160m", "color": "#8c564b"},
+                    {"band": "40m", "color": "#d62728"},
+                    {"band": "10m", "color": "#393b79"}
+                ],
                 "fallback_color": "#7f7f7f",
                 "tiles": {"url": "https://tile.example/{z}/{x}/{y}.png", "attribution": "attr"}
             })

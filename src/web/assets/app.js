@@ -116,7 +116,8 @@ function showLegend(bands) {
   legend = L.control({ position: 'bottomright' });
   legend.onAdd = () => {
     const box = element('div', 'legend');
-    for (const [band, color] of Object.entries(bands)) {
+    // `bands` is already in frequency order (HR-2): never re-sort it.
+    for (const { band, color } of bands) {
       const row = element('div');
       const swatch = element('span', 'swatch');
       swatch.style.background = color;

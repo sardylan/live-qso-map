@@ -1,8 +1,14 @@
 // Pure map state: no DOM, no Leaflet (data-model "Frontend state"). Every decision about what
 // the map shows lives here, so it can be tested with `node --test`.
 
-export function createState({ bands = {}, fallbackColor = '#7f7f7f', limit = 20 } = {}) {
-  return { bands, fallbackColor, limit, qsos: new Map() };
+/**
+ * `bands` is the ordered list from `hello` (`[{ band, color }]`, frequency order, HR-2).
+ * `bandOrder` keeps that order for anything that lists bands.
+ */
+export function createState({ bands = [], fallbackColor = '#7f7f7f', limit = 20 } = {}) {
+  const colors = {};
+  for (const { band, color } of bands) colors[band.toLowerCase()] = color;
+  return { bands: colors, bandOrder: bands.map((b) => b.band), fallbackColor, limit, qsos: new Map() };
 }
 
 export function applySnapshot(state, qsos) {

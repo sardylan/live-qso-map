@@ -126,6 +126,15 @@ pub(crate) fn normalise(
     if let Some(call) = &station.callsign {
         record.set_if_absent("STATION_CALLSIGN", call.clone());
     }
+    // HR-3: a record with FREQ but no BAND gets the band from the frequency.
+    if record.get_non_empty("BAND").is_none()
+        && let Some(band) = record
+            .get_non_empty("FREQ")
+            .and_then(|f| f.parse::<f64>().ok())
+            .and_then(crate::band::band_from_mhz)
+    {
+        record.set("BAND", band);
+    }
     Some(record)
 }
 
@@ -160,5 +169,71 @@ pub async fn run(
                 return;
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn from() -> SocketAddr {
+        "127.0.0.1:9".parse().unwrap()
+    }
+
+    fn record(fields: &[(&str, &str)]) -> AdifRecord {
+        let mut r = AdifRecord::new();
+        for (k, v) in [
+            ("CALL", "K1A"),
+            ("QSO_DATE", "20261008"),
+            ("TIME_ON", "1500"),
+        ]
+        .iter()
+        .chain(fields)
+        {
+            r.set(k, *v);
+        }
+        r
+    }
+
+    #[test]
+    fn band_is_derived_from_freq_when_missing() {
+        let r = normalise(
+            record(&[("FREQ", "14.025")]),
+            from(),
+            &StationConfig::default(),
+        )
+        .unwrap();
+        assert_eq!(r.get("BAND"), Some("20m"));
+    }
+
+    #[test]
+    fn logger_band_is_never_overwritten() {
+        let r = normalise(
+            record(&[("FREQ", "14.025"), ("BAND", "40m")]),
+            from(),
+            &StationConfig::default(),
+        )
+        .unwrap();
+        assert_eq!(r.get("BAND"), Some("40m"));
+    }
+
+    #[test]
+    fn out_of_band_or_bad_freq_leaves_band_unknown() {
+        for freq in ["5.000", "abc", ""] {
+            let r =
+                normalise(record(&[("FREQ", freq)]), from(), &StationConfig::default()).unwrap();
+            assert_eq!(r.get("BAND"), None, "{freq}");
+        }
+    }
+
+    #[test]
+    fn station_callsign_default_is_filled() {
+        let station = StationConfig {
+            callsign: Some("IS0MZK".into()),
+            ..StationConfig::default()
+        };
+        let r = normalise(record(&[]), from(), &station).unwrap();
+        assert_eq!(r.get("STATION_CALLSIGN"), Some("IS0MZK"));
+        assert!(normalise(AdifRecord::new(), from(), &station).is_none());
     }
 }

@@ -1,6 +1,6 @@
 //! ADIF 3.1 band plan (research R9).
 
-/// (band, lower edge MHz, upper edge MHz), edges inclusive.
+/// (band, lower edge MHz, upper edge MHz), edges inclusive, in frequency order (HR-2).
 const BANDS: &[(&str, f64, f64)] = &[
     ("2190m", 0.1357, 0.1378),
     ("630m", 0.472, 0.479),
@@ -53,6 +53,14 @@ pub fn band_from_metres(value: &str) -> Option<&'static str> {
     [value.clone(), format!("{value}m"), format!("{value}cm")]
         .iter()
         .find_map(|candidate| canonical_band(candidate))
+}
+
+/// Position of the band in frequency order (lowest frequency first), for sorting (HR-2).
+pub fn band_rank(name: &str) -> Option<usize> {
+    let name = name.trim();
+    BANDS
+        .iter()
+        .position(|(band, _, _)| band.eq_ignore_ascii_case(name))
 }
 
 pub fn is_adif_band(name: &str) -> bool {
@@ -110,5 +118,22 @@ mod tests {
         assert!(is_adif_band("20m"));
         assert!(is_adif_band("70CM"));
         assert!(!is_adif_band("21m"));
+    }
+
+    #[test]
+    fn bands_rank_by_frequency_not_alphabet() {
+        let mut names = vec![
+            "10m", "160m", "70cm", "12m", "2m", "15m", "80m", "6m", "40m", "20m",
+        ];
+        names.sort_by_key(|b| band_rank(b));
+        assert_eq!(
+            names,
+            [
+                "160m", "80m", "40m", "20m", "15m", "12m", "10m", "6m", "2m", "70cm"
+            ]
+        );
+        assert!(band_rank("2190m") < band_rank("160m"));
+        assert_eq!(band_rank("21m"), None);
+        assert_eq!(band_rank("70CM"), band_rank("70cm"));
     }
 }

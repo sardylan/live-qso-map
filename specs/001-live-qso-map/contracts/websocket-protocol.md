@@ -15,14 +15,21 @@ Unknown `type` values MUST be ignored by both sides (forward compatibility).
   "protocol": 1,
   "limits": [10, 20, 50, 100, 200, 500, null],
   "default_limit": 20,
-  "bands": { "160m": "#8c564b", "80m": "#9467bd", "40m": "#d62728", "20m": "#1f77b4" },
+  "bands": [
+    { "band": "160m", "color": "#8c564b" },
+    { "band": "80m", "color": "#9467bd" },
+    { "band": "40m", "color": "#d62728" },
+    { "band": "20m", "color": "#1f77b4" }
+  ],
   "fallback_color": "#7f7f7f",
   "tiles": { "url": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
              "attribution": "&copy; OpenStreetMap contributors" }
 }
 ```
 
-`null` in `limits` means "All".
+`null` in `limits` means "All". `bands` is an array in frequency order, lowest frequency first
+(`docs/ham-radio.md` HR-2). A JSON object cannot guarantee key order, so it is not used, and
+clients MUST NOT re-sort the list.
 
 ### `snapshot` (after `hello`, after every `set_limit`, and after the server detects lag)
 

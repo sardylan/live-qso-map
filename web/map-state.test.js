@@ -2,7 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createState, applySnapshot, applyUpsert, visible, markers, diffLayers, setLimit } from '../src/web/assets/map-state.js';
 
-const bands = { '40m': '#d62728', '20m': '#1f77b4' };
+const bands = [
+  { band: '40m', color: '#d62728' },
+  { band: '20m', color: '#1f77b4' },
+];
 const STATION = { lat: 39.3125, lon: 9.125, precision: 'locator6', source: 'config' };
 
 function qso(n, overrides = {}) {
@@ -186,4 +189,9 @@ test('a snapshot resets revisions', () => {
   applyUpsert(s, qso(1, { rev: 5 }));
   applySnapshot(s, [qso(1, { rev: 1, call: 'RESTARTED' })]);
   assert.equal(visible(s)[0].call, 'RESTARTED');
+});
+
+test('bands arrive as an ordered list and keep their order', () => {
+  const s = state();
+  assert.deepEqual(s.bandOrder, ['40m', '20m']);
 });
