@@ -52,3 +52,46 @@ test('a raster base map becomes a version-8 raster style', () => {
     layers: [{ id: 'basemap', type: 'raster', source: 'basemap' }],
   });
 });
+
+import { loadProjection, saveProjection, nextProjection } from '../src/web/assets/view.js';
+
+function memoryStorage(initial = {}) {
+  const data = { ...initial };
+  return {
+    getItem: (k) => (k in data ? data[k] : null),
+    setItem: (k, v) => {
+      data[k] = String(v);
+    },
+    data,
+  };
+}
+
+const throwingStorage = {
+  getItem() {
+    throw new Error('denied');
+  },
+  setItem() {
+    throw new Error('denied');
+  },
+};
+
+test('loadProjection defaults to globe', () => {
+  assert.equal(loadProjection(memoryStorage()), 'globe');
+  assert.equal(loadProjection(null), 'globe');
+  assert.equal(loadProjection(throwingStorage), 'globe');
+  assert.equal(loadProjection(memoryStorage({ 'lqm.projection': 'spherical' })), 'globe');
+  assert.equal(loadProjection(memoryStorage({ 'lqm.projection': 'mercator' })), 'mercator');
+});
+
+test('saveProjection stores and swallows errors', () => {
+  const storage = memoryStorage();
+  saveProjection(storage, 'mercator');
+  assert.equal(storage.data['lqm.projection'], 'mercator');
+  assert.doesNotThrow(() => saveProjection(throwingStorage, 'globe'));
+  assert.doesNotThrow(() => saveProjection(null, 'globe'));
+});
+
+test('nextProjection toggles globe and mercator', () => {
+  assert.equal(nextProjection('globe'), 'mercator');
+  assert.equal(nextProjection('mercator'), 'globe');
+});

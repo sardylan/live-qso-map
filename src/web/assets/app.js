@@ -6,7 +6,15 @@
 
 import { createState, applySnapshot, applyUpsert, markers, diffLayers, setLimit } from './map-state.js';
 import { markerFeatures, lineFeatures } from './layers.js';
-import { buildStyle, hasWebGL, isBasemapError, shouldRender } from './view.js';
+import {
+  buildStyle,
+  hasWebGL,
+  isBasemapError,
+  shouldRender,
+  loadProjection,
+  saveProjection,
+  nextProjection,
+} from './view.js';
 import { createConnection, onOpen, onClose, onHello as handshake, loadLimit, saveLimit } from './connection.js';
 
 const OVERLAYS = ['qso-lines', 'qso-markers'];
@@ -25,7 +33,16 @@ function sessionStore() {
   }
 }
 
+function localStore() {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
 const connection = createConnection(loadLimit(sessionStore()));
+let projection = loadProjection(localStore());
 
 function element(tag, className, text) {
   const node = document.createElement(tag);
@@ -86,6 +103,35 @@ function addOverlays() {
   });
 }
 
+/** A map control with one button that switches between globe and flat (FR-010). */
+class ProjectionControl {
+  onAdd() {
+    this.container = element('div', 'maplibregl-ctrl maplibregl-ctrl-group projection-control');
+    this.button = element('button');
+    this.button.type = 'button';
+    this.button.addEventListener('click', () => {
+      projection = nextProjection(projection);
+      // Before `load` the choice is only stored; the load handler applies it.
+      if (loaded) map.setProjection({ type: projection });
+      saveProjection(localStore(), projection);
+      this.update();
+    });
+    this.container.append(this.button);
+    this.update();
+    return this.container;
+  }
+
+  update() {
+    const target = nextProjection(projection) === 'globe' ? 'Globe' : 'Flat';
+    this.button.textContent = target;
+    this.button.title = `Switch to ${target.toLowerCase()} view`;
+  }
+
+  onRemove() {
+    this.container.remove();
+  }
+}
+
 function render() {
   if (!state) return;
   const next = markers(state);
@@ -108,7 +154,9 @@ function createMap(hello) {
     new maplibregl.AttributionControl({ compact: false, customAttribution: hello.basemap.attribution || undefined }),
   );
   map.addControl(new maplibregl.NavigationControl(), 'top-left');
+  map.addControl(new ProjectionControl(), 'top-left');
   map.on('load', () => {
+    map.setProjection({ type: projection });
     addOverlays();
     loaded = true;
     current = new Map();

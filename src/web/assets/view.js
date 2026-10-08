@@ -32,3 +32,28 @@ export function isBasemapError(event, overlaySources) {
 export function shouldRender(loaded, diff) {
   return loaded && (diff.add.length > 0 || diff.update.length > 0 || diff.remove.length > 0);
 }
+
+const PROJECTION_KEY = 'lqm.projection';
+const PROJECTIONS = ['globe', 'mercator'];
+
+/** The viewer's projection: globe unless they chose mercator (FR-010). Never throws. */
+export function loadProjection(storage) {
+  try {
+    const value = storage?.getItem(PROJECTION_KEY);
+    return PROJECTIONS.includes(value) ? value : 'globe';
+  } catch {
+    return 'globe';
+  }
+}
+
+export function saveProjection(storage, projection) {
+  try {
+    storage?.setItem(PROJECTION_KEY, projection);
+  } catch {
+    // Storage may be unavailable (private mode); the choice then lasts for this page only.
+  }
+}
+
+export function nextProjection(projection) {
+  return projection === 'globe' ? 'mercator' : 'globe';
+}

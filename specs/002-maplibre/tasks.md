@@ -208,7 +208,7 @@ configuring both is rejected.
 
 ### Tests for User Story 3 (write first, confirm they FAIL)
 
-- [ ] T023 [P] [US3] Extend `web/view.test.js`:
+- [X] T023 [P] [US3] Extend `web/view.test.js`:
   - `loadProjection(storage)` gives `"globe"` for empty storage, `null` storage, an unknown value,
     or a throwing storage; it gives `"mercator"` when stored;
   - `saveProjection(storage, p)` writes the key `lqm.projection` and swallows errors;
@@ -216,8 +216,8 @@ configuring both is rejected.
 
 ### Implementation for User Story 3
 
-- [ ] T024 [US3] Implement `loadProjection`, `saveProjection` and `nextProjection` in `src/web/assets/view.js`. T023 must pass.
-- [ ] T025 [US3] Wire the projection in `src/web/assets/app.js`:
+- [X] T024 [US3] Implement `loadProjection`, `saveProjection` and `nextProjection` in `src/web/assets/view.js`. T023 must pass.
+- [X] T025 [US3] Wire the projection in `src/web/assets/app.js`:
   - on `load`, call `map.setProjection({ type: loadProjection(localStore()) })`, where `localStore()`
     returns `window.localStorage` inside a try/catch;
   - add a small custom control (top-left, under the navigation control): a button labelled

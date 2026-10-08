@@ -89,3 +89,9 @@ body {
   font-size: 15px;
   text-align: center;
 }
+
+.projection-control button {
+  width: auto;
+  padding: 0 8px;
+  font: 12px/29px system-ui, -apple-system, "Segoe UI", sans-serif;
+}
