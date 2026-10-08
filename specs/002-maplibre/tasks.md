@@ -155,7 +155,7 @@ message.
     `isBasemapError(e, ['qso-lines','qso-markers'])`, show the existing `#status` banner with "Base
     map unavailable; QSOs are still shown." (edge case "base map unreachable"). QSO layers keep
     rendering on the empty background.
-- [ ] T016 [US1] Run quickstart §2 (parity, including the antimeridian path), §5 (no WebGL) and §2b (base map unreachable: block `tiles.openfreemap.org` in the browser's DevTools network request blocking, reload, and check that the banner shows while markers and lines still render) in two browsers. Record the results in `specs/002-maplibre/checklists/verification.md`.
+- [X] T016 [US1] Run quickstart §2 (parity, including the antimeridian path), §5 (no WebGL) and §2b (base map unreachable: block `tiles.openfreemap.org` in the browser's DevTools network request blocking, reload, and check that the banner shows while markers and lines still render) in two browsers. Record the results in `specs/002-maplibre/checklists/verification.md`.
 
 **Checkpoint**: User Story 1 works on its own. This is the MVP.
 
@@ -225,7 +225,7 @@ configuring both is rejected.
     and `saveProjection`, and updates the label.
 
   Add the control style to `src/web/assets/app.css`.
-- [ ] T026 [US3] Run quickstart §4 in two browsers. Record the result in `specs/002-maplibre/checklists/verification.md`.
+- [X] T026 [US3] Run quickstart §4 in two browsers. Record the result in `specs/002-maplibre/checklists/verification.md`.
 
 **Checkpoint**: all user stories work on their own.
 
@@ -241,7 +241,7 @@ configuring both is rejected.
   - in `specs/001-live-qso-map/contracts/configuration.md` and `websocket-protocol.md`, add a note
     pointing to the 002 deltas (protocol 2, `basemap`).
 - [X] T028 [P] Extend `tests/ws_protocol.rs::every_page_receives_hello_snapshot_and_live_upserts` to assert that `hello.protocol == 2` and that `hello.basemap.kind == "style"` with the default configuration.
-- [ ] T029 Run quickstart §6 (SC-002: at least 30 fps with 2,000 QSOs in globe and flat) using `scripts/send_burst.sh 2000` and the browser Performance panel. Record the measured fps, plus the machine (CPU, GPU, OS) and browser version, in `specs/002-maplibre/checklists/verification.md`.
+- [ ] T029 **PARTIAL (2026-10-09): no problems observed by the owner; fps number not yet recorded.** Run quickstart §6 (SC-002: at least 30 fps with 2,000 QSOs in globe and flat) using `scripts/send_burst.sh 2000` and the browser Performance panel. Record the measured fps, plus the machine (CPU, GPU, OS) and browser version, in `specs/002-maplibre/checklists/verification.md`.
 - [X] T030 Run the complete quality gates: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test`, `node --test web/`. Grep `src/` and `README.md` for leftover `leaflet`/`L.` references. Finalise `specs/002-maplibre/checklists/verification.md` with SC-001 to SC-003. SC-003 (live QSO within 2 s) is evidenced by the unchanged test `tests/ws_protocol.rs::every_page_receives_hello_snapshot_and_live_upserts`.
 
 ---

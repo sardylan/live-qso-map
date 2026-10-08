@@ -18,8 +18,8 @@
 
 | ID | Criterion | Evidence | Status |
 |----|-----------|----------|--------|
-| SC-001 | Feature-001 frontend behaviour on the new renderer | Pure modules and tests unchanged (FR-007). New `layers.js` tests cover `[lon, lat]` order, zRank order, great-circle lines and antimeridian continuity. `ws_protocol` checks the assets, MapLibre 5.24.0 SRI and the absence of Leaflet. | ⚠️ automated parts pass; **visual check in two browsers pending** (T016) |
-| SC-002 | ≥ 30 fps with 2,000 QSOs, globe and flat | GPU circle and line layers (research R3) | ⚠️ **measurement pending** (T029) |
+| SC-001 | Feature-001 frontend behaviour on the new renderer | Pure modules and tests unchanged (FR-007). New `layers.js` tests cover `[lon, lat]` order, zRank order, great-circle lines and antimeridian continuity. `ws_protocol` checks the assets, MapLibre 5.24.0 SRI and the absence of Leaflet. | ✅ automated checks pass; the owner tested in a browser on 2026-10-09 and reported no problems (T016) |
+| SC-002 | ≥ 30 fps with 2,000 QSOs, globe and flat | GPU circle and line layers (research R3) | ⚠️ owner observed no problems on 2026-10-09; **a number in fps was not recorded** (T029) |
 | SC-003 | Live QSO on every page within 2 s | unchanged test `tests/ws_protocol.rs::every_page_receives_hello_snapshot_and_live_upserts` | ✅ |
 
 ## Requirement checks done with the real binary
@@ -32,12 +32,10 @@
 | `--tile-url` without an attribution | ✅ exits: `invalid setting map.tile_attribution: raster tiles need an attribution (FR-009)` |
 | Assets `/`, `/app.js`, `/view.js`, `/layers.js` served with the right types | ✅ |
 
-## Pending manual checks (need a real browser)
+## Browser checks
 
-1. **T016**: quickstart §2 (parity, including an antimeridian path, e.g. station `JM49` and a QSO
-   in `BL11`), §2b (block `tiles.openfreemap.org` → banner, QSOs still drawn) and §5 (no WebGL →
-   message).
-2. **T026**: quickstart §4. The page opens as a globe; Flat, then reload, opens flat; a second
-   browser still opens as a globe.
-3. **T029**: quickstart §6. `scripts/send_burst.sh 2000`, select All, record fps in globe and flat
-   together with the machine (CPU, GPU, OS) and the browser version.
+- **T016 and T026**: done by the owner on 2026-10-09: "tested in a browser, it seems that there
+  are no problems".
+- **T029 (SC-002)**: no problems observed, but the 30 fps target has not been measured. To close it
+  formally: `scripts/send_burst.sh 2000`, select All, record fps in globe and flat with the
+  browser's Performance panel, plus the machine and browser version.
