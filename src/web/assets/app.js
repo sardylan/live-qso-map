@@ -3,14 +3,26 @@
 // from an open UDP port (FR-035).
 /* global L */
 
-import { createState, applySnapshot, applyUpsert, markers, diffLayers } from './map-state.js';
+import { createState, applySnapshot, applyUpsert, markers, diffLayers, setLimit } from './map-state.js';
 import { greatCircle } from './geodesic.js';
+import { createConnection, onOpen, onClose, onHello as handshake, loadLimit, saveLimit } from './connection.js';
 
 let map = null;
 let legend = null;
 let state = null;
 let current = new Map();
 const layers = new Map();
+let socket = null;
+
+function sessionStore() {
+  try {
+    return window.sessionStorage;
+  } catch {
+    return null;
+  }
+}
+
+const connection = createConnection(loadLimit(sessionStore()));
 
 function element(tag, className, text) {
   const node = document.createElement(tag);
@@ -122,7 +134,10 @@ function onHello(hello) {
     L.tileLayer(hello.tiles.url, { attribution: hello.tiles.attribution, maxZoom: 18 }).addTo(map);
   }
   showLegend(hello.bands);
-  state = createState({ bands: hello.bands, fallbackColor: hello.fallback_color, limit: hello.default_limit });
+  state = createState({ bands: hello.bands, fallbackColor: hello.fallback_color, limit: connection.limit });
+  for (const message of handshake(connection)) {
+    socket.send(JSON.stringify(message));
+  }
 }
 
 function onMessage(message) {
@@ -132,7 +147,7 @@ function onMessage(message) {
   }
   if (!state) return;
   if (message.type === 'snapshot') {
-    state.limit = message.limit;
+    setLimit(state, message.limit);
     applySnapshot(state, message.qsos);
   } else if (message.type === 'upsert') {
     applyUpsert(state, message.qso);
@@ -142,9 +157,17 @@ function onMessage(message) {
   render();
 }
 
+function showReconnecting(visible) {
+  document.getElementById('status').hidden = !visible;
+}
+
 function connect() {
   const url = `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/ws`;
-  const socket = new WebSocket(url);
+  socket = new WebSocket(url);
+  socket.addEventListener('open', () => {
+    onOpen(connection);
+    showReconnecting(false);
+  });
   socket.addEventListener('message', (event) => {
     try {
       onMessage(JSON.parse(event.data));
@@ -152,7 +175,23 @@ function connect() {
       console.error('bad message', error);
     }
   });
-  return socket;
+  socket.addEventListener('close', () => {
+    showReconnecting(true);
+    setTimeout(connect, onClose(connection));
+  });
 }
 
+function setupSelector() {
+  const select = document.getElementById('limit');
+  select.value = connection.limit === null ? 'all' : String(connection.limit);
+  select.addEventListener('change', () => {
+    connection.limit = select.value === 'all' ? null : Number.parseInt(select.value, 10);
+    saveLimit(sessionStore(), connection.limit);
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({ type: 'set_limit', limit: connection.limit }));
+    }
+  });
+}
+
+setupSelector();
 connect();

@@ -234,6 +234,56 @@ mod tests {
         );
     }
 
+    fn snapshot_len(m: &ServerMessage) -> (Option<usize>, usize) {
+        match m {
+            ServerMessage::Snapshot { limit, qsos } => (*limit, qsos.len()),
+            other => panic!("expected snapshot, got {}", kind(other)),
+        }
+    }
+
+    #[test]
+    fn set_limit_resends_the_window() {
+        let p = pipeline_with(150, 16);
+        let mut session = Session::new();
+        let msgs = session.on_client(
+            ClientMessage::SetLimit { limit: Some(100) },
+            &p.lock_history(),
+        );
+        assert_eq!(msgs.len(), 1);
+        assert_eq!(snapshot_len(&msgs[0]), (Some(100), 100));
+        assert_eq!(session.limit(), Some(100));
+
+        let msgs = session.on_client(ClientMessage::SetLimit { limit: None }, &p.lock_history());
+        assert_eq!(snapshot_len(&msgs[0]), (None, 150));
+    }
+
+    #[test]
+    fn disallowed_limit_is_ignored() {
+        let p = pipeline_with(30, 16);
+        let mut session = Session::new();
+        assert!(
+            session
+                .on_client(
+                    ClientMessage::SetLimit { limit: Some(7) },
+                    &p.lock_history()
+                )
+                .is_empty()
+        );
+        assert_eq!(session.limit(), Some(20));
+    }
+
+    #[test]
+    fn lag_resends_the_current_window() {
+        let p = pipeline_with(60, 16);
+        let mut session = Session::new();
+        session.on_client(
+            ClientMessage::SetLimit { limit: Some(50) },
+            &p.lock_history(),
+        );
+        let msgs = session.on_lagged(&p.lock_history());
+        assert_eq!(snapshot_len(&msgs[0]), (Some(50), 50));
+    }
+
     /// A sink that blocks every send until the gate opens, and replays scripted client input.
     struct GatedSink {
         gate: Arc<Notify>,

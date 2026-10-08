@@ -1,0 +1,51 @@
+// Pure connection helpers: reconnect backoff, the post-connect handshake and the remembered
+// window size (FR-031, data-model "Connection state"). No DOM, no WebSocket.
+
+export const LIMITS = [10, 20, 50, 100, 200, 500, null];
+const DEFAULT_LIMIT = 20;
+const STORAGE_KEY = 'lqm.limit';
+
+export function createConnection(limit = DEFAULT_LIMIT) {
+  return { attempt: 0, limit };
+}
+
+/** 1, 2, 4, 8, 16, then 30 s, with ±20% jitter from `rand()` in [0, 1]. */
+export function backoffDelay(attempt, rand = Math.random) {
+  const base = Math.min(1000 * 2 ** attempt, 30000);
+  return Math.round(base * (0.8 + 0.4 * rand()));
+}
+
+export function onOpen(connection) {
+  connection.attempt = 0;
+}
+
+/** Returns how long to wait before the next attempt. */
+export function onClose(connection, rand = Math.random) {
+  const delay = backoffDelay(connection.attempt, rand);
+  connection.attempt += 1;
+  return delay;
+}
+
+/** Messages to send after every (re)connect, once the server said hello. */
+export function onHello(connection) {
+  return [{ type: 'set_limit', limit: connection.limit }];
+}
+
+export function loadLimit(storage) {
+  try {
+    const raw = storage?.getItem(STORAGE_KEY);
+    if (raw === 'all') return null;
+    const value = Number.parseInt(raw, 10);
+    return LIMITS.includes(value) ? value : DEFAULT_LIMIT;
+  } catch {
+    return DEFAULT_LIMIT;
+  }
+}
+
+export function saveLimit(storage, limit) {
+  try {
+    storage?.setItem(STORAGE_KEY, limit === null ? 'all' : String(limit));
+  } catch {
+    // Storage may be unavailable (private mode); the selection then lasts for this page only.
+  }
+}

@@ -480,12 +480,12 @@ it shows 100; at All it shows 150; a second page at 20 is unaffected. Quickstart
 
 ### Tests for User Story 3 (write first, confirm they FAIL)
 
-- [ ] T064 [P] [US3] Extend the unit tests in `src/web/session.rs`:
+- [X] T064 [P] [US3] Extend the unit tests in `src/web/session.rs`:
   - `set_limit(100)` emits `snapshot` with the last 100;
   - `set_limit(null)` emits all;
   - a limit not in `hello.limits` (e.g. 7) is ignored with a debug log and no message;
   - `on_lagged` emits `snapshot(latest(current_limit))`.
-- [ ] T065 [P] [US3] Extend `web/map-state.test.js`:
+- [X] T065 [P] [US3] Extend `web/map-state.test.js`:
   - with `limit=20` and 25 upserts, only the last 20 by `sort_key` are visible;
   - a marker is removed when none of its QSOs is visible (FR-030);
   - `setLimit(null)` makes everything visible;
@@ -500,7 +500,7 @@ it shows 100; at All it shows 150; a second page at 20 is unaffected. Quickstart
   - `loadLimit(storage)` returns 20 when the storage is empty, throws, or holds an invalid value,
     and otherwise the stored value;
   - `saveLimit(storage, v)` swallows storage errors.
-- [ ] T066 [P] [US3] Extend `tests/ws_protocol.rs` (service started with `pipeline::start` on port 0):
+- [X] T066 [P] [US3] Extend `tests/ws_protocol.rs` (service started with `pipeline::start` on port 0):
   - insert 150 QSOs, then connect: the snapshot has 20, in ascending order (SC-003, within 3 s);
   - send `set_limit 100` and get a snapshot of 100;
   - `set_limit null` gives 150;
@@ -511,15 +511,15 @@ it shows 100; at All it shows 150; a second page at 20 is unaffected. Quickstart
 
 ### Implementation for User Story 3
 
-- [ ] T067 [US3] Implement `set_limit` and lag handling in `src/web/session.rs`, and in the `MessageSink`-based driver in `src/web/mod.rs` handle `broadcast::error::RecvError::Lagged` by sending the snapshot. Validate the limit against the allowed set. T064 must pass.
-- [ ] T068 [US3] Implement `setLimit` and visible-window recomputation in `src/web/assets/map-state.js`, and implement `src/web/assets/connection.js` (`backoffDelay`, `onOpen`, `onHello`, `loadLimit`, `saveLimit`). Add the `GET /connection.js` route (`text/javascript`, `include_str!`) to the router in `src/web/mod.rs`. T065 must pass.
-- [ ] T069 [US3] Add the selector to the page:
+- [X] T067 [US3] Implement `set_limit` and lag handling in `src/web/session.rs`, and in the `MessageSink`-based driver in `src/web/mod.rs` handle `broadcast::error::RecvError::Lagged` by sending the snapshot. Validate the limit against the allowed set. T064 must pass.
+- [X] T068 [US3] Implement `setLimit` and visible-window recomputation in `src/web/assets/map-state.js`, and implement `src/web/assets/connection.js` (`backoffDelay`, `onOpen`, `onHello`, `loadLimit`, `saveLimit`). Add the `GET /connection.js` route (`text/javascript`, `include_str!`) to the router in `src/web/mod.rs`. T065 must pass.
+- [X] T069 [US3] Add the selector to the page:
   - `index.html`/`app.css`: a `<select>` with 10, 20, 50, 100, 200, 500 and All (default 20) in a
     corner control;
   - `app.js`: on change, send `{"type":"set_limit","limit":...}` and persist the choice with
     `connection.saveLimit(sessionStorage, v)`; initialise the selector with
     `connection.loadLimit(sessionStorage)`. DOM wiring only.
-- [ ] T070 [US3] Wire reconnection in `src/web/assets/app.js` (FR-031) using `connection.js`: on close, schedule a retry after `backoffDelay(attempt, Math.random)`; on open, call `onOpen`; on `hello`, send the messages returned by `onHello`; show a small "reconnecting…" indicator while disconnected. DOM wiring only. T066 must pass, and quickstart §6 must be checked manually.
+- [X] T070 [US3] Wire reconnection in `src/web/assets/app.js` (FR-031) using `connection.js`: on close, schedule a retry after `backoffDelay(attempt, Math.random)`; on open, call `onOpen`; on `hello`, send the messages returned by `onHello`; show a small "reconnecting…" indicator while disconnected. DOM wiring only. T066 must pass, and quickstart §6 must be checked manually.
 
 **Checkpoint**: User Stories 1, 2 and 3 work on their own.
 

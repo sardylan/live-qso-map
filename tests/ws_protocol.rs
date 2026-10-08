@@ -6,7 +6,7 @@ use std::net::SocketAddr;
 use std::time::Duration;
 
 use common::{send_udp, test_config};
-use futures_util::StreamExt;
+use futures_util::{SinkExt, StreamExt};
 use live_qso_map::pipeline::start;
 use serde_json::Value;
 use tokio::net::TcpStream;
@@ -83,6 +83,7 @@ async fn static_assets_are_served() {
         ("/map-state.js", "text/javascript"),
         ("/geodesic.js", "text/javascript"),
         ("/app.css", "text/css"),
+        ("/connection.js", "text/javascript"),
     ] {
         let response = reqwest::get(format!("http://{}{path}", service.http_addr))
             .await
@@ -98,5 +99,118 @@ async fn static_assets_are_served() {
         .await
         .unwrap();
     assert_eq!(missing.status(), 404);
+    service.shutdown().await;
+}
+
+/// One datagram holding `count` QSOs starting at index `from`, one second apart, with locators.
+fn batch(from: usize, count: usize) -> Vec<u8> {
+    let mut out = String::new();
+    for i in from..from + count {
+        let call = format!("K{}X{:04}", i % 10, i);
+        let time = format!("{:02}{:02}{:02}", 10 + i / 3600, (i / 60) % 60, i % 60);
+        out.push_str(&format!(
+            "<CALL:{}>{call} <QSO_DATE:8>20261008 <TIME_ON:6>{time} <BAND:3>20m <MODE:2>CW <GRIDSQUARE:4>FN{}{} <EOR>",
+            call.len(),
+            i % 10,
+            (i / 10) % 10
+        ));
+    }
+    out.into_bytes()
+}
+
+/// Sends `total` QSOs (50 per datagram: macOS caps UDP datagrams at 9216 bytes by default)
+/// and waits until the history holds `expect` of them.
+async fn fill(service: &live_qso_map::pipeline::RunningService, total: usize, expect: usize) {
+    let mut sent = 0;
+    while sent < total {
+        let n = (total - sent).min(50);
+        send_udp(service.udp_addr, &batch(sent, n)).await;
+        sent += n;
+    }
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
+    while service.history_len() < expect && tokio::time::Instant::now() < deadline {
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+}
+
+async fn set_limit(ws: &mut Client, limit: Value) {
+    let text = serde_json::json!({"type": "set_limit", "limit": limit}).to_string();
+    ws.send(Message::Text(text.into())).await.unwrap();
+}
+
+fn ids(snapshot: &Value) -> Vec<String> {
+    snapshot["qsos"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|q| q["call"].as_str().unwrap().to_string())
+        .collect()
+}
+
+#[tokio::test]
+async fn pages_choose_their_own_window() {
+    let service = start(test_config(), None).await.unwrap();
+    fill(&service, 150, 150).await;
+    assert_eq!(service.history_len(), 150);
+
+    let begin = tokio::time::Instant::now();
+    let mut a = connect(service.http_addr).await;
+    let mut b = connect(service.http_addr).await;
+    for ws in [&mut a, &mut b] {
+        assert_eq!(
+            next_json(ws, Duration::from_secs(3)).await.unwrap()["type"],
+            "hello"
+        );
+        let snapshot = next_json(ws, Duration::from_secs(3)).await.unwrap();
+        let calls = ids(&snapshot);
+        assert_eq!(calls.len(), 20);
+        assert_eq!(calls.first().unwrap(), "K0X0130");
+        assert_eq!(calls.last().unwrap(), "K9X0149");
+    }
+    assert!(begin.elapsed() < Duration::from_secs(3), "SC-003");
+
+    set_limit(&mut a, serde_json::json!(100)).await;
+    let snapshot = next_json(&mut a, Duration::from_secs(2)).await.unwrap();
+    assert_eq!(snapshot["limit"], 100);
+    assert_eq!(ids(&snapshot).len(), 100);
+
+    set_limit(&mut a, Value::Null).await;
+    let snapshot = next_json(&mut a, Duration::from_secs(2)).await.unwrap();
+    assert_eq!(snapshot["limit"], Value::Null);
+    assert_eq!(ids(&snapshot).len(), 150);
+
+    set_limit(&mut a, serde_json::json!(7)).await;
+    assert!(
+        next_json(&mut a, Duration::from_millis(300))
+            .await
+            .is_none(),
+        "disallowed limit ignored"
+    );
+
+    // The other page saw no snapshot, only the next live upsert.
+    send_udp(service.udp_addr, &batch(150, 1)).await;
+    let upsert = next_json(&mut b, Duration::from_secs(2)).await.unwrap();
+    assert_eq!(upsert["type"], "upsert");
+    service.shutdown().await;
+}
+
+#[tokio::test]
+async fn history_is_capped() {
+    let mut config = test_config();
+    config.history_size = 1000;
+    let service = start(config, None).await.unwrap();
+    fill(&service, 1001, 1000).await;
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    live_qso_map::install_crypto_provider();
+    let health: Value = serde_json::from_str(
+        &reqwest::get(format!("http://{}/healthz", service.http_addr))
+            .await
+            .unwrap()
+            .text()
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(health["history"], 1000);
     service.shutdown().await;
 }

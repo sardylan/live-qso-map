@@ -22,6 +22,11 @@ function compare(a, b) {
   return 0;
 }
 
+/** Changes how many recent QSOs are shown (null = all). */
+export function setLimit(state, limit) {
+  state.limit = limit;
+}
+
 /** The last `limit` QSOs by sort key (all when `limit` is null), ascending. */
 export function visible(state) {
   const all = [...state.qsos.values()].sort(compare);

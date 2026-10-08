@@ -28,6 +28,7 @@ const APP_JS: &str = include_str!("assets/app.js");
 const MAP_STATE_JS: &str = include_str!("assets/map-state.js");
 const GEODESIC_JS: &str = include_str!("assets/geodesic.js");
 const APP_CSS: &str = include_str!("assets/app.css");
+const CONNECTION_JS: &str = include_str!("assets/connection.js");
 
 #[derive(Clone)]
 struct AppState {
@@ -64,6 +65,10 @@ pub async fn serve(
             get(|| asset("text/javascript", GEODESIC_JS)),
         )
         .route("/app.css", get(|| asset("text/css", APP_CSS)))
+        .route(
+            "/connection.js",
+            get(|| asset("text/javascript", CONNECTION_JS)),
+        )
         .route("/ws", get(ws_handler))
         .route("/healthz", get(healthz))
         .fallback(|| async { StatusCode::NOT_FOUND })
