@@ -56,7 +56,8 @@ UDP ──► ingest (detect → parse → normalise → station defaults → id
   - The QARTest reference capture is replayed as an integration test (SC-009).
 - [x] **II. Rust Safety & Quality**:
   - `#![forbid(unsafe_code)]` in `lib.rs` and `main.rs`.
-  - Errors use a crate `enum Error` and `Result<T>` alias (R16). `unwrap`/`expect` are allowed only in
+  - Errors use the crate `enum Error` and `Result<T>` alias in `src/errors.rs`, per
+    `docs/rust-guidelines.md` §1 (R16). `unwrap`/`expect` are allowed only in
     tests and for documented invariants.
   - A bad datagram, record, provider response or WebSocket message is logged and skipped; none can
     end the process.
@@ -112,7 +113,7 @@ specs/001-live-qso-map/
 src/
 ├── main.rs              # CLI entry: load config, init tracing, run pipeline, graceful shutdown
 ├── lib.rs               # #![forbid(unsafe_code)]; module tree; pub API used by integration tests
-├── error.rs             # enum Error, impl Display + std::error::Error + From<…>; type Result<T>
+├── errors.rs            # enum Error, impl Display + std::error::Error + From<…>; type Result<T> (docs/rust-guidelines.md §1)
 ├── config.rs            # clap args + TOML file → merged Config; validation        [tests: precedence, validation]
 ├── adif/
 │   ├── mod.rs           # AdifRecord (ordered uppercase map)

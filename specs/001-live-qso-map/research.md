@@ -232,7 +232,8 @@ and what else was considered.
 
 ## R16. Errors and logging
 
-- **Decision**: a crate-wide `enum Error` with `impl std::fmt::Display`, `impl std::error::Error` and
+- **Decision** (binding through `docs/rust-guidelines.md` §1): a crate-wide `enum Error` in
+  `src/errors.rs` with `impl std::fmt::Display`, `impl std::error::Error` and
   `From` conversions for the underlying errors (io, toml, xml, http, json). A crate alias,
   `type Result<T> = std::result::Result<T, Error>;`, is used everywhere. No `thiserror` or `anyhow`
   (owner decision). Logging uses `tracing` with `tracing-subscriber`; the level is configurable
