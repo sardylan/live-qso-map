@@ -4,17 +4,22 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Live QSO Map</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"
-        integrity="sha512-h9FcoyWjHcOcmEVkxOfTLnmZFWIH0iZhZT1H2TbOq55xssQGEJHEaIm+PgoUaZbRvQTNTluNOEfb1ZRy6D3BOw=="
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/5.24.0/maplibre-gl.css"
+        integrity="sha512-KIMsMWIdnoG9OwZa+oaIafmbDonqck1UCmq+/zcUi2aaZ97N9QE6TqpTM+n36EO40HGh64hU/375zxtjx7WTyQ=="
         crossorigin="anonymous" referrerpolicy="no-referrer">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"
-          integrity="sha512-puJW3E/qXDqYp9IfhAI54BJEaWIfloJ7JWs7OeD5i6ruC9JZL1gERT1wjtwXFlh7CjE7ZJ+/vcRZRkIYIb6p4g=="
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/5.24.0/maplibre-gl.js"
+          integrity="sha512-rOFgoUgWaVi69JW1dzBu6PWF9xKW9rxYfY5u2SexFABHhWk0qUWkJoWNz4UuZRMvSXsNZG66+tU5B+HlwWF5kA=="
           crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <link rel="stylesheet" href="app.css">
 </head>
 <body>
   <div id="map"></div>
-  <div id="status" class="status" hidden>reconnecting…</div>
+  <div id="no-webgl" class="no-webgl" hidden>
+    This map needs WebGL. Enable hardware acceleration in your browser settings, or try another browser.
+  </div>
+  <div id="status" class="banner" hidden>reconnecting…</div>
+  <div id="basemap-error" class="banner banner-low" hidden>Base map unavailable; QSOs are still shown.</div>
+  <div id="legend" class="legend" hidden></div>
   <label class="limit-control">Last
     <select id="limit">
       <option value="10">10</option>

@@ -84,6 +84,8 @@ async fn static_assets_are_served() {
         ("/geodesic.js", "text/javascript"),
         ("/app.css", "text/css"),
         ("/connection.js", "text/javascript"),
+        ("/view.js", "text/javascript"),
+        ("/layers.js", "text/javascript"),
     ] {
         let response = reqwest::get(format!("http://{}{path}", service.http_addr))
             .await
@@ -95,6 +97,21 @@ async fn static_assets_are_served() {
             .to_string();
         assert!(ct.starts_with(content_type), "{path}: {ct}");
     }
+    let index = reqwest::get(format!("http://{}/", service.http_addr))
+        .await
+        .unwrap()
+        .text()
+        .await
+        .unwrap();
+    assert!(index.contains("maplibre-gl/5.24.0/maplibre-gl.js"));
+    assert!(index.contains("maplibre-gl/5.24.0/maplibre-gl.css"));
+    assert!(index.contains(
+        "sha512-rOFgoUgWaVi69JW1dzBu6PWF9xKW9rxYfY5u2SexFABHhWk0qUWkJoWNz4UuZRMvSXsNZG66+tU5B+HlwWF5kA=="
+    ));
+    assert!(index.contains(
+        "sha512-KIMsMWIdnoG9OwZa+oaIafmbDonqck1UCmq+/zcUi2aaZ97N9QE6TqpTM+n36EO40HGh64hU/375zxtjx7WTyQ=="
+    ));
+    assert!(!index.to_lowercase().contains("leaflet"));
     let missing = reqwest::get(format!("http://{}/nope", service.http_addr))
         .await
         .unwrap();

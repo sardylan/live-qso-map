@@ -86,7 +86,7 @@ message.
 
 ### Tests for User Story 1 (write first, confirm they FAIL)
 
-- [ ] T009 [P] [US1] Write `web/layers.test.js`. Build `markers` with `map-state.js`, as in `web/map-state.test.js`, and assert:
+- [X] T009 [P] [US1] Write `web/layers.test.js`. Build `markers` with `map-state.js`, as in `web/map-state.test.js`, and assert:
   - **`markerFeatures(markers)`**:
     - one `Point` per marker, with coordinates `[lon, lat]`, not `[lat, lon]`;
     - properties `key`, `color` and `zRank`;
@@ -98,7 +98,7 @@ message.
       consecutive coordinates;
     - properties `key`, `color` and `zRank`.
   - **Empty input**: an empty `markers` gives empty FeatureCollections.
-- [ ] T010 [P] [US1] Extend `web/view.test.js` for `hasWebGL`, `isBasemapError` and `shouldRender`.
+- [X] T010 [P] [US1] Extend `web/view.test.js` for `hasWebGL`, `isBasemapError` and `shouldRender`.
 
   `hasWebGL(createCanvas)`:
   - `true` when `getContext('webgl2')` returns an object;
@@ -115,13 +115,13 @@ message.
   - `false` when not loaded;
   - `false` for an empty diff;
   - `true` when loaded and any of `add`, `update` or `remove` is non-empty.
-- [ ] T011 [P] [US1] Extend `tests/ws_protocol.rs::static_assets_are_served` with `/view.js` and `/layers.js` (`text/javascript`). Assert that `/` contains `maplibre-gl/5.24.0` and both SRI values from research R1, and does not contain `leaflet`.
+- [X] T011 [P] [US1] Extend `tests/ws_protocol.rs::static_assets_are_served` with `/view.js` and `/layers.js` (`text/javascript`). Assert that `/` contains `maplibre-gl/5.24.0` and both SRI values from research R1, and does not contain `leaflet`.
 
 ### Implementation for User Story 1
 
-- [ ] T012 [P] [US1] Implement `markerFeatures` and `lineFeatures` in `src/web/assets/layers.js`, importing `greatCircle` from `./geodesic.js`. T009 must pass.
-- [ ] T013 [P] [US1] Implement `hasWebGL(createCanvas)`, `isBasemapError(event, overlaySources)` and `shouldRender(loaded, diff)` in `src/web/assets/view.js`. T010 must pass.
-- [ ] T014 [US1] Update `src/web/assets/index.html`:
+- [X] T012 [P] [US1] Implement `markerFeatures` and `lineFeatures` in `src/web/assets/layers.js`, importing `greatCircle` from `./geodesic.js`. T009 must pass.
+- [X] T013 [P] [US1] Implement `hasWebGL(createCanvas)`, `isBasemapError(event, overlaySources)` and `shouldRender(loaded, diff)` in `src/web/assets/view.js`. T010 must pass.
+- [X] T014 [US1] Update `src/web/assets/index.html`:
   - replace the Leaflet CSS and JS with MapLibre 5.24.0 from cdnjs, with the SRI values from
     research R1 (`crossorigin="anonymous"`, `referrerpolicy="no-referrer"`);
   - add a hidden `<div id="no-webgl">` holding the FR-012 message ("This map needs WebGL. Enable
@@ -129,7 +129,7 @@ message.
 
   Update `src/web/assets/app.css`: remove the Leaflet-only rules (`.qso-dot`) and keep the legend,
   selector, status and popup rules, adapted to `.maplibregl-popup-content`. T011 must pass.
-- [ ] T015 [US1] Rewrite the map glue in `src/web/assets/app.js` with MapLibre. Keep the WebSocket, state and selector flow unchanged.
+- [X] T015 [US1] Rewrite the map glue in `src/web/assets/app.js` with MapLibre. Keep the WebSocket, state and selector flow unchanged.
   - **Startup**: if `!hasWebGL(() => document.createElement('canvas'))`, show `#no-webgl`, hide
     `#map`, and do not connect.
   - **On `hello`**: create `new maplibregl.Map({ container: 'map', style: buildStyle(hello.basemap),

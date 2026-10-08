@@ -1,17 +1,20 @@
-// DOM and Leaflet glue only: every decision is made in map-state.js and geodesic.js.
+// DOM and MapLibre glue only: every decision is made in map-state.js, layers.js, view.js,
+// geodesic.js and connection.js.
 // Popups are built with DOM nodes and textContent, never HTML strings, because QSO data comes
-// from an open UDP port (FR-035).
-/* global L */
+// from an open UDP port (FR-035). Only the operator-configured attribution is HTML.
+/* global maplibregl */
 
 import { createState, applySnapshot, applyUpsert, markers, diffLayers, setLimit } from './map-state.js';
-import { greatCircle } from './geodesic.js';
+import { markerFeatures, lineFeatures } from './layers.js';
+import { buildStyle, hasWebGL, isBasemapError, shouldRender } from './view.js';
 import { createConnection, onOpen, onClose, onHello as handshake, loadLimit, saveLimit } from './connection.js';
 
+const OVERLAYS = ['qso-lines', 'qso-markers'];
+
 let map = null;
-let legend = null;
+let loaded = false;
 let state = null;
 let current = new Map();
-const layers = new Map();
 let socket = null;
 
 function sessionStore() {
@@ -54,86 +57,100 @@ function popupContent(marker) {
   return box;
 }
 
-function icon(color) {
-  const dot = element('span');
-  dot.style.background = color;
-  return L.divIcon({ className: 'qso-dot', html: dot, iconSize: [14, 14], iconAnchor: [7, 7] });
+function show(id, visible) {
+  document.getElementById(id).hidden = !visible;
 }
 
-function linePoints(marker) {
-  return marker.station ? greatCircle([marker.station.lat, marker.station.lon], [marker.lat, marker.lon], 64) : null;
-}
-
-function addLayer(marker) {
-  const leafletMarker = L.marker([marker.lat, marker.lon], {
-    icon: icon(marker.color),
-    zIndexOffset: marker.zRank * 1000,
-  }).bindPopup(() => popupContent(layers.get(marker.key).data));
-  leafletMarker.addTo(map);
-  const points = linePoints(marker);
-  const line = points ? L.polyline(points, { color: marker.color, weight: 1.5, opacity: 0.7, interactive: false }).addTo(map) : null;
-  layers.set(marker.key, { marker: leafletMarker, line, data: marker });
-}
-
-function updateLayer(marker) {
-  const layer = layers.get(marker.key);
-  if (!layer) return addLayer(marker);
-  layer.data = marker;
-  layer.marker.setIcon(icon(marker.color));
-  layer.marker.setZIndexOffset(marker.zRank * 1000);
-  if (layer.marker.isPopupOpen()) layer.marker.setPopupContent(popupContent(marker));
-  const points = linePoints(marker);
-  if (layer.line && points) {
-    layer.line.setLatLngs(points);
-    layer.line.setStyle({ color: marker.color });
-  } else if (layer.line) {
-    layer.line.remove();
-    layer.line = null;
-  } else if (points) {
-    layer.line = L.polyline(points, { color: marker.color, weight: 1.5, opacity: 0.7, interactive: false }).addTo(map);
-  }
-}
-
-function removeLayer(key) {
-  const layer = layers.get(key);
-  if (!layer) return;
-  layer.marker.remove();
-  if (layer.line) layer.line.remove();
-  layers.delete(key);
+function addOverlays() {
+  const empty = { type: 'FeatureCollection', features: [] };
+  map.addSource('qso-lines', { type: 'geojson', data: empty });
+  map.addLayer({
+    id: 'qso-lines',
+    type: 'line',
+    source: 'qso-lines',
+    layout: { 'line-cap': 'round' },
+    paint: { 'line-color': ['get', 'color'], 'line-width': 1.5, 'line-opacity': 0.7 },
+  });
+  map.addSource('qso-markers', { type: 'geojson', data: empty });
+  map.addLayer({
+    id: 'qso-markers',
+    type: 'circle',
+    source: 'qso-markers',
+    layout: { 'circle-sort-key': ['get', 'zRank'] },
+    paint: {
+      'circle-radius': 6,
+      'circle-color': ['get', 'color'],
+      'circle-stroke-color': '#fff',
+      'circle-stroke-width': 1,
+    },
+  });
 }
 
 function render() {
+  if (!state) return;
   const next = markers(state);
-  const { add, update, remove } = diffLayers(current, next);
-  remove.forEach(removeLayer);
-  add.forEach(addLayer);
-  update.forEach(updateLayer);
+  if (!shouldRender(loaded, diffLayers(current, next))) return;
+  map.getSource('qso-markers').setData(markerFeatures(next));
+  map.getSource('qso-lines').setData(lineFeatures(next));
   current = next;
 }
 
+function createMap(hello) {
+  map = new maplibregl.Map({
+    container: 'map',
+    style: buildStyle(hello.basemap),
+    center: [0, 30],
+    zoom: 1.5,
+    attributionControl: false,
+    renderWorldCopies: true,
+  });
+  map.addControl(
+    new maplibregl.AttributionControl({ compact: false, customAttribution: hello.basemap.attribution || undefined }),
+  );
+  map.addControl(new maplibregl.NavigationControl(), 'top-left');
+  map.on('load', () => {
+    addOverlays();
+    loaded = true;
+    current = new Map();
+    render();
+  });
+  map.on('click', 'qso-markers', (event) => {
+    const feature = event.features && event.features[0];
+    const marker = feature && current.get(feature.properties.key);
+    if (!marker) return;
+    new maplibregl.Popup({ maxWidth: 'none' })
+      .setLngLat(feature.geometry.coordinates)
+      .setDOMContent(popupContent(marker))
+      .addTo(map);
+  });
+  map.on('mouseenter', 'qso-markers', () => {
+    map.getCanvas().style.cursor = 'pointer';
+  });
+  map.on('mouseleave', 'qso-markers', () => {
+    map.getCanvas().style.cursor = '';
+  });
+  map.on('error', (event) => {
+    console.error('map error', event.error ?? event);
+    if (isBasemapError(event, OVERLAYS)) show('basemap-error', true);
+  });
+}
+
 function showLegend(bands) {
-  if (legend) legend.remove();
-  legend = L.control({ position: 'bottomright' });
-  legend.onAdd = () => {
-    const box = element('div', 'legend');
-    // `bands` is already in frequency order (HR-2): never re-sort it.
-    for (const { band, color } of bands) {
-      const row = element('div');
-      const swatch = element('span', 'swatch');
-      swatch.style.background = color;
-      row.append(swatch, document.createTextNode(band));
-      box.append(row);
-    }
-    return box;
-  };
-  legend.addTo(map);
+  const box = document.getElementById('legend');
+  box.replaceChildren();
+  // `bands` is already in frequency order (HR-2): never re-sort it.
+  for (const { band, color } of bands) {
+    const row = element('div');
+    const swatch = element('span', 'swatch');
+    swatch.style.background = color;
+    row.append(swatch, document.createTextNode(band));
+    box.append(row);
+  }
+  box.hidden = bands.length === 0;
 }
 
 function onHello(hello) {
-  if (!map) {
-    map = L.map('map', { worldCopyJump: true }).setView([30, 0], 2);
-    L.tileLayer(hello.tiles.url, { attribution: hello.tiles.attribution, maxZoom: 18 }).addTo(map);
-  }
+  if (!map) createMap(hello);
   showLegend(hello.bands);
   state = createState({ bands: hello.bands, fallbackColor: hello.fallback_color, limit: connection.limit });
   for (const message of handshake(connection)) {
@@ -158,16 +175,12 @@ function onMessage(message) {
   render();
 }
 
-function showReconnecting(visible) {
-  document.getElementById('status').hidden = !visible;
-}
-
 function connect() {
   const url = `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/ws`;
   socket = new WebSocket(url);
   socket.addEventListener('open', () => {
     onOpen(connection);
-    showReconnecting(false);
+    show('status', false);
   });
   socket.addEventListener('message', (event) => {
     try {
@@ -177,7 +190,7 @@ function connect() {
     }
   });
   socket.addEventListener('close', () => {
-    showReconnecting(true);
+    show('status', true);
     setTimeout(connect, onClose(connection));
   });
 }
@@ -194,5 +207,11 @@ function setupSelector() {
   });
 }
 
-setupSelector();
-connect();
+if (hasWebGL(() => document.createElement('canvas'))) {
+  setupSelector();
+  connect();
+} else {
+  // FR-012: no renderer can run, so do not connect either.
+  show('map', false);
+  show('no-webgl', true);
+}
