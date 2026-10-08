@@ -1,6 +1,6 @@
 # Feature Specification: Band Filter
 
-**Feature Branch**: `002-band-filter`
+**Feature Branch**: `003-band-filter`
 **Created**: 2026-10-09
 **Status**: Draft
 **Input**: User description: "Add a configuration for specify which bands have to be considered.

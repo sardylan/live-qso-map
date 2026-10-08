@@ -1,10 +1,10 @@
 ---
-description: "Task list for 002-band-filter"
+description: "Task list for 003-band-filter"
 ---
 
 # Tasks: Band Filter
 
-**Input**: Design documents from `/specs/002-band-filter/`
+**Input**: Design documents from `/specs/003-band-filter/`
 **Prerequisites**: plan.md, spec.md, research.md, data-model.md, contracts/, quickstart.md
 
 **Tests**: MANDATORY (constitution Principle I). Every test task comes before the implementation it
@@ -30,7 +30,7 @@ the frontend (Node via nvm: `~/.nvm/versions/node/v26.11.1/bin/node`).
 
 ## Phase 1: Setup
 
-- [ ] T001 Add `pub mod band_filter;` to `src/lib.rs` and create an empty `src/band_filter.rs` with a module doc comment (`//! Band selection: groups, exclusions and the effective band set (feature 002, research R1).`). `cargo build` must pass.
+- [ ] T001 Add `pub mod band_filter;` to `src/lib.rs` and create an empty `src/band_filter.rs` with a module doc comment (`//! Band selection: groups, exclusions and the effective band set (feature 003, research R1).`). `cargo build` must pass.
 
 ---
 
@@ -224,12 +224,12 @@ onto a considered band shows it again.
   - add a commented `bands = ["hf-contest", "-60m"]` example with the group list to
     `deploy/config.example.toml`;
   - add a configuration row and a short "Band selection" section to `README.md`;
-  - add a row pointing to `specs/002-band-filter/contracts/configuration.md` in
+  - add a row pointing to `specs/003-band-filter/contracts/configuration.md` in
     `specs/001-live-qso-map/contracts/configuration.md`.
 
   Every band list must be in frequency order (HR-2).
-- [ ] T031 [P] Add a note on the `remove` message to `specs/001-live-qso-map/contracts/websocket-protocol.md`, pointing to `specs/002-band-filter/contracts/websocket-protocol.md`.
-- [ ] T032 Run the complete quality gates: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test`, `node --test web/`. Then run quickstart §1–§4 and record SC-001 to SC-005 in `specs/002-band-filter/checklists/verification.md`.
+- [ ] T031 [P] Add a note on the `remove` message to `specs/001-live-qso-map/contracts/websocket-protocol.md`, pointing to `specs/003-band-filter/contracts/websocket-protocol.md`.
+- [ ] T032 Run the complete quality gates: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test`, `node --test web/`. Then run quickstart §1–§4 and record SC-001 to SC-005 in `specs/003-band-filter/checklists/verification.md`.
 
 ---
 

@@ -1,6 +1,6 @@
 # Data Model: Band Filter
 
-**Feature**: `002-band-filter` | **Date**: 2026-10-09
+**Feature**: `003-band-filter` | **Date**: 2026-10-09
 
 The entities from feature 001 apply unchanged unless listed here.
 

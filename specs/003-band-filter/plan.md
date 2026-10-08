@@ -1,7 +1,7 @@
 # Implementation Plan: Band Filter
 
-**Branch**: `002-band-filter` | **Date**: 2026-10-09 | **Spec**: [spec.md](spec.md)
-**Input**: Feature specification from `/specs/002-band-filter/spec.md`
+**Branch**: `003-band-filter` | **Date**: 2026-10-09 | **Spec**: [spec.md](spec.md)
+**Input**: Feature specification from `/specs/003-band-filter/spec.md`
 
 ## Summary
 
@@ -63,7 +63,7 @@ within 2 s (SC-004)
 ### Documentation (this feature)
 
 ```text
-specs/002-band-filter/
+specs/003-band-filter/
 ├── plan.md
 ├── research.md          # R1–R7
 ├── data-model.md        # BandGroup, SelectionEntry, BandSet, History/gate/session changes

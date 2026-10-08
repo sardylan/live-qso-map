@@ -64,7 +64,7 @@ In the context of uncached lookups and frequent logger resends, facing quota cos
 - Date: 2026-10-08
 - Phase: plan
 - Deciders: project owner
-- Links: specs/002-band-filter/research.md#r3-drop-point-and-removal-when-a-correction-moves-onto-an-ignored-band
+- Links: specs/003-band-filter/research.md#r3-drop-point-and-removal-when-a-correction-moves-onto-an-ignored-band
 <!-- key: 7ab95e3fb9a8 -->
 
 ### Context & problem

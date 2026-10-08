@@ -43,4 +43,5 @@
   configuration, colours for ignored bands accepted but not sent, exclusions win, a selection with
   only exclusions starts from every band, the effective set is logged at startup, and dropped QSOs
   are logged at debug level.
+- Renumbered from 002 to 003 on 2026-10-09 (number 002 reassigned to the MapLibre feature).
 - Depends on feature 001 (branch created from `001-live-qso-map`, not yet merged into `main`).

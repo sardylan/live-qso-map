@@ -1,6 +1,6 @@
 # Research: Band Filter
 
-**Feature**: `002-band-filter` | **Date**: 2026-10-09 | **Spec**: [spec.md](spec.md)
+**Feature**: `003-band-filter` | **Date**: 2026-10-09 | **Spec**: [spec.md](spec.md)
 
 There are no NEEDS CLARIFICATION items: the owner settled the decisions on 2026-10-09. This file
 records the design decisions that follow from the spec and from feature 001's architecture.
