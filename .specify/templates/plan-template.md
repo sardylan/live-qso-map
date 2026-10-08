@@ -32,6 +32,9 @@
       no error-handling crates).
 - [ ] **III. Simplicity & Minimal Dependencies**: each new crate justified in the table
       below; still a single self-contained binary; no speculative abstractions.
+- [ ] **Domain rules** (`docs/ham-radio.md` §1): UTC times, bands in frequency order
+      (never alphabetical), ADIF band/mode names, DXCC/WAE entities as countries, positions
+      keep precision and source, dupes are kept.
 
 ### Dependency Justification
 

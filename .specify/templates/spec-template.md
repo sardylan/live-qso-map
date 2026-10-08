@@ -5,6 +5,12 @@
 **Status**: Draft
 **Input**: User description: "$ARGUMENTS"
 
+<!--
+  Use the amateur radio terms defined in docs/ham-radio.md §2 (QSO, entity, band, locator,
+  dupe…). Requirements MUST NOT contradict its rules in §1 (e.g. UTC times, bands listed in
+  frequency order).
+-->
+
 ## User Scenarios & Testing *(mandatory)*
 
 <!--

@@ -1,28 +1,31 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 1.0.0 → 1.1.0
-Bump rationale: MINOR, because Principle II's guidance is materially expanded. A binding reference to
-the Rust implementation guidelines is added, and the first rule there is the crate-wide Error/Result
-pattern. No principle is removed or redefined.
+Version change: 1.1.0 → 1.2.0
+Bump rationale: MINOR, because guidance is materially expanded. Technical Constraints gains a binding
+reference to the ham radio domain rules in docs/ham-radio.md (§1, HR-1 to HR-11), and Compliance
+review now covers them. No principle is removed or redefined.
 
-Modified principles:
-  - II. Rust Safety & Quality Gates (title unchanged): adds the MUST rule to follow
-    docs/rust-guidelines.md and the crate-wide `Error` enum / `Result<T>` alias rule.
+Modified principles: none (I–III unchanged)
 
-Added sections: none (new external document docs/rust-guidelines.md)
+Modified sections:
+  - Technical Constraints: domain rules in docs/ham-radio.md §1 are binding; the old placeholder
+    bullet about domain constraints is replaced.
+  - Governance / Compliance review: also verifies the domain rules.
+
+Added sections: none (new external document docs/ham-radio.md)
 Removed sections: none
 
 Templates:
-  - .specify/templates/plan-template.md   ✅ updated (Constitution Check II mentions the guidelines)
-  - .specify/templates/spec-template.md   ✅ no change needed
-  - .specify/templates/tasks-template.md  ✅ no change needed (no new task category)
+  - .specify/templates/plan-template.md   ✅ updated (Constitution Check gains a "Domain rules" gate)
+  - .specify/templates/spec-template.md   ✅ updated (points specs to the domain glossary and rules)
+  - .specify/templates/tasks-template.md  ✅ no change needed
   - .specify/templates/commands/*.md      ⚠ not present
   - CLAUDE.md                             ✅ updated (pointer outside the managed SPECKIT block)
 
 Follow-up TODOs:
-  - specs/001-live-qso-map: re-run /speckit-analyze. plan.md (R16) and tasks.md (T005, T015)
-    already follow the pattern; no conflict expected.
+  - specs/001-live-qso-map: checked against HR-1 to HR-11. One violation of HR-2 was found and fixed:
+    the band legend was alphabetical because hello.bands was a JSON object.
 -->
 
 # live-qso-map Constitution
@@ -89,8 +92,11 @@ connectivity. Fewer moving parts mean an easier setup and fewer failures on the 
 - Distribution: a single binary built from this repository (`cargo build --release`).
 - `Cargo.lock` MUST be committed. Dependency updates are deliberate changes that
   must pass every quality gate.
-- Domain-specific constraints (QSO ingestion sources, map rendering target, contest
-  formats) will be defined in feature specifications as the project scope is detailed.
+- Amateur radio domain rules MUST be followed: `docs/ham-radio.md` §1 (HR-1 to HR-11).
+  Examples: UTC everywhere, bands always in frequency order, "country" means a DXCC/WAE
+  entity. §2 of that document is the shared glossary that specifications and code use.
+- Feature-specific constraints (ingestion sources, rendering, contest formats) are defined
+  in each feature's specification.
 
 ## Development Workflow
 
@@ -117,6 +123,7 @@ connectivity. Fewer moving parts mean an easier setup and fewer failures on the 
     expanded.
   - PATCH: clarifications, wording and typo fixes that do not change meaning.
 - Compliance review: every plan's Constitution Check and every code review MUST verify
-  adherence to Principles I–III. Unjustified violations block the merge.
+  adherence to Principles I–III and to the domain rules in `docs/ham-radio.md` §1.
+  Unjustified violations block the merge.
 
-**Version**: 1.1.0 | **Ratified**: 2026-10-08 | **Last Amended**: 2026-10-08
+**Version**: 1.2.0 | **Ratified**: 2026-10-08 | **Last Amended**: 2026-10-09
