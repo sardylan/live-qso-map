@@ -236,21 +236,21 @@ send the quickstart §2 datagram. Both show one 40m marker at JO62QM with a line
 
 ### Tests for User Story 1 (write first, confirm they FAIL)
 
-- [ ] T027 [P] [US1] Write unit tests in `src/ingest/detect.rs` for the ADIF branch of R5: a datagram with `<CALL:4>` or `<EOR>` is `Adif`; `<EOH>` alone is `Adif`; random text, an empty datagram and `<ADX>` XML are `Unrecognised`; leading whitespace and a UTF-8 BOM are skipped.
-- [ ] T028 [P] [US1] Write unit tests in `src/enrich/station.rs` (FR-011):
+- [X] T027 [P] [US1] Write unit tests in `src/ingest/detect.rs` for the ADIF branch of R5: a datagram with `<CALL:4>` or `<EOR>` is `Adif`; `<EOH>` alone is `Adif`; random text, an empty datagram and `<ADX>` XML are `Unrecognised`; leading whitespace and a UTF-8 BOM are skipped.
+- [X] T028 [P] [US1] Write unit tests in `src/enrich/station.rs` (FR-011):
   - record values win over config;
   - config fills `MY_GRIDSQUARE` when absent (`STATION_CALLSIGN` is filled at ingest, T036);
   - the station `Position` is resolved in this order: `MY_LAT`/`MY_LON` (source `logger`), then
     `MY_GRIDSQUARE` (`logger`), then config lat/lon (`config`), then config locator (`config`);
   - with none of these, it is `None`;
   - `APP_LIVEQSOMAP_STATION_POS_SOURCE` is set.
-- [ ] T029 [P] [US1] Write unit tests in `src/enrich/resolve.rs` for the logger-position rule (FR-012):
+- [X] T029 [P] [US1] Write unit tests in `src/enrich/resolve.rs` for the logger-position rule (FR-012):
   - `LAT`/`LON` present gives a `Coordinates` position from source `logger`;
   - only `GRIDSQUARE` gives a locator precision from `logger`;
   - an invalid `GRIDSQUARE` (`ZZ99`) gives no logger position;
   - when a logger position exists, the function reports that no lookup is needed;
   - `APP_LIVEQSOMAP_POS_SOURCE` and `APP_LIVEQSOMAP_POS_PRECISION` are written (FR-018).
-- [ ] T030 [P] [US1] Write unit tests in `src/web/session.rs` for the session state machine:
+- [X] T030 [P] [US1] Write unit tests in `src/web/session.rs` for the session state machine:
   - on connect it emits `hello` then `snapshot(latest(20))`;
   - a `HistoryChange::Upsert` emits `upsert`;
   - an unknown client message is ignored.
@@ -259,13 +259,13 @@ send the quickstart §2 datagram. Both show one 40m marker at JO62QM with a line
   generic over an in-crate `MessageSink` trait (`async fn send(&mut self, msg: ServerMessage) ->
   Result<()>`): with a test sink that never completes, `broadcast_queue=4` and 10 changes, the driver
   observes `Lagged`; once the sink is released it sends exactly one `snapshot`.
-- [ ] T031 [P] [US1] Write `web/geodesic.test.js` for `src/web/assets/geodesic.js`:
+- [X] T031 [P] [US1] Write `web/geodesic.test.js` for `src/web/assets/geodesic.js`:
   - `greatCircle([39.2,9.2],[52.5,13.4],64)` returns 65 points, starting and ending at the inputs;
   - every intermediate point lies on the great circle (cross-track distance below 1 m);
   - a route crossing the antimeridian (Sardinia to Hawaii or New Zealand) has continuous, unwrapped
     longitudes with no jump above 180°;
   - identical endpoints return 2 points.
-- [ ] T032 [P] [US1] Write `web/map-state.test.js` for `src/web/assets/map-state.js` (data-model "Frontend state"):
+- [X] T032 [P] [US1] Write `web/map-state.test.js` for `src/web/assets/map-state.js` (data-model "Frontend state"):
   - `applyUpsert` adds a QSO;
   - QSOs with exactly equal `remote` lat/lon share one marker key (FR-024);
   - the marker colour comes from the band of the most recent QSO at that marker, using `bands`, with
@@ -277,7 +277,7 @@ send the quickstart §2 datagram. Both show one 40m marker at JO62QM with a line
   - `diffLayers(prevMarkers, nextMarkers)` returns `{add, update, remove}` keyed by marker key: a new
     key is `add`; a changed colour, z-rank, popup QSO list or station is `update`; a missing key is
     `remove`; identical inputs give three empty lists.
-- [ ] T033 [P] [US1] Write integration test `tests/adif_udp.rs`:
+- [X] T033 [P] [US1] Write integration test `tests/adif_udp.rs`:
   - start the service with `pipeline::start(test_config, None)` on port 0, with the station locator
     `JM49NH` and no providers or cty data;
   - subscribe with `RunningService::subscribe()`;
@@ -286,7 +286,7 @@ send the quickstart §2 datagram. Both show one 40m marker at JO62QM with a line
     `logger`, and `station` from `config`;
   - send the quickstart §3 three-record datagram and assert exactly two more upserts; the malformed
     third record is skipped and the pipeline keeps running.
-- [ ] T034 [P] [US1] Write integration test `tests/ws_protocol.rs` (fan-out):
+- [X] T034 [P] [US1] Write integration test `tests/ws_protocol.rs` (fan-out):
   - start the service with `pipeline::start(test_config, None)` on port 0;
   - connect two `tokio-tungstenite` clients to `/ws`;
   - assert each receives `hello` then `snapshot` (empty);
@@ -295,8 +295,8 @@ send the quickstart §2 datagram. Both show one 40m marker at JO62QM with a line
 
 ### Implementation for User Story 1
 
-- [ ] T035 [US1] Implement `src/ingest/detect.rs`: `enum SourceFormat { Adif, QarTest, Unrecognised }` and `detect(&[u8]) -> SourceFormat`, with the ADIF and Unrecognised rules of R5. Leave the QARTest branch returning `Unrecognised` until US5. T027 must pass.
-- [ ] T036 [US1] Implement `QsoEvent` (data-model) and the UDP receive loop in `src/ingest/mod.rs`:
+- [X] T035 [US1] Implement `src/ingest/detect.rs`: `enum SourceFormat { Adif, QarTest, Unrecognised }` and `detect(&[u8]) -> SourceFormat`, with the ADIF and Unrecognised rules of R5. Leave the QARTest branch returning `Unrecognised` until US5. T027 must pass.
+- [X] T036 [US1] Implement `QsoEvent` (data-model) and the UDP receive loop in `src/ingest/mod.rs`:
   - bind `bind_address:udp_port`;
   - `recv_from` into a 65,535-byte buffer;
   - `detect`; for `Adif`, `parse_datagram`, log each per-record error at warn, reject records without
@@ -304,10 +304,10 @@ send the quickstart §2 datagram. Both show one 40m marker at JO62QM with a line
     that does it, because the identity needs it), and compute the `Identity`;
   - send each `QsoEvent{kind: New}` on channel 1;
   - log `Unrecognised` at warn with the source address and length (FR-005).
-- [ ] T037 [US1] Implement `src/enrich/station.rs` (FR-011): `apply_station(&mut AdifRecord, &StationConfig) -> Option<Position>`, which handles only the station
+- [X] T037 [US1] Implement `src/enrich/station.rs` (FR-011): `apply_station(&mut AdifRecord, &StationConfig) -> Option<Position>`, which handles only the station
   position fields. T028 must pass.
-- [ ] T038 [US1] Implement the logger-position part of `src/enrich/resolve.rs`: `logger_position(&AdifRecord) -> Option<Position>` and `write_position_fields(&mut AdifRecord, &Position)`, which fills `GRIDSQUARE` (when absent, from `to_locator6`), `LAT`/`LON` (when absent), `APP_LIVEQSOMAP_POS_SOURCE` and `APP_LIVEQSOMAP_POS_PRECISION`. T029 must pass.
-- [ ] T039 [US1] Implement the enrichment worker loop in `src/enrich/mod.rs`:
+- [X] T038 [US1] Implement the logger-position part of `src/enrich/resolve.rs`: `logger_position(&AdifRecord) -> Option<Position>` and `write_position_fields(&mut AdifRecord, &Position)`, which fills `GRIDSQUARE` (when absent, from `to_locator6`), `LAT`/`LON` (when absent), `APP_LIVEQSOMAP_POS_SOURCE` and `APP_LIVEQSOMAP_POS_PRECISION`. T029 must pass.
+- [X] T039 [US1] Implement the enrichment worker loop in `src/enrich/mod.rs`:
   - `spawn_workers(n, rx: async_channel::Receiver<QsoEvent>, pipeline)`;
   - per event: `apply_station`, then `logger_position`; a QSO without a position is still published
     with `remote: None`, and a warn is logged (FR-019);
@@ -315,8 +315,8 @@ send the quickstart §2 datagram. Both show one 40m marker at JO62QM with a line
   - call `Pipeline::publish`.
 
   Spawn the workers and the UDP loop from `pipeline::start`.
-- [ ] T040 [US1] Implement `src/web/session.rs` as a pure state machine: `Session::on_connect(&History) -> Vec<ServerMessage>` and `on_change(&HistoryChange) -> Vec<ServerMessage>`. Then implement the async driver in `src/web/mod.rs`: on upgrade, **subscribe to the broadcast first**, then take the snapshot under the history lock, then loop over `tokio::select!` of socket messages and broadcast receives. The driver sends through the `MessageSink` trait; the WebSocket adapter implements it. A send error ends the session quietly. T030 must pass.
-- [ ] T041 [US1] Implement the axum router in `src/web/mod.rs`:
+- [X] T040 [US1] Implement `src/web/session.rs` as a pure state machine: `Session::on_connect(&History) -> Vec<ServerMessage>` and `on_change(&HistoryChange) -> Vec<ServerMessage>`. Then implement the async driver in `src/web/mod.rs`: on upgrade, **subscribe to the broadcast first**, then take the snapshot under the history lock, then loop over `tokio::select!` of socket messages and broadcast receives. The driver sends through the `MessageSink` trait; the WebSocket adapter implements it. A send error ends the session quietly. T030 must pass.
+- [X] T041 [US1] Implement the axum router in `src/web/mod.rs`:
   - `GET /`, `/app.js`, `/map-state.js`, `/geodesic.js` and `/app.css`, served from `include_str!`
     (`/connection.js` is added in T068, when the file exists)
     with the right content types;
@@ -327,8 +327,8 @@ send the quickstart §2 datagram. Both show one 40m marker at JO62QM with a line
   - bind `bind_address:http_port`.
 
   Start it from `pipeline::start`.
-- [ ] T042 [P] [US1] Implement `src/web/assets/geodesic.js`: `export function greatCircle(a, b, segments)` using spherical linear interpolation, with longitudes unwrapped for continuity. T031 must pass.
-- [ ] T043 [US1] Implement `src/web/assets/map-state.js` as a pure ES module with no DOM or Leaflet:
+- [X] T042 [P] [US1] Implement `src/web/assets/geodesic.js`: `export function greatCircle(a, b, segments)` using spherical linear interpolation, with longitudes unwrapped for continuity. T031 must pass.
+- [X] T043 [US1] Implement `src/web/assets/map-state.js` as a pure ES module with no DOM or Leaflet:
   - `createState({bands, fallbackColor, limit})`;
   - `applySnapshot(state, qsos)`;
   - `applyUpsert(state, qso)`;
@@ -337,7 +337,7 @@ send the quickstart §2 datagram. Both show one 40m marker at JO62QM with a line
   - `diffLayers(prev, next)`, returning `{add, update, remove}`.
 
   T032 must pass.
-- [ ] T044 [US1] Implement the page:
+- [X] T044 [US1] Implement the page:
   - `src/web/assets/index.html`: loads Leaflet 1.9.4 from
     `https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css` and `.../leaflet.min.js`,
     with SRI hashes taken from `https://api.cdnjs.com/libraries/leaflet/1.9.4?fields=sri`; a

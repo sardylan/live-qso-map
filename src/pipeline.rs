@@ -152,17 +152,32 @@ fn spawn_tasks(
     tasks: &mut JoinSet<()>,
     config: Arc<Config>,
     pipeline: Pipeline,
-    mut shutdown: watch::Receiver<bool>,
+    shutdown: watch::Receiver<bool>,
     udp: UdpSocket,
     http: TcpListener,
     _sources: LookupSources,
 ) {
-    // Listeners are held until shutdown; the ingest loop, workers and web server attach here
-    // in their user stories.
-    tasks.spawn(async move {
-        let _keep = (udp, http, config, pipeline);
-        let _ = shutdown.wait_for(|stop| *stop).await;
-    });
+    let (queue_tx, queue_rx) = async_channel::bounded(config.ingest_queue);
+    tasks.spawn(crate::ingest::run(
+        udp,
+        config.station.clone(),
+        queue_tx,
+        shutdown.clone(),
+    ));
+    for _ in 0..config.workers {
+        tasks.spawn(crate::enrich::run_worker(
+            queue_rx.clone(),
+            pipeline.clone(),
+            Arc::clone(&config),
+            shutdown.clone(),
+        ));
+    }
+    tasks.spawn(crate::web::serve(
+        http,
+        pipeline,
+        config.map.clone(),
+        shutdown,
+    ));
 }
 
 /// Starts the service and runs it until Ctrl+C or SIGTERM.

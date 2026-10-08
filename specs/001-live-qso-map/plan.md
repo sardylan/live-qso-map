@@ -85,6 +85,7 @@ UDP ──► ingest (detect → parse → normalise → station defaults → id
 | `serde_json` | WebSocket protocol encoding | hand-written JSON: error-prone |
 | `tracing`, `tracing-subscriber` (fmt, env-filter) | levelled, structured logs (warn/debug rules in FR-005, FR-005a) | `log` plus `env_logger` is comparable; tracing fits async tasks better and is already used by axum and tower |
 | dev: `tokio-tungstenite` | WebSocket client in integration tests (fan-out, set_limit, lag) | no WebSocket client in std or in the runtime dependencies |
+| dev: `futures-util` | `StreamExt`/`SinkExt` to read and write the `tokio-tungstenite` client socket in integration tests | tokio-tungstenite exposes the socket only through the futures `Stream`/`Sink` traits; already in its dependency tree |
 | dev tool: Node.js (`node --test`) | unit tests for `map-state.js`, `connection.js` and `geodesic.js`; no npm packages | not testing frontend logic, which would break Principle I; a headless browser harness is heavier |
 
 ## Project Structure
@@ -210,5 +211,5 @@ No violations.
   fixtures.
 - [x] II: there is no `unsafe`. Every external input (UDP, provider XML, cty.dat, WebSocket JSON,
   configuration) goes through a fallible parser that is logged and skipped.
-- [x] III: 11 runtime crates (rustls added in T001 for the ring provider, R17) and 1 dev crate, all justified. No new runtime services: providers and
+- [x] III: 11 runtime crates (rustls added in T001 for the ring provider, R17) and 2 dev crates, all justified. No new runtime services: providers and
   cty.dat are optional and degrade gracefully.

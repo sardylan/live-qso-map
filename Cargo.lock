@@ -898,6 +898,7 @@ dependencies = [
  "async-channel",
  "axum",
  "clap",
+ "futures-util",
  "quick-xml",
  "reqwest",
  "rustls",
