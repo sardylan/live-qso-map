@@ -15,7 +15,7 @@ BaseMap = Style  { url: String, attribution: String }   // vector style JSON
 |------|--------|
 | `style_url` and `tile_url` both set: startup error `Config { setting: "map.style_url", … }` | FR-008 |
 | Neither set: `Style { OpenFreeMap Liberty, OpenFreeMap attribution }` | FR-008, research R2 |
-| `tile_url` set: `Raster { tile_url, tile_attribution or "" }` | FR-008 |
+| `tile_url` set: `Raster { tile_url, tile_attribution }`; `tile_attribution` missing or blank: startup error `Config { setting: "map.tile_attribution", … }` | FR-008, FR-009 |
 | `style_url` set: `Style { style_url, style_attribution or "" }` | FR-008 |
 
 ## Projection (per page)
@@ -32,6 +32,8 @@ Projection = "globe" | "mercator"      // default "globe"; localStorage key "lqm
 | `loadProjection(storage)` | `"globe"` unless storage holds `"mercator"`; never throws |
 | `saveProjection(storage, p)` | swallows storage errors |
 | `nextProjection(p)` | `globe` ↔ `mercator` |
+| `isBasemapError(event, overlaySources)` | `true` when a map error event comes from a source that is not one of `overlaySources` (`qso-lines`, `qso-markers`), or carries no source id while tiles or the style fail to load; `false` for the QSO overlay sources |
+| `shouldRender(loaded, diff)` | `true` only when the map has loaded and `diff` has at least one `add`, `update` or `remove` |
 | `hasWebGL(createCanvas)` | `true` when `getContext("webgl2")` or `getContext("webgl")` returns a context; `false` on null or a throw |
 
 ## Layer data (`layers.js`, pure)

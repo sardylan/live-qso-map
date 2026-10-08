@@ -34,6 +34,10 @@
 - Clarified on 2026-10-09 (5 questions): base map (vector style or raster, OpenFreeMap by default),
   globe with a per-viewer flat toggle, CDN delivery with SRI, a no-WebGL message, and a 30 fps target
   with 2,000 QSOs.
+- `/speckit-analyze` on 2026-10-09 led to these changes: a raster attribution is now mandatory (C1),
+  the base-map-unreachable case has tasks (E1), `shouldRender` is a pure, tested helper (D1), the
+  machine is recorded for SC-002 (A1), and SC-003's evidence is named (E2).
+  F1 still applies: `003-band-filter` T008/T011 must keep `hello.basemap` when rebased after 002.
 - "No implementation details" is unchecked by design. The feature is a library replacement requested
   by the owner, so the spec names Leaflet, MapLibre and the existing frontend modules to define
   parity. Planning will keep the requirements behavioural.

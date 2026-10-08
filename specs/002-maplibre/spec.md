@@ -128,7 +128,9 @@ against acceptance scenario 1.
   with its attribution (the feature-001 `tile_url`/`tile_attribution` settings, kept for
   compatibility). The default is the OpenFreeMap vector style. The service MUST refuse to start when
   both a style and raster tiles are configured, naming the conflict.
-- **FR-009**: The base map's attribution MUST always be visible, as its usage terms require.
+- **FR-009**: The base map's attribution MUST always be visible, as its usage terms require. Raster
+  tiles have no built-in credit, so the service MUST refuse to start when `tile_url` is set without
+  `tile_attribution`. A vector style may carry its own attribution in its sources.
 - **FR-010**: Pages MUST open in globe projection by default. Each page MUST offer a toggle between
   globe and flat Mercator, which affects only that page and is remembered in that browser across
   reloads. If storage is unavailable, the choice lasts for the page only.

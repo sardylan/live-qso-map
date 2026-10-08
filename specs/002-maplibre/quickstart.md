@@ -18,12 +18,20 @@ Run feature 001's quickstart §2, §3 and §6. Then, in two browsers, check:
   and a Pacific locator such as `BL11` (Hawaii);
 - the legend in frequency order, the last-N selector, and reconnection after a service restart.
 
+## 2b. Base map unreachable (edge case)
+
+In DevTools, block requests to `tiles.openfreemap.org` (Network → request blocking) and reload.
+**Expected**: the banner "Base map unavailable; QSOs are still shown." appears, and markers and
+lines still render on an empty background.
+
 ## 3. Base map (User Story 2)
 
 ```bash
 cargo run --release --                                   # OpenFreeMap vector style; attribution visible
 cargo run --release -- --tile-url 'https://tile.openstreetmap.org/{z}/{x}/{y}.png' \
   --tile-attribution '&copy; OpenStreetMap contributors' # raster
+cargo run -- --tile-url 'https://t/{z}/{x}/{y}.png'
+# exits: invalid setting map.tile_attribution: raster tiles need an attribution (FR-009)
 cargo run -- --style-url https://example/style.json --tile-url 'https://t/{z}/{x}/{y}.png'
 # exits: invalid setting map.style_url: style_url and tile_url are mutually exclusive
 ```

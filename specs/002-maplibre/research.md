@@ -45,6 +45,9 @@ owner decision was taken during planning (R1).
   href="https://www.openmaptiles.org/" target="_blank">OpenMapTiles</a> Data from <a
   href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>`. The attribution
   control is created non-compact, so it is always visible.
+- **Raster attribution is mandatory** (analyze C1): raster tiles carry no credit of their own, so
+  `tile_url` without `tile_attribution` is a startup error. A custom vector style may carry its
+  credit in its sources, which MapLibre shows automatically.
 - **Trust**: attribution strings are HTML from the **operator's** configuration, not from UDP input,
   so they are rendered as HTML, as Leaflet did. QSO data stays text-only (FR-004).
 
@@ -83,6 +86,10 @@ owner decision was taken during planning (R1).
   `webgl`, on an injected canvas factory (testable in Node). When both fail, `app.js` shows the
   FR-012 message in place of the map container and stops. The WebSocket isn't opened, because
   nothing could be drawn. MapLibre's `error` event is also logged to the console.
+
+- **Base map unreachable** (analyze E1): map `error` events whose source is not a QSO overlay
+  (`view.js::isBasemapError`) show the status banner "Base map unavailable; QSOs are still shown."
+  The GeoJSON overlays don't depend on the base map, so they keep rendering.
 
 ## R6. Protocol change
 

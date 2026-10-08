@@ -98,17 +98,29 @@ message.
       consecutive coordinates;
     - properties `key`, `color` and `zRank`.
   - **Empty input**: an empty `markers` gives empty FeatureCollections.
-- [ ] T010 [P] [US1] Extend `web/view.test.js` for `hasWebGL(createCanvas)`:
+- [ ] T010 [P] [US1] Extend `web/view.test.js` for `hasWebGL`, `isBasemapError` and `shouldRender`.
+
+  `hasWebGL(createCanvas)`:
   - `true` when `getContext('webgl2')` returns an object;
   - `true` when only `'webgl'` does;
   - `false` when both return null;
   - `false` when `getContext` throws.
+
+  `isBasemapError(event, ['qso-lines','qso-markers'])` (edge case "base map unreachable"):
+  - `true` for `{ sourceId: 'openmaptiles' }`;
+  - `true` for an event with no `sourceId` (style load failure);
+  - `false` for `{ sourceId: 'qso-markers' }`.
+
+  `shouldRender(loaded, diff)`:
+  - `false` when not loaded;
+  - `false` for an empty diff;
+  - `true` when loaded and any of `add`, `update` or `remove` is non-empty.
 - [ ] T011 [P] [US1] Extend `tests/ws_protocol.rs::static_assets_are_served` with `/view.js` and `/layers.js` (`text/javascript`). Assert that `/` contains `maplibre-gl/5.24.0` and both SRI values from research R1, and does not contain `leaflet`.
 
 ### Implementation for User Story 1
 
 - [ ] T012 [P] [US1] Implement `markerFeatures` and `lineFeatures` in `src/web/assets/layers.js`, importing `greatCircle` from `./geodesic.js`. T009 must pass.
-- [ ] T013 [P] [US1] Implement `hasWebGL(createCanvas)` in `src/web/assets/view.js`. T010 must pass.
+- [ ] T013 [P] [US1] Implement `hasWebGL(createCanvas)`, `isBasemapError(event, overlaySources)` and `shouldRender(loaded, diff)` in `src/web/assets/view.js`. T010 must pass.
 - [ ] T014 [US1] Update `src/web/assets/index.html`:
   - replace the Leaflet CSS and JS with MapLibre 5.24.0 from cdnjs, with the SRI values from
     research R1 (`crossorigin="anonymous"`, `referrerpolicy="no-referrer"`);
@@ -132,14 +144,18 @@ message.
       `circle-color ['get','color']`, `circle-stroke-color '#fff'`, `circle-stroke-width 1`,
       `circle-sort-key ['get','zRank']`);
     - then render.
-  - **`render()`**: `next = markers(state)`. If `diffLayers(current, next)` is not empty, call
-    `setData(markerFeatures(next))` and `setData(lineFeatures(next))`. Then `current = next`.
-    Before `load`, keep the state and render once `load` fires.
+  - **`render()`**: `next = markers(state)`. When `shouldRender(loaded, diffLayers(current, next))`,
+    call `setData(markerFeatures(next))` and `setData(lineFeatures(next))`, then set
+    `current = next`. Before `load`, keep the state; on `load`, render with
+    `current = new Map()`.
   - **Popups**: `map.on('click', 'qso-markers', e => new maplibregl.Popup().setLngLat(...)
     .setDOMContent(popupContent(current.get(e.features[0].properties.key))).addTo(map))`. Keep
     `popupContent` building text-only DOM. Show a pointer cursor on `mouseenter`/`mouseleave`.
-  - **Errors**: `map.on('error', e => console.error(...))`.
-- [ ] T016 [US1] Run quickstart §2 (parity, including the antimeridian path) and §5 (no WebGL) in two browsers. Record the results in `specs/002-maplibre/checklists/verification.md`.
+  - **Errors**: `map.on('error', e => …)`. Log every error to the console. When
+    `isBasemapError(e, ['qso-lines','qso-markers'])`, show the existing `#status` banner with "Base
+    map unavailable; QSOs are still shown." (edge case "base map unreachable"). QSO layers keep
+    rendering on the empty background.
+- [ ] T016 [US1] Run quickstart §2 (parity, including the antimeridian path), §5 (no WebGL) and §2b (base map unreachable: block `tiles.openfreemap.org` in the browser's DevTools network request blocking, reload, and check that the banner shows while markers and lines still render) in two browsers. Record the results in `specs/002-maplibre/checklists/verification.md`.
 
 **Checkpoint**: User Story 1 works on its own. This is the MVP.
 
@@ -161,7 +177,9 @@ configuring both is rejected.
   - only `style_url` set gives `BaseMap::Style` with `style_attribution`, or `""` when it is unset;
     the OpenFreeMap credit applies only to the default style;
   - `style_url` together with `tile_url`, from any layers, gives `Error::Config { setting:
-    "map.style_url", .. }` with a message saying they are mutually exclusive.
+    "map.style_url", .. }` with a message saying they are mutually exclusive;
+  - `tile_url` with a missing or blank `tile_attribution` gives `Error::Config { setting:
+    "map.tile_attribution", .. }` (FR-009).
 - [ ] T018 [P] [US2] Extend `web/view.test.js`: `buildStyle({kind:"raster", url:"https://t/{z}/{x}/{y}.png", attribution:"a"})` returns `{version: 8, sources: {basemap: {type: "raster", tiles: ["https://t/{z}/{x}/{y}.png"], tileSize: 256}}, layers: [{id: "basemap", type: "raster", source: "basemap"}]}`.
 - [ ] T019 [P] [US2] Extend the unit tests in `src/web/protocol.rs`: a raster `MapConfig` serialises `basemap` as `{"kind":"raster","url":…,"attribution":…}`.
 
@@ -170,7 +188,7 @@ configuring both is rejected.
 - [ ] T020 [US2] In `src/config.rs`:
   - add the `Cli` flags `--style-url` and `--style-attribution`, the env vars `LQM_STYLE_URL` and
     `LQM_STYLE_ATTRIBUTION`, and the `FileMap` keys `style_url` and `style_attribution`;
-  - add the conflict validation;
+  - add the conflict validation and the raster-attribution validation;
   - make `MapConfig::basemap()` return `Raster` when `tile_url` is set.
 
   T017 and T019 must pass.
@@ -223,8 +241,8 @@ configuring both is rejected.
   - in `specs/001-live-qso-map/contracts/configuration.md` and `websocket-protocol.md`, add a note
     pointing to the 002 deltas (protocol 2, `basemap`).
 - [ ] T028 [P] Extend `tests/ws_protocol.rs::every_page_receives_hello_snapshot_and_live_upserts` to assert that `hello.protocol == 2` and that `hello.basemap.kind == "style"` with the default configuration.
-- [ ] T029 Run quickstart §6 (SC-002: at least 30 fps with 2,000 QSOs in globe and flat) using `scripts/send_burst.sh 2000` and the browser Performance panel. Record the measured fps in `specs/002-maplibre/checklists/verification.md`.
-- [ ] T030 Run the complete quality gates: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test`, `node --test web/`. Grep `src/` and `README.md` for leftover `leaflet`/`L.` references. Finalise `specs/002-maplibre/checklists/verification.md` with SC-001 to SC-003.
+- [ ] T029 Run quickstart §6 (SC-002: at least 30 fps with 2,000 QSOs in globe and flat) using `scripts/send_burst.sh 2000` and the browser Performance panel. Record the measured fps, plus the machine (CPU, GPU, OS) and browser version, in `specs/002-maplibre/checklists/verification.md`.
+- [ ] T030 Run the complete quality gates: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test`, `node --test web/`. Grep `src/` and `README.md` for leftover `leaflet`/`L.` references. Finalise `specs/002-maplibre/checklists/verification.md` with SC-001 to SC-003. SC-003 (live QSO within 2 s) is evidenced by the unchanged test `tests/ws_protocol.rs::every_page_receives_hello_snapshot_and_live_upserts`.
 
 ---
 
