@@ -53,3 +53,5 @@
   - a city-scale zoom cap, and at most one refit per second;
   - the house popup;
   - station data and the entity extent are sent in the handshake, with a protocol version bump.
+- Constitution amended to 1.3.0 (`docs/http-api.md`) on 2026-10-09. FR-027 was added at the
+  owner's request to fix the error responses that break API-3 (TR-004).

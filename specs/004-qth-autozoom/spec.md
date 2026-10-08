@@ -24,6 +24,8 @@ consider all items in the page, like the QSO box (if enabled), legend, etc."
   for DXCC entities; a fixed radius around the QTH when the entity is missing from the table.
 - Q: How does the auto-zoom button behave? → A: A toggle. While on, the map refits after every change;
   any manual pan or zoom switches it off.
+- Q: Should the error responses that break the new interface rules (constitution 1.3.0) be fixed
+  here? → A: Yes, they are folded into this feature (FR-027).
 - Q: What are the defaults when a page opens? → A: Auto-zoom and the last-QSO box both start on, and
   each viewer's choices are remembered in their browser.
 
@@ -267,6 +269,11 @@ globe: it disappears.
 - **FR-026**: Features 001–003 MUST keep working unchanged, apart from the line colour (FR-004):
   markers, popups, the limit selector, the band filter and legend, the projection button, the base
   map and the no-WebGL message.
+- **FR-027**: Every error response of the service MUST have a JSON body
+  `{"error": "<code>", "message": "<text>"}` (`docs/http-api.md`, API-3). This covers unknown
+  paths, methods that are not allowed, and failed WebSocket upgrades on `/ws`; today these
+  responses have an empty or plain-text body. New or changed messages (FR-025) MUST follow API-2
+  and API-4.
 
 ### Key Entities
 
