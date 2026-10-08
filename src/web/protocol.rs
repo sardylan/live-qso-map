@@ -5,6 +5,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use crate::adif::AdifRecord;
+use crate::band_filter::BandSet;
 use crate::config::{BaseMap, MapConfig};
 use crate::history::{EnrichedQso, format_rfc3339, qso_timestamp};
 use crate::position::Position;
@@ -68,12 +69,17 @@ pub enum ServerMessage {
 }
 
 impl ServerMessage {
-    pub fn hello(map: &MapConfig) -> Self {
+    /// Only bands in `filter` are listed (all when `None`); `protocol` and `basemap` are
+    /// unaffected (feature 003, FR-010).
+    pub fn hello(map: &MapConfig, filter: Option<&BandSet>) -> Self {
         ServerMessage::Hello {
             protocol: PROTOCOL_VERSION,
             limits: LIMITS.to_vec(),
             default_limit: DEFAULT_LIMIT,
-            bands: bands_in_order(&map.bands),
+            bands: bands_in_order(&map.bands)
+                .into_iter()
+                .filter(|b| filter.is_none_or(|f| f.contains(&b.band)))
+                .collect(),
             fallback_color: map.fallback_color.clone(),
             basemap: map.basemap(),
         }
@@ -188,7 +194,7 @@ mod tests {
 
     #[test]
     fn hello_shape() {
-        let v = serde_json::to_value(ServerMessage::hello(&map_config())).unwrap();
+        let v = serde_json::to_value(ServerMessage::hello(&map_config(), None)).unwrap();
         assert_eq!(
             v,
             json!({
@@ -298,10 +304,41 @@ mod tests {
         map.style_attribution = None;
         map.tile_url = Some("https://t/{z}/{x}/{y}.png".into());
         map.tile_attribution = Some("tiles".into());
-        let v = serde_json::to_value(ServerMessage::hello(&map)).unwrap();
+        let v = serde_json::to_value(ServerMessage::hello(&map, None)).unwrap();
         assert_eq!(
             v["basemap"],
             json!({"kind": "raster", "url": "https://t/{z}/{x}/{y}.png", "attribution": "tiles"})
         );
+    }
+
+    #[test]
+    fn hello_filters_bands_but_keeps_protocol_and_basemap() {
+        let mut map = map_config();
+        map.bands.clear();
+        for (band, color) in [
+            ("2m", "#843c39"),
+            ("20m", "#1f77b4"),
+            ("60m", "#bcbd22"),
+            ("160m", "#8c564b"),
+        ] {
+            map.bands.insert(band.to_string(), color.to_string());
+        }
+        let contest = crate::band_filter::resolve(&["hf-contest"]).unwrap();
+        let filtered = serde_json::to_value(ServerMessage::hello(&map, Some(&contest))).unwrap();
+        let all = serde_json::to_value(ServerMessage::hello(&map, None)).unwrap();
+        let bands = |v: &serde_json::Value| -> Vec<String> {
+            v["bands"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|b| b["band"].as_str().unwrap().to_string())
+                .collect()
+        };
+        assert_eq!(bands(&filtered), ["160m", "20m"]);
+        assert_eq!(bands(&all), ["160m", "60m", "20m", "2m"]);
+        for v in [&filtered, &all] {
+            assert_eq!(v["protocol"], 2);
+            assert_eq!(v["basemap"], serde_json::to_value(map.basemap()).unwrap());
+        }
     }
 }

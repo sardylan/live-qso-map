@@ -104,14 +104,17 @@ pages. The legend lists only considered bands, in frequency order.
 
 ### Tests for User Story 1 (write first, confirm they FAIL)
 
-- [ ] T007 [P] [US1] Add unit tests to the `tests` module in `src/ingest/mod.rs` for `band_allowed(record: &AdifRecord, filter: Option<&BandSet>) -> bool`:
+- [X] T007 [P] [US1] Add unit tests to the `tests` module in `src/ingest/mod.rs` for `band_allowed(record: &AdifRecord, filter: Option<&BandSet>) -> bool`:
   - `None` allows everything, including a record with no band;
   - with `hf-contest`: `BAND=20m` is allowed; `BAND=2m` and `BAND=60m` are not; a record with no
     band or an out-of-band frequency is not (unknown band while a filter is active);
   - `FREQ=14.025` with no `BAND` is allowed once `normalise` has derived the band (HR-3);
-  - `events_from_datagram` with the filter returns no event for a 2m ADIF record.
-- [ ] T008 [P] [US1] Extend the unit tests in `src/web/protocol.rs`: `ServerMessage::hello(&map, Some(&hf_contest))`, with a palette holding 160m, 60m, 20m and 2m, sends `bands` = `[160m, 20m]` in that order; `hello(&map, None)` keeps all four, in frequency order. Both calls MUST still serialise `"protocol": 2` and the same `basemap` as `hello(&map)` did before (feature 002); only `bands` is filtered.
-- [ ] T009 [P] [US1] Write integration test `tests/band_filter.rs::only_considered_bands_reach_the_map`:
+  - `split_by_band(events, filter)` puts a 2m ADIF record's event in `ignored` and a 20m one in
+    `allowed`. *(Implementation note, 2026-10-09: filtering is a separate step after
+    `events_from_datagram`, whose signature is unchanged, so the ingest loop can still check
+    ignored events against the resend gate for US3 removals.)*
+- [X] T008 [P] [US1] Extend the unit tests in `src/web/protocol.rs`: `ServerMessage::hello(&map, Some(&hf_contest))`, with a palette holding 160m, 60m, 20m and 2m, sends `bands` = `[160m, 20m]` in that order; `hello(&map, None)` keeps all four, in frequency order. Both calls MUST still serialise `"protocol": 2` and the same `basemap` as `hello(&map)` did before (feature 002); only `bands` is filtered.
+- [X] T009 [P] [US1] Write integration test `tests/band_filter.rs::only_considered_bands_reach_the_map`:
   - start the service with `test_config()`, `band_filter = hf-contest` and a counting lookup source
     (as in `tests/resend_gate.rs`);
   - connect a WebSocket client (as in `tests/ws_protocol.rs`) and assert `hello.bands` lists
@@ -122,7 +125,7 @@ pages. The legend lists only considered bands, in frequency order.
 
 ### Implementation for User Story 1
 
-- [ ] T010 [US1] In `src/ingest/mod.rs`:
+- [X] T010 [US1] In `src/ingest/mod.rs`:
   - add `pub fn band_allowed(record, filter)` (unknown band → `false` when a filter is set);
   - thread `filter: Option<BandSet>` through `events_from_datagram` and `run`, applied after
     `normalise` and before the gate;
@@ -130,8 +133,8 @@ pages. The legend lists only considered bands, in frequency order.
 
   Pass `config.band_filter.clone()` from `pipeline::spawn_tasks` in `src/pipeline.rs`. T007 must
   pass.
-- [ ] T011 [US1] In `src/web/protocol.rs`, change `ServerMessage::hello(map)` to `hello(map, filter: Option<&BandSet>)`, keeping only palette bands that `filter` contains (all when `None`), still sorted by `band_rank`. Pass the filter through `web::serve` (`src/web/mod.rs`) and `Session::on_connect` (`src/web/session.rs`), and update the existing callers and tests. T008 must pass. Keep the `protocol` (2) and `basemap` fields from feature 002 unchanged; only `bands` is filtered.
-- [ ] T012 [US1] Run `cargo test --test band_filter` and confirm T009 passes. Then run quickstart §2 with the real binary.
+- [X] T011 [US1] In `src/web/protocol.rs`, change `ServerMessage::hello(map)` to `hello(map, filter: Option<&BandSet>)`, keeping only palette bands that `filter` contains (all when `None`), still sorted by `band_rank`. Pass the filter through `web::serve` (`src/web/mod.rs`) and `Session::on_connect` (`src/web/session.rs`), and update the existing callers and tests. T008 must pass. Keep the `protocol` (2) and `basemap` fields from feature 002 unchanged; only `bands` is filtered.
+- [X] T012 [US1] Run `cargo test --test band_filter` and confirm T009 passes. Then run quickstart §2 with the real binary.
 
 **Checkpoint**: User Story 1 works on its own.
 

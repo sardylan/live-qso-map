@@ -210,6 +210,7 @@ fn spawn_tasks(
         config.station.clone(),
         queue_tx,
         config.history_size,
+        config.band_filter.clone(),
         shutdown.clone(),
     ));
     for _ in 0..config.workers {
@@ -225,6 +226,7 @@ fn spawn_tasks(
         http,
         pipeline,
         config.map.clone(),
+        config.band_filter.clone(),
         shutdown,
     ));
 }

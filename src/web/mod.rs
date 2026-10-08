@@ -17,6 +17,7 @@ use axum::routing::get;
 use tokio::net::TcpListener;
 use tokio::sync::watch;
 
+use crate::band_filter::BandSet;
 use crate::config::MapConfig;
 use crate::errors::{Error, Result};
 use crate::pipeline::Pipeline;
@@ -36,6 +37,7 @@ const CONNECTION_JS: &str = include_str!("assets/connection.js");
 struct AppState {
     pipeline: Pipeline,
     map: Arc<MapConfig>,
+    band_filter: Arc<Option<BandSet>>,
     sessions: Arc<AtomicUsize>,
     started: Instant,
     shutdown: watch::Receiver<bool>,
@@ -46,11 +48,13 @@ pub async fn serve(
     listener: TcpListener,
     pipeline: Pipeline,
     map: MapConfig,
+    band_filter: Option<BandSet>,
     shutdown: watch::Receiver<bool>,
 ) {
     let state = AppState {
         pipeline,
         map: Arc::new(map),
+        band_filter: Arc::new(band_filter),
         sessions: Arc::new(AtomicUsize::new(0)),
         started: Instant::now(),
         shutdown: shutdown.clone(),
@@ -121,6 +125,7 @@ async fn session_task(socket: WebSocket, state: AppState) {
         changes,
         &state.pipeline,
         &state.map,
+        state.band_filter.as_ref().as_ref(),
         state.shutdown.clone(),
     )
     .await;

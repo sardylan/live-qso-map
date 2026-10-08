@@ -13,6 +13,7 @@ use tokio::sync::watch;
 
 use crate::adif::AdifRecord;
 use crate::adif::parse::parse_datagram;
+use crate::band_filter::BandSet;
 use crate::config::StationConfig;
 use crate::history::qso_timestamp;
 use crate::ingest::detect::{SourceFormat, detect};
@@ -138,12 +139,34 @@ pub(crate) fn normalise(
     Some(record)
 }
 
+/// Whether a normalised record's band is considered (feature 003, FR-007). With a filter
+/// active, an unknown band is not.
+pub fn band_allowed(record: &AdifRecord, filter: Option<&BandSet>) -> bool {
+    match filter {
+        None => true,
+        Some(set) => record
+            .get_non_empty("BAND")
+            .is_some_and(|band| set.contains(band)),
+    }
+}
+
+/// Splits events into `(allowed, ignored)` by band.
+pub fn split_by_band(
+    events: Vec<QsoEvent>,
+    filter: Option<&BandSet>,
+) -> (Vec<QsoEvent>, Vec<QsoEvent>) {
+    events
+        .into_iter()
+        .partition(|e| band_allowed(&e.record, filter))
+}
+
 /// Receives datagrams until shutdown and queues their events on channel 1.
 pub async fn run(
     socket: UdpSocket,
     station: StationConfig,
     queue: async_channel::Sender<QsoEvent>,
     gate_capacity: usize,
+    filter: Option<BandSet>,
     mut shutdown: watch::Receiver<bool>,
 ) {
     let mut gate = gate::ResendGate::new(gate_capacity);
@@ -160,7 +183,18 @@ pub async fn run(
                 continue;
             }
         };
-        for mut event in events_from_datagram(&buffer[..len], from, &station) {
+        let (allowed, ignored) = split_by_band(
+            events_from_datagram(&buffer[..len], from, &station),
+            filter.as_ref(),
+        );
+        for event in &ignored {
+            tracing::debug!(
+                call = event.record.get("CALL").unwrap_or_default(),
+                band = event.record.get("BAND").unwrap_or_default(),
+                "dropping QSO on an ignored band"
+            );
+        }
+        for mut event in allowed {
             if gate.check(&mut event) == gate::GateDecision::Drop {
                 tracing::debug!(id = %event.id, "dropping an identical resend");
                 continue;
@@ -235,5 +269,65 @@ mod tests {
         let r = normalise(record(&[]), from(), &station).unwrap();
         assert_eq!(r.get("STATION_CALLSIGN"), Some("IS0MZK"));
         assert!(normalise(AdifRecord::new(), from(), &station).is_none());
+    }
+
+    // --- band filter (feature 003, T007) ------------------------------------------------------
+
+    fn contest() -> BandSet {
+        crate::band_filter::resolve(&["hf-contest"]).unwrap()
+    }
+
+    #[test]
+    fn no_filter_allows_everything() {
+        assert!(band_allowed(&record(&[]), None));
+        assert!(band_allowed(&record(&[("BAND", "2m")]), None));
+    }
+
+    #[test]
+    fn filter_keeps_only_considered_bands() {
+        let f = contest();
+        assert!(band_allowed(&record(&[("BAND", "20m")]), Some(&f)));
+        assert!(band_allowed(&record(&[("BAND", "20M")]), Some(&f)));
+        assert!(!band_allowed(&record(&[("BAND", "2m")]), Some(&f)));
+        assert!(!band_allowed(&record(&[("BAND", "60m")]), Some(&f)));
+    }
+
+    #[test]
+    fn unknown_band_is_dropped_while_filtering() {
+        let f = contest();
+        assert!(!band_allowed(&record(&[]), Some(&f)));
+        let out_of_band = normalise(
+            record(&[("FREQ", "5.000")]),
+            from(),
+            &StationConfig::default(),
+        )
+        .unwrap();
+        assert!(!band_allowed(&out_of_band, Some(&f)));
+    }
+
+    #[test]
+    fn band_derived_from_freq_is_used() {
+        let r = normalise(
+            record(&[("FREQ", "14.025")]),
+            from(),
+            &StationConfig::default(),
+        )
+        .unwrap();
+        assert!(band_allowed(&r, Some(&contest())));
+    }
+
+    #[test]
+    fn split_by_band_separates_events() {
+        let station = StationConfig::default();
+        let data = b"<CALL:4>K1AA <QSO_DATE:8>20261009 <TIME_ON:4>1500 <BAND:3>20m <EOR><CALL:4>K2BB <QSO_DATE:8>20261009 <TIME_ON:4>1501 <BAND:2>2m <EOR>";
+        let events = events_from_datagram(data, from(), &station);
+        assert_eq!(events.len(), 2);
+        let (allowed, ignored) = split_by_band(events, Some(&contest()));
+        assert_eq!(allowed.len(), 1);
+        assert_eq!(allowed[0].record.get("CALL"), Some("K1AA"));
+        assert_eq!(ignored.len(), 1);
+        assert_eq!(ignored[0].record.get("CALL"), Some("K2BB"));
+        let (allowed, ignored) = split_by_band(events_from_datagram(data, from(), &station), None);
+        assert_eq!((allowed.len(), ignored.len()), (2, 0));
     }
 }
