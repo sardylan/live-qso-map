@@ -40,7 +40,10 @@
 | §7 Load | ⚠️ | macOS only; Pi 4 pending |
 | §8 Deployment | ⚠️ | artifacts written, not built (T091) |
 
-## Pending manual checks (owner)
+## Deferred owner checks
+
+The feature was closed on 2026-10-09, with these checks deferred to the project owner by
+decision. They are tracked here and in `tasks.md` (marked DEFERRED).
 
 1. **T045**: open the map in two browsers and run quickstart §2/§3. Check the markers, colours,
    great-circle lines, popups, legend, the selector, and that the page reconnects after a service

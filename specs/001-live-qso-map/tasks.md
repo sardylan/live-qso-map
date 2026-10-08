@@ -350,7 +350,7 @@ send the quickstart §2 datagram. Both show one 40m marker at JO62QM with a line
     `setZIndexOffset(zRank*1000)`, a popup listing call, band, mode, UTC time and position
     source/precision (FR-026), and an `L.polyline(greatCircle(...))` per marker). In US1, `app.js`
     opens a single WebSocket with no retry; US3 (T070) replaces this with `connection.js`.
-- [ ] T045 [US1] Run the quickstart §2 and §3 manually in two browsers and confirm the Independent Test. Run `cargo test --test adif_udp --test ws_protocol` and `node --test web/`; all must pass.
+- [ ] T045 [US1] **DEFERRED to the owner on 2026-10-09; see `checklists/verification.md`.** Run the quickstart §2 and §3 manually in two browsers and confirm the Independent Test. Run `cargo test --test adif_udp --test ws_protocol` and `node --test web/`; all must pass.
 
 **Checkpoint**: User Story 1 works on its own. This is the MVP.
 
@@ -464,7 +464,7 @@ and mainland Italy (SC-007). Quickstart §5 works with real credentials.
 - [X] T060 [P] [US2] [R:YELLOW] Implement `src/enrich/provider/qrzcq.rs`: login `https://ssl.qrzcq.com/xml?username=&password=&agent=`, lookup `?s=KEY&callsign=C&agent=`, and parsing. T052 must pass.
 - [X] T061 [US2] Implement the selection in `src/enrich/resolve.rs`: `resolve_remote(call, sources: &[LookupSource], order, timeout) -> (Option<Position>, AdifRecord fields)`, running every source with `tokio::time::timeout` concurrently (`futures`-free: spawn each source and collect `JoinHandle`s), picking by precision then order, and merging fields. T053 must pass.
 - [X] T062 [US2] Wire `resolve_remote` into the worker in `src/enrich/mod.rs`: when `logger_position` is `None`, call it with the enabled providers (from config) plus cty, and write the fields with `set_if_absent` and the position fields. Build the providers and cty data in `pipeline::start`. T054 must pass.
-- [ ] T063 [US2] Run quickstart §5 with real QRZ/HamQTH credentials (if available) and verify the popup source and precision. Record any differences from the fixtures in `tests/fixtures/README.md`.
+- [ ] T063 [US2] **DEFERRED to the owner on 2026-10-09; see `checklists/verification.md`.** Run quickstart §5 with real QRZ/HamQTH credentials (if available) and verify the popup source and precision. Record any differences from the fixtures in `tests/fixtures/README.md`.
 
 **Checkpoint**: User Stories 1 and 2 both work on their own.
 
@@ -646,7 +646,7 @@ tests depend only on the Foundational phase.
 - [X] T088 [P] Add a `scripts/send_burst.sh N` developer helper that sends N synthetic ADIF QSOs with spread grid squares and increasing times via `nc -u` (quickstart §6).
 - [X] T089 [P] Create `deploy/config.example.toml`, mirroring contracts/configuration.md with every key commented, and `deploy/live-qso-map.service` (systemd: `DynamicUser=yes`, `StateDirectory=live-qso-map`, `LQM_CTY_PATH=/var/lib/live-qso-map/cty.dat`, `--config /etc/live-qso-map/config.toml`, `Restart=on-failure`, hardening options `NoNewPrivileges`, `ProtectSystem=strict` and `ProtectHome`).
 - [X] T090 [P] [R:YELLOW] Create a multi-stage `Dockerfile`: a builder stage on `rust:1.98` with the musl target, building a release `--target x86_64-unknown-linux-musl`, then a runtime stage on a minimal non-root image with CA certificates for the rustls lookups. Add `EXPOSE 12060/udp 8080/tcp`, `VOLUME /data`, `ENV LQM_CTY_PATH=/data/cty.dat` and `ENTRYPOINT ["/live-qso-map"]`. Add a `.dockerignore` excluding `target/`, `.git/` and `specs/`.
-- [ ] T091 [P] Create `Cross.toml` for `x86_64-unknown-linux-musl`, `aarch64-unknown-linux-musl` and `armv7-unknown-linux-musleabihf`, and verify that all three still build with `cross build --release --target <t>`, using the crypto provider chosen in T001 (R17).
+- [ ] T091 [P] **DEFERRED to the owner on 2026-10-09; see `checklists/verification.md`.** Create `Cross.toml` for `x86_64-unknown-linux-musl`, `aarch64-unknown-linux-musl` and `armv7-unknown-linux-musleabihf`, and verify that all three still build with `cross build --release --target <t>`, using the crypto provider chosen in T001 (R17).
 - [X] T092 [P] Write `README.md`: what the service does, quick start, configuration table (link to the contract), supported inputs (ADIF UDP, QARTest), provider notes (quotas; no lookup caching by design, FR-016), the open-access warning (FR-035) and deployment options.
 - [X] T093 Verify that secrets never reach the logs: run with `--log-level trace` and fake credentials against the fixtures and assert that no password or session key appears in the output. Add an assertion test in `src/enrich/provider/mod.rs` that `Debug` of every provider config is redacted.
 - [X] T094 Run the complete quality gates: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test`, `node --test web/`. Then walk through quickstart §1–§8 end to end and tick off SC-001 to SC-009 in a short verification note at `specs/001-live-qso-map/checklists/verification.md`.

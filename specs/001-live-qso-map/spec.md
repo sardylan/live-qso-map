@@ -2,7 +2,8 @@
 
 **Feature Branch**: `001-live-qso-map`
 **Created**: 2026-10-08
-**Status**: Draft
+**Status**: Complete (2026-10-09). Deferred owner checks are listed in
+`checklists/verification.md`.
 **Input**: User description: "QSOs arrive over UDP from different sources (plain ADIF, QARTest XML), are
 normalized to ADIF, enriched with station and remote-station geolocation (logger data, QRZ.com, QRZCQ,
 HamQTH, local country data), and broadcast live to every open web map page, which shows the last N QSOs
