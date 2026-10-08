@@ -49,6 +49,7 @@ impl Session {
             HistoryChange::Upsert(qso) => vec![ServerMessage::Upsert {
                 qso: QsoView::from(qso.as_ref()),
             }],
+            HistoryChange::Remove { id } => vec![ServerMessage::Remove { id: id.clone() }],
         }
     }
 
@@ -195,6 +196,7 @@ mod tests {
             ServerMessage::Hello { .. } => "hello",
             ServerMessage::Snapshot { .. } => "snapshot",
             ServerMessage::Upsert { .. } => "upsert",
+            ServerMessage::Remove { .. } => "remove",
         }
     }
 
@@ -360,5 +362,11 @@ mod tests {
             "{kinds:?}"
         );
         assert_eq!(after.first(), Some(&"snapshot"), "{kinds:?}");
+    }
+
+    #[test]
+    fn removal_change_emits_remove() {
+        let msgs = Session::new().on_change(&HistoryChange::Remove { id: "Q0001".into() });
+        assert_eq!(msgs, vec![ServerMessage::Remove { id: "Q0001".into() }]);
     }
 }

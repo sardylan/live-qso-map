@@ -4,7 +4,7 @@
 // from an open UDP port (FR-035). Only the operator-configured attribution is HTML.
 /* global maplibregl */
 
-import { createState, applySnapshot, applyUpsert, markers, diffLayers, setLimit } from './map-state.js';
+import { createState, applySnapshot, applyUpsert, applyRemove, markers, diffLayers, setLimit } from './map-state.js';
 import { markerFeatures, lineFeatures } from './layers.js';
 import {
   buildStyle,
@@ -14,6 +14,7 @@ import {
   loadProjection,
   saveProjection,
   nextProjection,
+  popupToClose,
 } from './view.js';
 import { createConnection, onOpen, onClose, onHello as handshake, loadLimit, saveLimit } from './connection.js';
 
@@ -24,6 +25,9 @@ let loaded = false;
 let state = null;
 let current = new Map();
 let socket = null;
+// The open popup and the key of its marker, so removals and updates reach it (FR-012).
+let openPopup = null;
+let openKey = null;
 
 function sessionStore() {
   try {
@@ -135,10 +139,16 @@ class ProjectionControl {
 function render() {
   if (!state) return;
   const next = markers(state);
-  if (!shouldRender(loaded, diffLayers(current, next))) return;
+  const diff = diffLayers(current, next);
+  if (!shouldRender(loaded, diff)) return;
   map.getSource('qso-markers').setData(markerFeatures(next));
   map.getSource('qso-lines').setData(lineFeatures(next));
   current = next;
+  if (popupToClose(openKey, diff)) {
+    openPopup.remove();
+  } else if (openKey !== null && diff.update.some((m) => m.key === openKey)) {
+    openPopup.setDOMContent(popupContent(current.get(openKey)));
+  }
 }
 
 function createMap(hello) {
@@ -166,10 +176,19 @@ function createMap(hello) {
     const feature = event.features && event.features[0];
     const marker = feature && current.get(feature.properties.key);
     if (!marker) return;
-    new maplibregl.Popup({ maxWidth: 'none' })
+    if (openPopup) openPopup.remove();
+    const popup = new maplibregl.Popup({ maxWidth: 'none' })
       .setLngLat(feature.geometry.coordinates)
       .setDOMContent(popupContent(marker))
       .addTo(map);
+    popup.on('close', () => {
+      if (openPopup === popup) {
+        openPopup = null;
+        openKey = null;
+      }
+    });
+    openPopup = popup;
+    openKey = feature.properties.key;
   });
   map.on('mouseenter', 'qso-markers', () => {
     map.getCanvas().style.cursor = 'pointer';
@@ -217,6 +236,8 @@ function onMessage(message) {
     applySnapshot(state, message.qsos);
   } else if (message.type === 'upsert') {
     applyUpsert(state, message.qso);
+  } else if (message.type === 'remove') {
+    applyRemove(state, message.id);
   } else {
     return;
   }

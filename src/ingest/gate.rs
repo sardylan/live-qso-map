@@ -104,6 +104,15 @@ impl ResendGate {
         GateDecision::Forward { rev: 1 }
     }
 
+    /// Whether the gate knows this QSO, by its identity or, for a correction without a logger
+    /// id, by its previous identity (feature 003: candidates for removal).
+    pub fn contains(&self, event: &QsoEvent) -> bool {
+        self.entries.contains_key(&event.identity)
+            || self
+                .previous_identity(event)
+                .is_some_and(|old| self.entries.contains_key(&old))
+    }
+
     /// The identity a correction had before the edit, from `oldcall`/`oldtimestamp`.
     /// Only used when the source carries no logger id.
     fn previous_identity(&self, event: &QsoEvent) -> Option<Identity> {
@@ -318,5 +327,18 @@ mod tests {
             Some(("20261008".into(), "1504".into()))
         );
         assert_eq!(split_timestamp("garbage"), None);
+    }
+
+    #[test]
+    fn contains_known_identities_and_previous_ones() {
+        let mut gate = ResendGate::new(0);
+        let mut original = event(record("K6QA", "SSB", &[]));
+        gate.check(&mut original);
+        assert!(gate.contains(&event(record("K6QA", "SSB", &[("SRX_STRING", "x")]))));
+        assert!(!gate.contains(&event(record("K1ZZ", "SSB", &[]))));
+        let moved = correction(record("K6QB", "SSB", &[]), "K6QA", "2026-10-08 15:04:22");
+        assert!(gate.contains(&moved));
+        let unknown = correction(record("K6QB", "SSB", &[]), "K9XX", "2026-10-08 15:04:22");
+        assert!(!gate.contains(&unknown));
     }
 }

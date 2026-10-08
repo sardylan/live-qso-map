@@ -18,6 +18,7 @@ use crate::config::StationConfig;
 use crate::history::qso_timestamp;
 use crate::ingest::detect::{SourceFormat, detect};
 use crate::ingest::identity::Identity;
+use crate::pipeline::Pipeline;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EventKind {
@@ -167,6 +168,7 @@ pub async fn run(
     queue: async_channel::Sender<QsoEvent>,
     gate_capacity: usize,
     filter: Option<BandSet>,
+    pipeline: Pipeline,
     mut shutdown: watch::Receiver<bool>,
 ) {
     let mut gate = gate::ResendGate::new(gate_capacity);
@@ -187,7 +189,14 @@ pub async fn run(
             events_from_datagram(&buffer[..len], from, &station),
             filter.as_ref(),
         );
-        for event in &ignored {
+        for mut event in ignored {
+            // A correction of a QSO the gate knows may be on the map: remove it (FR-008).
+            if gate.contains(&event) && gate.check(&mut event) != gate::GateDecision::Drop {
+                if pipeline.remove(&event.id, event.rev) {
+                    tracing::info!(id = %event.id, "QSO corrected onto an ignored band; removed");
+                }
+                continue;
+            }
             tracing::debug!(
                 call = event.record.get("CALL").unwrap_or_default(),
                 band = event.record.get("BAND").unwrap_or_default(),

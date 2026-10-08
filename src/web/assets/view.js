@@ -57,3 +57,8 @@ export function saveProjection(storage, projection) {
 export function nextProjection(projection) {
   return projection === 'globe' ? 'mercator' : 'globe';
 }
+
+/** True when the open popup belongs to a marker that disappeared (FR-012, feature 003). */
+export function popupToClose(openKey, diff) {
+  return openKey != null && diff.remove.includes(openKey);
+}

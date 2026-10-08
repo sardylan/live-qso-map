@@ -195,3 +195,30 @@ test('bands arrive as an ordered list and keep their order', () => {
   const s = state();
   assert.deepEqual(s.bandOrder, ['40m', '20m']);
 });
+
+import { applyRemove } from '../src/web/assets/map-state.js';
+
+test('applyRemove drops the QSO and an empty marker', () => {
+  const s = state();
+  applyUpsert(s, qso(1));
+  applyUpsert(s, qso(2));
+  const before = markers(s);
+  applyRemove(s, 'Q01');
+  assert.deepEqual(visible(s).map((q) => q.id), ['Q02']);
+  assert.deepEqual(diffLayers(before, markers(s)).remove, ['51,10']);
+});
+
+test('applyRemove of an unknown id changes nothing', () => {
+  const s = state();
+  applyUpsert(s, qso(1));
+  applyRemove(s, 'nope');
+  assert.equal(visible(s).length, 1);
+});
+
+test('after applyRemove the same id comes back as new', () => {
+  const s = state();
+  applyUpsert(s, qso(1, { rev: 5 }));
+  applyRemove(s, 'Q01');
+  applyUpsert(s, qso(1, { rev: 1, call: 'BACK' }));
+  assert.equal(visible(s)[0].call, 'BACK');
+});

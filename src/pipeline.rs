@@ -13,7 +13,7 @@ use tokio::task::JoinSet;
 
 use crate::config::Config;
 use crate::errors::Result;
-use crate::history::{EnrichedQso, History, Upsert};
+use crate::history::{EnrichedQso, History, Removal, Upsert};
 use crate::position::LookupCandidate;
 
 /// One lookup source: a callsign in, a candidate (or nothing) out. Production builds these from
@@ -32,6 +32,10 @@ pub type LookupSources = Option<Vec<LookupSource>>;
 #[derive(Debug, Clone)]
 pub enum HistoryChange {
     Upsert(Arc<EnrichedQso>),
+    /// The QSO no longer exists (feature 003: corrected onto an ignored band).
+    Remove {
+        id: String,
+    },
 }
 
 /// Shared history plus the broadcast sender.
@@ -69,6 +73,21 @@ impl Pipeline {
                 true
             }
             Upsert::Stale => false,
+        }
+    }
+
+    /// Removes a QSO at revision `rev`; broadcasts only when an entry was actually removed,
+    /// under the lock like `publish` (research R3).
+    pub fn remove(&self, id: &str, rev: u32) -> bool {
+        let mut history = self.lock_history();
+        match history.remove(id, rev) {
+            Removal::Removed => {
+                let _ = self
+                    .changes
+                    .send(HistoryChange::Remove { id: id.to_string() });
+                true
+            }
+            Removal::NotPresent => false,
         }
     }
 
@@ -220,6 +239,7 @@ fn spawn_tasks(
         queue_tx,
         config.history_size,
         config.band_filter.clone(),
+        pipeline.clone(),
         shutdown.clone(),
     ));
     for _ in 0..config.workers {
@@ -309,7 +329,9 @@ mod tests {
         assert!(pipeline.publish(qso("A", 2)));
         assert!(!pipeline.publish(qso("A", 1)));
         assert!(!pipeline.publish(qso("A", 2)));
-        let HistoryChange::Upsert(first) = rx.try_recv().unwrap();
+        let Ok(HistoryChange::Upsert(first)) = rx.try_recv() else {
+            panic!("expected an upsert");
+        };
         assert_eq!(first.rev, 2);
         assert!(rx.try_recv().is_err());
         assert_eq!(pipeline.history_len(), 1);
@@ -347,5 +369,22 @@ mod tests {
             bands_log_line(Some(&set)),
             "bands considered: 160m 80m 40m 30m 20m 17m 15m 12m 10m 2m"
         );
+    }
+
+    #[test]
+    fn remove_broadcasts_only_when_something_was_removed() {
+        let pipeline = Pipeline::new(0, 16);
+        pipeline.publish(qso("A", 1));
+        let mut rx = pipeline.subscribe();
+        assert!(!pipeline.remove("ZZ", 2));
+        assert!(rx.try_recv().is_err());
+        assert!(pipeline.remove("A", 2));
+        match rx.try_recv() {
+            Ok(HistoryChange::Remove { id }) => assert_eq!(id, "A"),
+            other => panic!("expected a removal, got {other:?}"),
+        }
+        assert_eq!(pipeline.history_len(), 0);
+        assert!(!pipeline.publish(qso("A", 2)), "stale revision stays out");
+        assert!(rx.try_recv().is_err());
     }
 }

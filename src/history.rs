@@ -1,7 +1,7 @@
 //! In-memory QSO history: revision-checked upserts, stable sort keys, eviction
 //! (FR-021, FR-028, data-model "History").
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap, VecDeque};
 use std::sync::Arc;
 
 use crate::adif::AdifRecord;
@@ -25,11 +25,21 @@ pub enum Upsert {
     Stale,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Removal {
+    Removed,
+    NotPresent,
+}
+
 #[derive(Debug, Default)]
 pub struct History {
     by_id: HashMap<String, Arc<EnrichedQso>>,
     ordered: BTreeSet<(i64, String)>,
     capacity: usize,
+    /// Removed ids and the revision of their removal (feature 003, TR-002): older revisions still
+    /// in flight must not bring the QSO back.
+    tombstones: HashMap<String, u32>,
+    tombstone_order: VecDeque<String>,
 }
 
 impl History {
@@ -42,6 +52,12 @@ impl History {
     }
 
     pub fn upsert(&mut self, mut qso: EnrichedQso) -> Upsert {
+        if let Some(removed_at) = self.tombstones.get(&qso.id) {
+            if qso.rev <= *removed_at {
+                return Upsert::Stale;
+            }
+            self.tombstones.remove(&qso.id);
+        }
         if let Some(existing) = self.by_id.get(&qso.id) {
             if qso.rev <= existing.rev {
                 return Upsert::Stale;
@@ -68,6 +84,34 @@ impl History {
             }
         }
         Upsert::Accepted(stored)
+    }
+
+    /// Removes `id` when `rev` is newer than the stored revision, and remembers `rev` so stale
+    /// revisions stay out (research R3).
+    pub fn remove(&mut self, id: &str, rev: u32) -> Removal {
+        let removed = match self.by_id.get(id) {
+            Some(existing) if rev > existing.rev => {
+                let key = (existing.sort_ts, existing.id.clone());
+                self.ordered.remove(&key);
+                self.by_id.remove(id);
+                Removal::Removed
+            }
+            _ => Removal::NotPresent,
+        };
+        let entry = self.tombstones.entry(id.to_string()).or_insert(0);
+        if *entry == 0 {
+            self.tombstone_order.push_back(id.to_string());
+        }
+        *entry = (*entry).max(rev);
+        while self.capacity > 0 && self.tombstones.len() > self.capacity {
+            match self.tombstone_order.pop_front() {
+                Some(oldest) => {
+                    self.tombstones.remove(&oldest);
+                }
+                None => break,
+            }
+        }
+        removed
     }
 
     /// The last `n` QSOs by sort key (`None` = all), ascending.
@@ -274,5 +318,68 @@ mod tests {
     fn rfc3339_formatting() {
         assert_eq!(format_rfc3339(0), "1970-01-01T00:00:00Z");
         assert_eq!(format_rfc3339(1_791_471_844), "2026-10-08T15:04:04Z");
+    }
+
+    // --- removals and tombstones (feature 003, T016) ------------------------------------------
+
+    #[test]
+    fn remove_deletes_and_tombstones() {
+        let mut h = History::new(0);
+        h.upsert(qso("A", 1, 10));
+        h.upsert(qso("B", 1, 20));
+        assert_eq!(h.remove("A", 2), Removal::Removed);
+        assert_eq!(h.len(), 1);
+        assert!(h.get("A").is_none());
+        assert_eq!(ids(&h.latest(None)), ["B"]);
+    }
+
+    #[test]
+    fn stale_upsert_after_removal_is_rejected() {
+        let mut h = History::new(0);
+        h.upsert(qso("A", 1, 10));
+        h.remove("A", 2);
+        assert!(matches!(h.upsert(qso("A", 1, 10)), Upsert::Stale));
+        assert!(matches!(h.upsert(qso("A", 2, 10)), Upsert::Stale));
+        assert_eq!(h.len(), 0);
+    }
+
+    #[test]
+    fn higher_rev_after_removal_comes_back_as_new() {
+        let mut h = History::new(0);
+        h.upsert(qso("A", 1, 10));
+        h.remove("A", 2);
+        let Upsert::Accepted(stored) = h.upsert(qso("A", 3, 99)) else {
+            panic!("expected accepted");
+        };
+        assert_eq!(stored.sort_ts, 99, "a new entry keeps its own sort key");
+        assert_eq!(h.len(), 1);
+        h.remove("A", 4);
+        assert_eq!(h.len(), 0);
+    }
+
+    #[test]
+    fn remove_of_unknown_id_records_a_tombstone() {
+        let mut h = History::new(0);
+        assert_eq!(h.remove("X", 2), Removal::NotPresent);
+        assert!(matches!(h.upsert(qso("X", 1, 10)), Upsert::Stale));
+        assert!(matches!(h.upsert(qso("X", 3, 10)), Upsert::Accepted(_)));
+    }
+
+    #[test]
+    fn tombstones_are_capped_like_the_history() {
+        let mut h = History::new(2);
+        for id in ["A", "B", "C"] {
+            h.remove(id, 5);
+        }
+        assert!(
+            matches!(h.upsert(qso("A", 1, 10)), Upsert::Accepted(_)),
+            "oldest tombstone evicted"
+        );
+        assert!(matches!(h.upsert(qso("C", 1, 10)), Upsert::Stale));
+        let mut unbounded = History::new(0);
+        for i in 0..100 {
+            unbounded.remove(&format!("Q{i}"), 1);
+        }
+        assert!(matches!(unbounded.upsert(qso("Q0", 1, 0)), Upsert::Stale));
     }
 }

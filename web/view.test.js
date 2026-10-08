@@ -95,3 +95,13 @@ test('nextProjection toggles globe and mercator', () => {
   assert.equal(nextProjection('globe'), 'mercator');
   assert.equal(nextProjection('mercator'), 'globe');
 });
+
+import { popupToClose } from '../src/web/assets/view.js';
+
+test('popupToClose closes only a popup whose marker was removed', () => {
+  const diff = { add: [], update: [{ key: 'u' }], remove: ['r'] };
+  assert.equal(popupToClose(null, diff), false);
+  assert.equal(popupToClose('r', diff), true);
+  assert.equal(popupToClose('u', diff), false);
+  assert.equal(popupToClose('x', diff), false);
+});

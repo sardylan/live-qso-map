@@ -171,17 +171,17 @@ onto a considered band shows it again.
 
 ### Tests for User Story 3 (write first, confirm they FAIL)
 
-- [ ] T016 [P] [US3] Extend the unit tests in `src/history.rs`:
+- [X] T016 [P] [US3] Extend the unit tests in `src/history.rs`:
   - `remove(id, rev)` of a present QSO with a higher rev returns `Removed` and `len` drops;
   - an upsert with `rev <= tombstone` is `Stale`;
   - an upsert with a higher rev is `Accepted` as a new entry, with a new `sort_ts`, and clears the
     tombstone;
   - `remove` of an unknown id returns `NotPresent` but records the tombstone;
   - tombstones are capped at `capacity` (oldest evicted), and unbounded when the capacity is 0.
-- [ ] T017 [P] [US3] Extend the unit tests in `src/ingest/gate.rs`: `contains(&event)` is true for a known identity and for a correction whose previous identity (`oldcall`/`oldtimestamp`, no logger id) is known; false otherwise.
-- [ ] T018 [P] [US3] Extend the unit tests in `src/pipeline.rs`: `Pipeline::remove(id, rev)` broadcasts `HistoryChange::Remove { id }` only when the history returned `Removed`; a later `publish` of a stale rev sends nothing.
-- [ ] T019 [P] [US3] Extend the unit tests in `src/web/session.rs` and `src/web/protocol.rs`: `on_change(Remove { id })` emits `ServerMessage::Remove { id }`, which serialises as `{"type":"remove","id":"…"}`.
-- [ ] T020 [P] [US3] Extend `web/map-state.test.js`:
+- [X] T017 [P] [US3] Extend the unit tests in `src/ingest/gate.rs`: `contains(&event)` is true for a known identity and for a correction whose previous identity (`oldcall`/`oldtimestamp`, no logger id) is known; false otherwise.
+- [X] T018 [P] [US3] Extend the unit tests in `src/pipeline.rs`: `Pipeline::remove(id, rev)` broadcasts `HistoryChange::Remove { id }` only when the history returned `Removed`; a later `publish` of a stale rev sends nothing.
+- [X] T019 [P] [US3] Extend the unit tests in `src/web/session.rs` and `src/web/protocol.rs`: `on_change(Remove { id })` emits `ServerMessage::Remove { id }`, which serialises as `{"type":"remove","id":"…"}`.
+- [X] T020 [P] [US3] Extend `web/map-state.test.js`:
   - `applyRemove` drops the QSO, and its marker when no QSOs are left (`diffLayers` lists it in
     `remove`);
   - `applyRemove` of an unknown id changes nothing;
@@ -193,7 +193,7 @@ onto a considered band shows it again.
   - `false` when `openKey` is only in `diff.update`, because the glue refreshes the content
     instead;
   - `false` when `openKey` is not in the diff.
-- [ ] T021 [P] [US3] Write integration test `tests/band_filter.rs::correction_onto_ignored_band_removes_the_qso`:
+- [X] T021 [P] [US3] Write integration test `tests/band_filter.rs::correction_onto_ignored_band_removes_the_qso`:
   - filter `hf-contest`, with the country-data fixture as the only source;
   - send a QARTest `contactinfo` (adapt packet #3, K6QA, `<txfreq>1402500</txfreq>`, 20m) and expect
     an upsert on the broadcast and on a WebSocket client;
@@ -205,18 +205,18 @@ onto a considered band shows it again.
 
 ### Implementation for User Story 3
 
-- [ ] T022 [US3] Implement `History::remove(id, rev) -> Removal { Removed, NotPresent }`, the tombstone map and order (capped like the history), and the tombstone check in `upsert`, in `src/history.rs`. T016 must pass.
-- [ ] T023 [P] [US3] Implement `ResendGate::contains(&QsoEvent) -> bool` in `src/ingest/gate.rs`, reusing `previous_identity`. T017 must pass.
-- [ ] T024 [US3] Add `HistoryChange::Remove { id: String }` and `Pipeline::remove(&self, id: &str, rev: u32) -> bool` (broadcast under the lock only when `Removed`, R3) in `src/pipeline.rs`. Make every `match` on `HistoryChange` exhaustive. T018 must pass.
-- [ ] T025 [US3] Implement `ServerMessage::Remove { id }` in `src/web/protocol.rs` and the `Remove` arm of `Session::on_change` in `src/web/session.rs`. T019 must pass.
-- [ ] T026 [US3] Implement the removal path in `src/ingest/mod.rs`:
+- [X] T022 [US3] Implement `History::remove(id, rev) -> Removal { Removed, NotPresent }`, the tombstone map and order (capped like the history), and the tombstone check in `upsert`, in `src/history.rs`. T016 must pass.
+- [X] T023 [P] [US3] Implement `ResendGate::contains(&QsoEvent) -> bool` in `src/ingest/gate.rs`, reusing `previous_identity`. T017 must pass.
+- [X] T024 [US3] Add `HistoryChange::Remove { id: String }` and `Pipeline::remove(&self, id: &str, rev: u32) -> bool` (broadcast under the lock only when `Removed`, R3) in `src/pipeline.rs`. Make every `match` on `HistoryChange` exhaustive. T018 must pass.
+- [X] T025 [US3] Implement `ServerMessage::Remove { id }` in `src/web/protocol.rs` and the `Remove` arm of `Session::on_change` in `src/web/session.rs`. T019 must pass.
+- [X] T026 [US3] Implement the removal path in `src/ingest/mod.rs`:
   - when `band_allowed` is false and `gate.contains(&event)`, run `gate.check(&mut event)` to get
     the next rev and the history id, then call `pipeline.remove(&event.id, event.rev)`;
   - otherwise drop silently (debug log).
 
   `ingest::run` needs a `Pipeline` handle; pass it from `spawn_tasks`. T021 must pass.
-- [ ] T027 [P] [US3] Implement `applyRemove(state, id)` in `src/web/assets/map-state.js` and `popupToClose(openKey, diff)` in `src/web/assets/view.js`. T020 must pass.
-- [ ] T028 [US3] Handle `{"type":"remove"}` in `src/web/assets/app.js`. Glue only.
+- [X] T027 [P] [US3] Implement `applyRemove(state, id)` in `src/web/assets/map-state.js` and `popupToClose(openKey, diff)` in `src/web/assets/view.js`. T020 must pass.
+- [X] T028 [US3] Handle `{"type":"remove"}` in `src/web/assets/app.js`. Glue only.
   - Call `applyRemove(state, message.id)`, then `render()`. In the MapLibre page, `render()` already
     computes `diffLayers(current, next)`, and `shouldRender` lets `setData` update both the
     `qso-markers` and `qso-lines` sources, so the marker and line disappear.

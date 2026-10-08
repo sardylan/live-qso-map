@@ -66,6 +66,10 @@ pub enum ServerMessage {
     Upsert {
         qso: QsoView,
     },
+    /// The QSO no longer exists (feature 003).
+    Remove {
+        id: String,
+    },
 }
 
 impl ServerMessage {
@@ -340,5 +344,14 @@ mod tests {
             assert_eq!(v["protocol"], 2);
             assert_eq!(v["basemap"], serde_json::to_value(map.basemap()).unwrap());
         }
+    }
+
+    #[test]
+    fn remove_shape() {
+        let v = serde_json::to_value(ServerMessage::Remove {
+            id: "L|IS0MZK|3809734F4".into(),
+        })
+        .unwrap();
+        assert_eq!(v, json!({"type": "remove", "id": "L|IS0MZK|3809734F4"}));
     }
 }

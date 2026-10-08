@@ -18,6 +18,11 @@ export function applySnapshot(state, qsos) {
   }
 }
 
+/** Forgets a QSO the server removed; a later upsert with the same id is new (feature 003). */
+export function applyRemove(state, id) {
+  state.qsos.delete(id);
+}
+
 /** Applies a live upsert; a lower or equal revision of a known QSO is ignored (FR-009). */
 export function applyUpsert(state, qso) {
   const known = state.qsos.get(qso.id);

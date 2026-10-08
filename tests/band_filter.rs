@@ -115,3 +115,98 @@ async fn only_considered_bands_reach_the_map() {
     assert_eq!(service.history_len(), 1);
     service.shutdown().await;
 }
+
+const CTY: &str = include_str!("fixtures/cty-excerpt.dat");
+
+/// QARTest packet #3 of the reference capture (K6QA, id 3809734F4), as `root` with `txfreq`.
+fn qartest(root: &str, id: &str, txfreq: &str) -> Vec<u8> {
+    let extra = if root == "contactreplace" {
+        "<oldtimestamp>2026-10-08 15:04:22</oldtimestamp><oldcall>K6QA</oldcall>"
+    } else {
+        ""
+    };
+    format!(
+        "<?xml version=\"1.0\"?><{root}><logger>QARTest 16.9.1</logger><contestname>CQ-WW-SSB</contestname><timestamp>2026-10-08 15:04:22</timestamp><mycall>IS0MZK</mycall><band>20</band><txfreq>{txfreq}</txfreq><operator></operator><mode>USB</mode><call>K6QA</call><countryprefix>K</countryprefix><wpxprefix>K6</wpxprefix><snt>59</snt><rcv>59</rcv><nr>6</nr><exch1>3</exch1><exch2></exch2><exch3></exch3><duplicate>False</duplicate><stationname></stationname><points>3</points><xqso>0</xqso><id>{id}</id>{extra}</{root}>"
+    )
+    .into_bytes()
+}
+
+#[tokio::test]
+async fn correction_onto_ignored_band_removes_the_qso() {
+    use live_qso_map::enrich::cty::CountryData;
+    use live_qso_map::pipeline::{HistoryChange, cty_source};
+
+    let mut config = test_config();
+    config.band_filter = Some(resolve(&["hf-contest"]).unwrap());
+    let sources = vec![cty_source(Arc::new(CountryData::parse(CTY)))];
+    let service = start(config, Some(sources)).await.unwrap();
+    let mut rx = service.subscribe();
+    let mut ws = connect(service.http_addr).await;
+    next_json(&mut ws, Duration::from_secs(2)).await.unwrap(); // hello
+    next_json(&mut ws, Duration::from_secs(2)).await.unwrap(); // snapshot
+
+    // Shown on 20m.
+    send_udp(
+        service.udp_addr,
+        &qartest("contactinfo", "3809734F4", "1402500"),
+    )
+    .await;
+    let q = next_upsert(&mut rx, Duration::from_secs(2))
+        .await
+        .expect("upsert");
+    let id = q.id.clone();
+    assert_eq!(
+        next_json(&mut ws, Duration::from_secs(2)).await.unwrap()["type"],
+        "upsert"
+    );
+
+    // Corrected onto 60m: removed everywhere within 2 s (SC-004).
+    send_udp(
+        service.udp_addr,
+        &qartest("contactreplace", "3809734F4", "535000"),
+    )
+    .await;
+    match tokio::time::timeout(Duration::from_secs(2), rx.recv()).await {
+        Ok(Ok(HistoryChange::Remove { id: removed })) => assert_eq!(removed, id),
+        other => panic!("expected a removal, got {other:?}"),
+    }
+    let removal = next_json(&mut ws, Duration::from_secs(2)).await.unwrap();
+    assert_eq!(removal["type"], "remove");
+    assert_eq!(removal["id"], id.as_str());
+    assert_eq!(service.history_len(), 0);
+
+    // Corrected back onto 20m: shown again.
+    send_udp(
+        service.udp_addr,
+        &qartest("contactreplace", "3809734F4", "1402500"),
+    )
+    .await;
+    let back = next_upsert(&mut rx, Duration::from_secs(2))
+        .await
+        .expect("upsert again");
+    assert_eq!(back.id, id);
+    assert_eq!(service.history_len(), 1);
+    assert_eq!(
+        next_json(&mut ws, Duration::from_secs(2)).await.unwrap()["type"],
+        "upsert"
+    );
+
+    // A correction onto 60m for a QSO never shown: nothing at all.
+    send_udp(
+        service.udp_addr,
+        &qartest("contactreplace", "FFFFFFFF", "535000"),
+    )
+    .await;
+    assert!(
+        tokio::time::timeout(Duration::from_millis(400), rx.recv())
+            .await
+            .is_err()
+    );
+    assert!(
+        next_json(&mut ws, Duration::from_millis(100))
+            .await
+            .is_none()
+    );
+    assert_eq!(service.history_len(), 1);
+    service.shutdown().await;
+}
