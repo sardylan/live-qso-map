@@ -536,7 +536,7 @@ a different mode gives two QSOs.
 
 ### Tests for User Story 4 (write first, confirm they FAIL)
 
-- [ ] T071 [P] [US4] Write unit tests in `src/ingest/gate.rs` (data-model "ResendGate"):
+- [X] T071 [P] [US4] Write unit tests in `src/ingest/gate.rs` (data-model "ResendGate"):
   - an unknown identity gives `Forward{rev:1}`;
   - the same identity and fingerprint gives `Drop` (FR-008);
   - the same identity with a different fingerprint gives `Forward{rev:2}` (FR-009);
@@ -547,13 +547,13 @@ a different mode gives two QSOs.
   - with capacity 2 and 3 identities, the oldest is evicted, so a later resend of it is new;
   - with capacity 0, nothing is evicted;
   - two QSOs with the same call and band but different `MODE` are two identities (US4 scenario 4).
-- [ ] T072 [P] [US4] Extend `web/map-state.test.js`:
+- [X] T072 [P] [US4] Extend `web/map-state.test.js`:
   - an upsert with a lower or equal `rev` for a known id is ignored;
   - a higher `rev` replaces the QSO in place: the visible count is unchanged and `sort_key` is
     unchanged (FR-028);
   - when the corrected QSO's `remote` changes, it moves from the old marker to the new one, and an
     empty old marker is removed.
-- [ ] T073 [P] [US4] Write integration test `tests/resend_gate.rs`:
+- [X] T073 [P] [US4] Write integration test `tests/resend_gate.rs`:
   - start the service with `pipeline::start(config, Some(sources))` and a counting fake provider;
   - send a callsign-only QSO twice: one upsert and **one** provider call (the dedupe point of R3);
   - send it again with a changed `SRX_STRING`: an upsert with `rev=2` and the history length is still
@@ -566,9 +566,9 @@ a different mode gives two QSOs.
 
 ### Implementation for User Story 4
 
-- [ ] T074 [US4] Implement `src/ingest/gate.rs`: `ResendGate { entries, order, capacity }`, `fingerprint(&AdifRecord) -> u64` (std `DefaultHasher` over the sorted fields) and `check(&QsoEvent) -> GateDecision`, with the rules in the data-model table. T071 must pass.
-- [ ] T075 [US4] Insert the gate into the UDP loop in `src/ingest/mod.rs`, between identity and channel 1: dropped events are logged at debug, and forwarded events carry their `rev`. Change `src/enrich/mod.rs` to use the event's `rev` instead of the constant `1`. Size the gate to `history_size`. T073 must pass.
-- [ ] T076 [US4] Implement the revision rule and in-place replacement in `src/web/assets/map-state.js` `applyUpsert`. T072 must pass.
+- [X] T074 [US4] Implement `src/ingest/gate.rs`: `ResendGate { entries, order, capacity }`, `fingerprint(&AdifRecord) -> u64` (std `DefaultHasher` over the sorted fields) and `check(&QsoEvent) -> GateDecision`, with the rules in the data-model table. T071 must pass.
+- [X] T075 [US4] Insert the gate into the UDP loop in `src/ingest/mod.rs`, between identity and channel 1: dropped events are logged at debug, and forwarded events carry their `rev`. Change `src/enrich/mod.rs` to use the event's `rev` instead of the constant `1`. Size the gate to `history_size`. T073 must pass.
+- [X] T076 [US4] Implement the revision rule and in-place replacement in `src/web/assets/map-state.js` `applyUpsert`. T072 must pass.
 
 **Checkpoint**: User Stories 1–4 work on their own.
 

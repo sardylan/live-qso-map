@@ -12,7 +12,10 @@ export function applySnapshot(state, qsos) {
   }
 }
 
+/** Applies a live upsert; a lower or equal revision of a known QSO is ignored (FR-009). */
 export function applyUpsert(state, qso) {
+  const known = state.qsos.get(qso.id);
+  if (known && qso.rev <= known.rev) return;
   state.qsos.set(qso.id, qso);
 }
 

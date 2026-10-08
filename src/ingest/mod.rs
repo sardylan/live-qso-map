@@ -1,6 +1,7 @@
 //! UDP ingestion: detect the format, parse, normalise and queue QSO events (FR-001 – FR-006).
 
 pub mod detect;
+pub mod gate;
 pub mod identity;
 
 use std::net::SocketAddr;
@@ -32,6 +33,8 @@ pub struct QsoEvent {
     /// QARTest `oldcall`/`oldtimestamp`; only used when there is no logger id.
     pub previous: Option<(String, String)>,
     pub identity: Identity,
+    /// History id: the identity's canonical form, kept stable across corrections by the gate.
+    pub id: String,
     pub rev: u32,
     pub received_at: Instant,
 }
@@ -50,6 +53,7 @@ impl QsoEvent {
             record,
             logger_id,
             previous: None,
+            id: identity.canonical(),
             identity,
             rev: 1,
             received_at: Instant::now(),
@@ -111,8 +115,10 @@ pub async fn run(
     socket: UdpSocket,
     station: StationConfig,
     queue: async_channel::Sender<QsoEvent>,
+    gate_capacity: usize,
     mut shutdown: watch::Receiver<bool>,
 ) {
+    let mut gate = gate::ResendGate::new(gate_capacity);
     let mut buffer = vec![0u8; 65_535];
     loop {
         let received = tokio::select! {
@@ -126,7 +132,11 @@ pub async fn run(
                 continue;
             }
         };
-        for event in events_from_datagram(&buffer[..len], from, &station) {
+        for mut event in events_from_datagram(&buffer[..len], from, &station) {
+            if gate.check(&mut event) == gate::GateDecision::Drop {
+                tracing::debug!(id = %event.id, "dropping an identical resend");
+                continue;
+            }
             if queue.send(event).await.is_err() {
                 return;
             }

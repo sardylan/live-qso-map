@@ -209,6 +209,7 @@ fn spawn_tasks(
         udp,
         config.station.clone(),
         queue_tx,
+        config.history_size,
         shutdown.clone(),
     ));
     for _ in 0..config.workers {

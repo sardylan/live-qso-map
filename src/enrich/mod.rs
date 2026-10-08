@@ -75,7 +75,7 @@ pub async fn enrich(event: QsoEvent, config: &Config, lookups: &Lookups) -> Enri
         .and_then(|(d, t)| qso_timestamp(d, t))
         .unwrap_or_default();
     EnrichedQso {
-        id: event.identity.canonical(),
+        id: event.id,
         rev: event.rev,
         sort_ts,
         record,

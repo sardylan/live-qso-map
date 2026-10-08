@@ -150,3 +150,40 @@ test('late arrivals are placed by sort_key, not arrival', () => {
   applyUpsert(s, qso(1));
   assert.deepEqual(visible(s).map((q) => q.id), ['Q05', 'Q06']);
 });
+
+test('a lower or equal rev is ignored', () => {
+  const s = state();
+  applyUpsert(s, qso(1, { rev: 2, call: 'NEW' }));
+  applyUpsert(s, qso(1, { rev: 1, call: 'OLD' }));
+  applyUpsert(s, qso(1, { rev: 2, call: 'SAME' }));
+  assert.equal(visible(s)[0].call, 'NEW');
+});
+
+test('a higher rev replaces in place and keeps the window', () => {
+  const s = state();
+  applyUpsert(s, qso(1));
+  applyUpsert(s, qso(2));
+  applyUpsert(s, qso(1, { rev: 2, call: 'FIXED', sort_key: '2026-10-08T15:01:00Z' }));
+  const v = visible(s);
+  assert.equal(v.length, 2);
+  assert.deepEqual(v.map((q) => q.call), ['FIXED', 'K2AA']);
+});
+
+test('a corrected position moves the QSO to another marker', () => {
+  const s = state();
+  applyUpsert(s, qso(1));
+  const before = markers(s);
+  applyUpsert(s, qso(1, { rev: 2, remote: { lat: 1, lon: 2, precision: 'locator4', source: 'logger' } }));
+  const after = markers(s);
+  assert.deepEqual([...after.keys()], ['1,2']);
+  const d = diffLayers(before, after);
+  assert.deepEqual(d.remove, ['51,10']);
+  assert.deepEqual(d.add.map((m) => m.key), ['1,2']);
+});
+
+test('a snapshot resets revisions', () => {
+  const s = state();
+  applyUpsert(s, qso(1, { rev: 5 }));
+  applySnapshot(s, [qso(1, { rev: 1, call: 'RESTARTED' })]);
+  assert.equal(visible(s)[0].call, 'RESTARTED');
+});
