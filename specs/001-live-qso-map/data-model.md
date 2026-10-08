@@ -55,9 +55,9 @@ Identity = Logger { station_call, logger_id }
 ```
 
 - All components are trimmed and uppercased before comparison (FR-007).
-- `station_call` is `STATION_CALLSIGN`, or `OPERATOR` when that is missing, or the configured default
-  callsign. Station defaults are applied **before** the identity is computed, so identities stay
-  stable.
+- `station_call` is `STATION_CALLSIGN`, then the configured default callsign, then empty. `OPERATOR`
+  is not used, because it changes per operator in multi-op stations. The station callsign default is
+  applied at ingest, **before** the identity is computed, so identities stay stable.
 - The canonical string form is used as the `id` in the WebSocket protocol, for example
   `L|IS0MZK|3809734F4` or `C|IS0MZK|DL5QFN|40M|SSB|20261008|1504`.
 

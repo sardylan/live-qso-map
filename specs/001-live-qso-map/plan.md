@@ -84,7 +84,7 @@ UDP ──► ingest (detect → parse → normalise → station defaults → id
 | `serde_json` | WebSocket protocol encoding | hand-written JSON: error-prone |
 | `tracing`, `tracing-subscriber` (fmt, env-filter) | levelled, structured logs (warn/debug rules in FR-005, FR-005a) | `log` plus `env_logger` is comparable; tracing fits async tasks better and is already used by axum and tower |
 | dev: `tokio-tungstenite` | WebSocket client in integration tests (fan-out, set_limit, lag) | no WebSocket client in std or in the runtime dependencies |
-| dev tool: Node.js (`node --test`) | unit tests for `map-state.js` and `geodesic.js`; no npm packages | not testing frontend logic, which would break Principle I; a headless browser harness is heavier |
+| dev tool: Node.js (`node --test`) | unit tests for `map-state.js`, `connection.js` and `geodesic.js`; no npm packages | not testing frontend logic, which would break Principle I; a headless browser harness is heavier |
 
 ## Project Structure
 
@@ -122,11 +122,13 @@ src/
 ├── band.rs              # ADIF band plan; freq → band; metres → band               [tests: edges, VHF/UHF]
 ├── mode.rs              # logger mode → ADIF MODE/SUBMODE                           [tests]
 ├── maidenhead.rs        # locator ↔ lat/lon (4/6/8 chars), validation               [tests]
+├── position.rs          # Position, Precision, PositionSource                       [tests]
 ├── ingest/
 │   ├── mod.rs           # UDP receive loop → QsoEvent → gate → channel 1
 │   ├── detect.rs        # SourceFormat detection                                    [tests]
 │   ├── qartest.rs       # QARTest XML → QsoEvent (FR-004a)                          [tests: every reference packet]
-│   └── gate.rs          # Identity, fingerprint, ResendGate                         [tests: identical/update/old*/eviction]
+│   ├── identity.rs      # Identity + canonical form                                 [tests]
+│   └── gate.rs          # fingerprint, ResendGate (uses identity.rs)                        [tests: identical/update/old*/eviction]
 ├── enrich/
 │   ├── mod.rs           # worker loop: station fill → resolve → fields → history upsert + broadcast
 │   ├── station.rs       # FR-011 defaults                                           [tests]
@@ -138,27 +140,31 @@ src/
 │       ├── hamqth.rs    #                                                           [tests: fixture XML, namespace, errors]
 │       └── qrzcq.rs     #                                                           [tests: fixture XML, errors]
 ├── history.rs           # History (rev-checked upsert, stable sort key, eviction)   [tests]
-├── pipeline.rs          # wires channels, workers, history, broadcast, servers
+├── pipeline.rs          # start() → RunningService (test-friendly), run(); wires channels, workers, history, broadcast, servers
 └── web/
     ├── mod.rs           # axum router: /, assets, /ws, /healthz
     ├── protocol.rs      # hello/snapshot/upsert/set_limit, QsoView                  [tests: JSON shape]
-    ├── session.rs       # per-page session state machine                            [tests]
+    ├── session.rs       # per-page session state machine; driver over MessageSink  [tests: incl. lag]
     └── assets/          # embedded via include_str!
         ├── index.html
         ├── app.css
-        ├── app.js       # DOM + Leaflet glue, WebSocket with reconnect
-        ├── map-state.js # pure state: window, grouping, colour, z-order, rev rule
+        ├── app.js       # DOM + Leaflet glue only (no decisions)
+        ├── map-state.js # pure state: window, grouping, colour, z-order, rev rule, diffLayers
+        ├── connection.js # pure: backoff, hello handshake, limit persistence
         └── geodesic.js  # great-circle interpolation, antimeridian unwrapping
 
 web/                     # frontend tests (node --test), import ../src/web/assets/*.js
 ├── map-state.test.js
+├── connection.test.js
 └── geodesic.test.js
 
 tests/
 ├── adif_udp.rs          # real UDP socket → history (US1, FR-003)
 ├── qartest_replay.rs    # reference capture → SC-009 assertions (US4, US5)
 ├── lookup_resolution.rs # fake providers + cty fixture → precision/order/timeout (US2)
-├── ws_protocol.rs       # tokio-tungstenite clients: fan-out, set_limit, lag → snapshot (US3)
+├── ws_protocol.rs       # tokio-tungstenite clients: fan-out, set_limit (US1, US3)
+├── resend_gate.rs       # single lookup per resend, rev ordering, no lookup cache (US4, FR-016)
+├── malformed_input.rs   # SC-006 corpus
 ├── fixtures/            # provider XML responses, cty.dat excerpt, malformed ADIF corpus
 └── load_ws.rs           # #[ignore] SC-004 load test, run manually on a Raspberry Pi
 
@@ -167,6 +173,7 @@ deploy/
 └── config.example.toml
 Dockerfile               # multi-stage → static musl binary on a minimal non-root image
 Cross.toml               # cross targets: x86_64/aarch64 musl, armv7 musleabihf
+scripts/send_burst.sh    # dev helper: N synthetic ADIF QSOs (quickstart §6)
 ```
 
 **Structure Decision**: a single crate with a `lib.rs` and `main.rs` split, so that integration tests

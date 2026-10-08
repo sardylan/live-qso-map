@@ -9,6 +9,7 @@ The service listens on `http_port` (default 8080) on `bind_address`. There is no
 | GET | `/app.js` | the page bootstrap module (`text/javascript`) |
 | GET | `/map-state.js` | the pure state module (`text/javascript`) |
 | GET | `/geodesic.js` | the great-circle helper (`text/javascript`) |
+| GET | `/connection.js` | the connection helper: backoff, handshake, limit persistence (`text/javascript`) |
 | GET | `/app.css` | the styles (`text/css`) |
 | GET | `/ws` | WebSocket upgrade. See [websocket-protocol.md](websocket-protocol.md). |
 | GET | `/healthz` | `200 OK`, `application/json`: `{"status":"ok","history":<n>,"sessions":<n>,"uptime_s":<n>}` |

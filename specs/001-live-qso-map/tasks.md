@@ -49,13 +49,18 @@ run with `cargo test`. Frontend tests run with `node --test web/`, using Node fr
   - `tracing-subscriber` (fmt, env-filter)
 
   Add the dev-dependency `tokio-tungstenite`. Then run `cargo build` so `Cargo.lock` updates.
+
+  Decide the rustls crypto provider now: build the crate with the chosen reqwest features for
+  `armv7-unknown-linux-musleabihf` (`cross build --target armv7-unknown-linux-musleabihf`), and
+  record the result in `research.md` R17.
 - [ ] T002 Create the crate layout from plan.md "Source Code":
   - `src/lib.rs` with `#![forbid(unsafe_code)]` and `pub mod` declarations for `errors`, `config`,
     `adif`, `band`, `mode`, `maidenhead`, `position`, `ingest`, `enrich`, `history`, `pipeline` and
     `web`;
   - an empty module file for each (`src/adif/mod.rs`, `src/ingest/mod.rs`, `src/enrich/mod.rs`,
     `src/enrich/provider/mod.rs` and `src/web/mod.rs` as directories);
-  - `src/main.rs` with `#![forbid(unsafe_code)]`, calling a placeholder `live_qso_map::run()`.
+  - `src/main.rs` with `#![forbid(unsafe_code)]`, calling a placeholder `live_qso_map::run()`
+    (re-exported from `src/pipeline.rs`, see T025).
 
   `cargo build` must pass.
 - [ ] T003 [P] Add `[lints.rust] unsafe_code = "forbid"` and `[lints.clippy] unwrap_used = "deny"`, `expect_used = "deny"` and `panic = "deny"` to `Cargo.toml`. Allow those three in tests with `#![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used, clippy::panic))]` in `src/lib.rs`. Because `[lints]` also applies to integration-test crates, every `tests/*.rs` file must start with `#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]`. Verify that `cargo clippy --all-targets -- -D warnings` passes.
@@ -126,7 +131,8 @@ position, identity, history, the WebSocket view type and the pipeline wiring.
   - without one, the composite form is `C|IS0MZK|DL5QFN|40M|SSB|20261008|1504` (time truncated to
     `HHMM`);
   - components are trimmed and uppercased, so `" dl5qfn "` and `DL5QFN` are equal;
-  - `station_call` falls back from `STATION_CALLSIGN` to `OPERATOR` to the configured default;
+  - `station_call` falls back from `STATION_CALLSIGN` to the configured default, then to empty;
+    a different `OPERATOR` value does not change the identity;
   - a missing `BAND` or `MODE` becomes an empty component.
 - [ ] T012 [P] Write unit tests in `src/history.rs` (data-model "History"):
   - `upsert` of a new id is `Accepted`;
@@ -196,12 +202,20 @@ position, identity, history, the WebSocket view type and the pipeline wiring.
   - `HistoryChange::Upsert(Arc<EnrichedQso>)`;
   - `Pipeline::publish(EnrichedQso)`, which upserts into the history and, only when the upsert is
     `Accepted`, sends on the broadcast **while holding the lock** (R4);
-  - `pub async fn run(config) -> Result<()>` in `src/lib.rs`, which builds the pipeline and waits for
-    Ctrl+C/SIGTERM;
+  - `pub async fn start(config: Config, sources: LookupSources) -> Result<RunningService>` in
+    `src/pipeline.rs`. It binds UDP and HTTP (port 0 is allowed), spawns every task, and returns
+    `RunningService { udp_addr, http_addr, subscribe() -> broadcast::Receiver<HistoryChange>,
+    history_len(), shutdown().await }`;
+  - `LookupSources` is a `#[doc(hidden)] pub` override (`Option<Vec<LookupSource>>`, with
+    `LookupSource` as defined in T054). `None` means "build the sources from config";
+  - `pub async fn run(config) -> Result<()>` in `src/pipeline.rs` = `start(config, None)`, then wait
+    for Ctrl+C/SIGTERM, then `shutdown()`. `src/lib.rs` re-exports both
+    (`pub use pipeline::{run, start};`);
   - `src/main.rs`: parse the CLI, read the `--config` file, init `tracing-subscriber` with
     `log_level`, call `run`, and exit non-zero on error.
 
-  Add a unit test in `src/pipeline.rs` showing that `publish` of a stale rev sends nothing.
+  Write these unit tests in `src/pipeline.rs` first: `publish` of a stale rev sends nothing; `start`
+  with ports 0 returns non-zero addresses; `shutdown` completes within 1 s.
 - [ ] T026 Run `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings` and `cargo test` over the crate (`Cargo.toml`, `src/`). All must pass before Phase 3.
 
 **Checkpoint**: the foundation is ready and the user story phases can begin.
@@ -223,7 +237,7 @@ send the quickstart §2 datagram. Both show one 40m marker at JO62QM with a line
 - [ ] T027 [P] [US1] Write unit tests in `src/ingest/detect.rs` for the ADIF branch of R5: a datagram with `<CALL:4>` or `<EOR>` is `Adif`; `<EOH>` alone is `Adif`; random text, an empty datagram and `<ADX>` XML are `Unrecognised`; leading whitespace and a UTF-8 BOM are skipped.
 - [ ] T028 [P] [US1] Write unit tests in `src/enrich/station.rs` (FR-011):
   - record values win over config;
-  - config fills `STATION_CALLSIGN` and `MY_GRIDSQUARE` when absent;
+  - config fills `MY_GRIDSQUARE` when absent (`STATION_CALLSIGN` is filled at ingest, T036);
   - the station `Position` is resolved in this order: `MY_LAT`/`MY_LON` (source `logger`), then
     `MY_GRIDSQUARE` (`logger`), then config lat/lon (`config`), then config locator (`config`);
   - with none of these, it is `None`;
@@ -239,7 +253,10 @@ send the quickstart §2 datagram. Both show one 40m marker at JO62QM with a line
   - a `HistoryChange::Upsert` emits `upsert`;
   - an unknown client message is ignored.
 
-  Drive the state machine with plain structs (no socket).
+  Drive the state machine with plain structs (no socket). Also test the async driver, which is
+  generic over an in-crate `MessageSink` trait (`async fn send(&mut self, msg: ServerMessage) ->
+  Result<()>`): with a test sink that never completes, `broadcast_queue=4` and 10 changes, the driver
+  observes `Lagged`; once the sink is released it sends exactly one `snapshot`.
 - [ ] T031 [P] [US1] Write `web/geodesic.test.js` for `src/web/assets/geodesic.js`:
   - `greatCircle([39.2,9.2],[52.5,13.4],64)` returns 65 points, starting and ending at the inputs;
   - every intermediate point lies on the great circle (cross-track distance below 1 m);
@@ -254,18 +271,21 @@ send the quickstart §2 datagram. Both show one 40m marker at JO62QM with a line
   - a marker's z-order rank follows `sort_key`, newest highest (FR-028);
   - the line comes from the `station` of the marker's most recent QSO (FR-027), and there is no line
     when `station` is null;
-  - a QSO with `remote: null` counts as visible but creates no marker (FR-019).
+  - a QSO with `remote: null` counts as visible but creates no marker (FR-019);
+  - `diffLayers(prevMarkers, nextMarkers)` returns `{add, update, remove}` keyed by marker key: a new
+    key is `add`; a changed colour, z-rank, popup QSO list or station is `update`; a missing key is
+    `remove`; identical inputs give three empty lists.
 - [ ] T033 [P] [US1] Write integration test `tests/adif_udp.rs`:
-  - start the pipeline on ephemeral UDP and HTTP ports with the station locator `JM49NH` and no
-    providers or cty data;
-  - subscribe to the broadcast;
+  - start the service with `pipeline::start(test_config, None)` on port 0, with the station locator
+    `JM49NH` and no providers or cty data;
+  - subscribe with `RunningService::subscribe()`;
   - send the quickstart §2 datagram from a `UdpSocket`;
   - assert one `Upsert` within 2 s with `remote` precision `Locator6` at the JO62QM centre, source
     `logger`, and `station` from `config`;
   - send the quickstart §3 three-record datagram and assert exactly two more upserts; the malformed
     third record is skipped and the pipeline keeps running.
 - [ ] T034 [P] [US1] Write integration test `tests/ws_protocol.rs` (fan-out):
-  - start the pipeline;
+  - start the service with `pipeline::start(test_config, None)` on port 0;
   - connect two `tokio-tungstenite` clients to `/ws`;
   - assert each receives `hello` then `snapshot` (empty);
   - send one ADIF QSO over UDP and assert both receive the same `upsert` within 2 s (SC-001, FR-020);
@@ -278,10 +298,12 @@ send the quickstart §2 datagram. Both show one 40m marker at JO62QM with a line
   - bind `bind_address:udp_port`;
   - `recv_from` into a 65,535-byte buffer;
   - `detect`; for `Adif`, `parse_datagram`, log each per-record error at warn, reject records without
-    `CALL`/`QSO_DATE`/`TIME_ON` (warn), apply the station callsign default, and compute the `Identity`;
+    `CALL`/`QSO_DATE`/`TIME_ON` (warn), fill `STATION_CALLSIGN` from config when absent (the only place
+    that does it, because the identity needs it), and compute the `Identity`;
   - send each `QsoEvent{kind: New}` on channel 1;
   - log `Unrecognised` at warn with the source address and length (FR-005).
-- [ ] T037 [US1] Implement `src/enrich/station.rs` (FR-011): `apply_station(&mut AdifRecord, &StationConfig) -> Option<Position>`. T028 must pass.
+- [ ] T037 [US1] Implement `src/enrich/station.rs` (FR-011): `apply_station(&mut AdifRecord, &StationConfig) -> Option<Position>`, which handles only the station
+  position fields. T028 must pass.
 - [ ] T038 [US1] Implement the logger-position part of `src/enrich/resolve.rs`: `logger_position(&AdifRecord) -> Option<Position>` and `write_position_fields(&mut AdifRecord, &Position)`, which fills `GRIDSQUARE` (when absent, from `to_locator6`), `LAT`/`LON` (when absent), `APP_LIVEQSOMAP_POS_SOURCE` and `APP_LIVEQSOMAP_POS_PRECISION`. T029 must pass.
 - [ ] T039 [US1] Implement the enrichment worker loop in `src/enrich/mod.rs`:
   - `spawn_workers(n, rx: async_channel::Receiver<QsoEvent>, pipeline)`;
@@ -290,10 +312,11 @@ send the quickstart §2 datagram. Both show one 40m marker at JO62QM with a line
   - build an `EnrichedQso` with `rev = 1` (the resend gate replaces this in US4);
   - call `Pipeline::publish`.
 
-  Wire the workers and the UDP loop into `run` in `src/pipeline.rs`.
-- [ ] T040 [US1] Implement `src/web/session.rs` as a pure state machine: `Session::on_connect(&History) -> Vec<ServerMessage>` and `on_change(&HistoryChange) -> Vec<ServerMessage>`. Then implement the async driver in `src/web/mod.rs`: on upgrade, **subscribe to the broadcast first**, then take the snapshot under the history lock, then loop over `tokio::select!` of socket messages and broadcast receives. A send error ends the session quietly. T030 must pass.
+  Spawn the workers and the UDP loop from `pipeline::start`.
+- [ ] T040 [US1] Implement `src/web/session.rs` as a pure state machine: `Session::on_connect(&History) -> Vec<ServerMessage>` and `on_change(&HistoryChange) -> Vec<ServerMessage>`. Then implement the async driver in `src/web/mod.rs`: on upgrade, **subscribe to the broadcast first**, then take the snapshot under the history lock, then loop over `tokio::select!` of socket messages and broadcast receives. The driver sends through the `MessageSink` trait; the WebSocket adapter implements it. A send error ends the session quietly. T030 must pass.
 - [ ] T041 [US1] Implement the axum router in `src/web/mod.rs`:
-  - `GET /`, `/app.js`, `/map-state.js`, `/geodesic.js` and `/app.css`, served from `include_str!`
+  - `GET /`, `/app.js`, `/map-state.js`, `/geodesic.js`, `/connection.js` and `/app.css`, served from
+    `include_str!`
     with the right content types;
   - `GET /ws`;
   - `GET /healthz` returning JSON with the history length, the active session count (an `AtomicUsize`)
@@ -301,25 +324,30 @@ send the quickstart §2 datagram. Both show one 40m marker at JO62QM with a line
   - a 404 fallback;
   - bind `bind_address:http_port`.
 
-  Wire it into `run`.
+  Start it from `pipeline::start`.
 - [ ] T042 [P] [US1] Implement `src/web/assets/geodesic.js`: `export function greatCircle(a, b, segments)` using spherical linear interpolation, with longitudes unwrapped for continuity. T031 must pass.
 - [ ] T043 [US1] Implement `src/web/assets/map-state.js` as a pure ES module with no DOM or Leaflet:
   - `createState({bands, fallbackColor, limit})`;
   - `applySnapshot(state, qsos)`;
   - `applyUpsert(state, qso)`;
   - `visible(state)`, the last `limit` by `sort_key`;
-  - `markers(state)`, returning a `Map` from `"lat,lon"` to `{qsos, color, zRank, station}`.
+  - `markers(state)`, returning a `Map` from `"lat,lon"` to `{qsos, color, zRank, station}`;
+  - `diffLayers(prev, next)`, returning `{add, update, remove}`.
 
   T032 must pass.
 - [ ] T044 [US1] Implement the page:
-  - `src/web/assets/index.html`: loads Leaflet 1.9.4 CSS and JS from cdnjs with SRI hashes (copy them
-    from cdnjs), a full-screen map `div`, a legend container, and `app.js` as a module;
+  - `src/web/assets/index.html`: loads Leaflet 1.9.4 from
+    `https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css` and `.../leaflet.min.js`,
+    with SRI hashes taken from `https://api.cdnjs.com/libraries/leaflet/1.9.4?fields=sri`; a
+    full-screen map `div`, a legend container, and `app.js` as a module;
   - `src/web/assets/app.css`: full-viewport map, legend box, popup table, coloured `divIcon` dot;
-  - `src/web/assets/app.js`: builds the `ws:`/`wss:` URL from `location`; on `hello`, creates the map
-    with `tiles.url`/`tiles.attribution` and the legend from `bands`; on `snapshot`/`upsert`, updates
-    `map-state` and diffs Leaflet layers (an `L.marker` with a coloured `divIcon` and
+  - `src/web/assets/app.js`: glue only, with no decisions of its own. Build the `ws:`/`wss:` URL from
+    `location`; on `hello`, create the map with `tiles.url`/`tiles.attribution` and the legend from
+    `bands`; feed `hello`, `snapshot` and `upsert` into `map-state`, call `diffLayers`, and apply each
+    `add`/`update`/`remove` to Leaflet (an `L.marker` with a coloured `divIcon` and
     `setZIndexOffset(zRank*1000)`, a popup listing call, band, mode, UTC time and position
-    source/precision (FR-026), and an `L.polyline(greatCircle(...))` per marker).
+    source/precision (FR-026), and an `L.polyline(greatCircle(...))` per marker). Connection
+    handling is delegated to `connection.js` (US3).
 - [ ] T045 [US1] Run the quickstart §2 and §3 manually in two browsers and confirm the Independent Test. Run `cargo test --test adif_udp --test ws_protocol` and `node --test web/`; all must pass.
 
 **Checkpoint**: User Story 1 works on its own. This is the MVP.
@@ -406,8 +434,8 @@ and mainland Italy (SC-007). Quickstart §5 works with real credentials.
     logger values (FR-017);
   - all sources empty gives `None`.
 - [ ] T054 [P] [US2] Write integration test `tests/lookup_resolution.rs`:
-  - start the pipeline with the cty fixture and two fake providers (via a `#[doc(hidden)] pub` constructor
-    `Pipeline::with_lookup_sources(config, Vec<LookupSource>)`, where
+  - start the service with `pipeline::start(config, Some(sources))`, using the cty fixture and two
+    fake providers, where
     `LookupSource = Arc<dyn Fn(String) -> Pin<Box<dyn Future<Output = Result<Option<LookupCandidate>>> + Send>> + Send + Sync>`,
     using std types only and no `futures` crate; production builds sources from the `Provider` enum and
     cty data);
@@ -419,7 +447,7 @@ and mainland Italy (SC-007). Quickstart §5 works with real credentials.
 ### Implementation for User Story 2
 
 - [ ] T055 [US2] Implement `src/enrich/cty.rs` parsing and lookup: `CountryData::parse(&str)`, `lookup(call) -> Option<LookupCandidate>` (R13 rules) and `LookupCandidate { source, position, fields }`. Put `LookupCandidate` in `src/enrich/mod.rs` if it is shared. T048 must pass.
-- [ ] T056 [US2] Implement the cty.dat refresh in `src/enrich/cty.rs`: `load_or_refresh(path, url, max_age_days, fetch)`, using `reqwest` for the real fetcher and writing to a temp file followed by a rename. Call it from `run` before the UDP listener starts, bounded by `timeout_secs × 4` (plan "Implementation Notes"). T049 must pass.
+- [ ] T056 [US2] Implement the cty.dat refresh in `src/enrich/cty.rs`: `load_or_refresh(path, url, max_age_days, fetch)`, using `reqwest` for the real fetcher and writing to a temp file followed by a rename. Call it from `pipeline::start` before the UDP listener starts, bounded by `timeout_secs × 4` (plan "Implementation Notes"). T049 must pass.
 - [ ] T057 [US2] Implement `src/enrich/provider/mod.rs`:
   - `enum LookupOutcome { Found(LookupCandidate), NotFound, NeedsLogin }`, the return type of each
     provider's response parser as `Result<LookupOutcome>`. It is an outcome, not an error type, so it
@@ -435,7 +463,7 @@ and mainland Italy (SC-007). Quickstart §5 works with real credentials.
 - [ ] T059 [P] [US2] [R:YELLOW] Implement `src/enrich/provider/hamqth.rs`: login `https://www.hamqth.com/xml.php?u=&p=`, lookup `?id=SID&callsign=C&prg=liveqsomap`, and namespace-aware parsing. T051 must pass.
 - [ ] T060 [P] [US2] [R:YELLOW] Implement `src/enrich/provider/qrzcq.rs`: login `https://ssl.qrzcq.com/xml?username=&password=&agent=`, lookup `?s=KEY&callsign=C&agent=`, and parsing. T052 must pass.
 - [ ] T061 [US2] Implement the selection in `src/enrich/resolve.rs`: `resolve_remote(call, sources: &[LookupSource], order, timeout) -> (Option<Position>, AdifRecord fields)`, running every source with `tokio::time::timeout` concurrently (`futures`-free: spawn each source and collect `JoinHandle`s), picking by precision then order, and merging fields. T053 must pass.
-- [ ] T062 [US2] Wire `resolve_remote` into the worker in `src/enrich/mod.rs`: when `logger_position` is `None`, call it with the enabled providers (from config) plus cty, and write the fields with `set_if_absent` and the position fields. Build the providers and cty data in `run`. T054 must pass.
+- [ ] T062 [US2] Wire `resolve_remote` into the worker in `src/enrich/mod.rs`: when `logger_position` is `None`, call it with the enabled providers (from config) plus cty, and write the fields with `set_if_absent` and the position fields. Build the providers and cty data in `pipeline::start`. T054 must pass.
 - [ ] T063 [US2] Run quickstart §5 with real QRZ/HamQTH credentials (if available) and verify the popup source and precision. Record any differences from the fixtures in `tests/fixtures/README.md`.
 
 **Checkpoint**: User Stories 1 and 2 both work on their own.
@@ -463,25 +491,35 @@ it shows 100; at All it shows 150; a second page at 20 is unaffected. Quickstart
   - `setLimit(null)` makes everything visible;
   - an out-of-order upsert (an older `sort_key` arriving later) is placed by `sort_key`, not by
     arrival time.
-- [ ] T066 [P] [US3] Extend `tests/ws_protocol.rs`:
+
+  Also write `web/connection.test.js` for `src/web/assets/connection.js`:
+  - `backoffDelay(attempt, rand)` gives 1, 2, 4, 8, 16, 30, 30 s (±20% jitter, controlled through an
+    injected `rand`);
+  - `onOpen` resets the attempt count;
+  - `onHello(state)` returns `[{"type":"set_limit","limit":<current>}]`;
+  - `loadLimit(storage)` returns 20 when the storage is empty, throws, or holds an invalid value,
+    and otherwise the stored value;
+  - `saveLimit(storage, v)` swallows storage errors.
+- [ ] T066 [P] [US3] Extend `tests/ws_protocol.rs` (service started with `pipeline::start` on port 0):
   - insert 150 QSOs, then connect: the snapshot has 20, in ascending order (SC-003, within 3 s);
   - send `set_limit 100` and get a snapshot of 100;
   - `set_limit null` gives 150;
   - a second client still gets only upserts and no extra snapshot;
-  - with `history_size=1000`, after 1001 inserts `/healthz` reports 1000 (US3 scenario 4);
-  - with `broadcast_queue=4` and a client that stops reading while 50 upserts are sent, that client
-    receives a `snapshot` (lag recovery) once it reads again.
+  - with `history_size=1000`, after 1001 inserts `/healthz` reports 1000 (US3 scenario 4).
+
+  Lag recovery is tested deterministically in T030/T064, not here.
 
 ### Implementation for User Story 3
 
-- [ ] T067 [US3] Implement `set_limit` and lag handling in `src/web/session.rs`, and in the driver in `src/web/mod.rs` handle `broadcast::error::RecvError::Lagged` by sending the snapshot. Validate the limit against the allowed set. T064 must pass.
-- [ ] T068 [US3] Implement `setLimit` and visible-window recomputation in `src/web/assets/map-state.js`. T065 must pass.
+- [ ] T067 [US3] Implement `set_limit` and lag handling in `src/web/session.rs`, and in the `MessageSink`-based driver in `src/web/mod.rs` handle `broadcast::error::RecvError::Lagged` by sending the snapshot. Validate the limit against the allowed set. T064 must pass.
+- [ ] T068 [US3] Implement `setLimit` and visible-window recomputation in `src/web/assets/map-state.js`, and implement `src/web/assets/connection.js` (`backoffDelay`, `onOpen`, `onHello`, `loadLimit`, `saveLimit`). T065 must pass.
 - [ ] T069 [US3] Add the selector to the page:
   - `index.html`/`app.css`: a `<select>` with 10, 20, 50, 100, 200, 500 and All (default 20) in a
     corner control;
-  - `app.js`: on change, send `{"type":"set_limit","limit":...}`;
-  - store the choice in `sessionStorage` (wrapped in try/catch) so it survives a reload.
-- [ ] T070 [US3] Implement reconnection in `src/web/assets/app.js` (FR-031): on close, back off exponentially (1 s, doubling, max 30 s, ±20% jitter); on reconnect, wait for `hello` and send `set_limit` with the current selection; show a small "reconnecting…" indicator while disconnected. T066 must pass, and quickstart §6 must be checked manually.
+  - `app.js`: on change, send `{"type":"set_limit","limit":...}` and persist the choice with
+    `connection.saveLimit(sessionStorage, v)`; initialise the selector with
+    `connection.loadLimit(sessionStorage)`. DOM wiring only.
+- [ ] T070 [US3] Wire reconnection in `src/web/assets/app.js` (FR-031) using `connection.js`: on close, schedule a retry after `backoffDelay(attempt, Math.random)`; on open, call `onOpen`; on `hello`, send the messages returned by `onHello`; show a small "reconnecting…" indicator while disconnected. DOM wiring only. T066 must pass, and quickstart §6 must be checked manually.
 
 **Checkpoint**: User Stories 1, 2 and 3 work on their own.
 
@@ -516,13 +554,15 @@ a different mode gives two QSOs.
   - when the corrected QSO's `remote` changes, it moves from the old marker to the new one, and an
     empty old marker is removed.
 - [ ] T073 [P] [US4] Write integration test `tests/resend_gate.rs`:
-  - start the pipeline with a counting fake provider;
+  - start the service with `pipeline::start(config, Some(sources))` and a counting fake provider;
   - send a callsign-only QSO twice: one upsert and **one** provider call (the dedupe point of R3);
   - send it again with a changed `SRX_STRING`: an upsert with `rev=2` and the history length is still
     1 (SC-005);
   - with `workers=4` and a fake provider that delays `rev=1` by 300 ms but answers `rev=2` immediately,
     the final history entry and the last broadcast have `rev=2`; the stale `rev=1` is not broadcast
-    (R3/R4).
+    (R3/R4);
+  - send two *different* QSOs (different TIME_ON) for the same callsign: the counting provider is
+    called twice, because lookups are not cached (FR-016).
 
 ### Implementation for User Story 4
 
@@ -574,8 +614,12 @@ tests depend only on the Foundational phase.
   - **XML entities** such as `&amp;` are decoded;
   - **a missing `call` or `timestamp`** gives an error and the datagram is skipped.
 - [ ] T080 [P] [US5] Write integration test `tests/qartest_replay.rs` (SC-009):
-  - start the pipeline with `tests/fixtures/cty-excerpt.dat`, no online providers and a test
-    `tracing` subscriber that captures warn+ events;
+  - start the service with `pipeline::start` on port 0, with `tests/fixtures/cty-excerpt.dat` and no
+    online providers;
+  - capture warnings with a counting `tracing` layer installed through
+    `tracing::subscriber::set_global_default` at the start of the single `#[tokio::test]` in this
+    file (one test per binary, so the global install is safe). It counts events at WARN or above
+    from any thread;
   - replay the 10 reference packets over UDP in order;
   - assert exactly 5 history entries (DL5QFN, B5Q, K6QA, K2WQX, HB9FQZ);
   - K6QA has `rev=3` and `SRX_STRING=3`;
@@ -596,13 +640,13 @@ tests depend only on the Foundational phase.
 
 ## Phase 8: Polish & Cross-Cutting Concerns
 
-- [ ] T085 [P] Add the malformed-input corpus `tests/fixtures/malformed/` (truncated ADIF, length overflow, negative or huge lengths, binary noise, empty datagram, half XML, 64 KB of `<`, invalid UTF-8) and the integration test `tests/malformed_input.rs`. It sends every file plus a valid QSO in the same and in separate datagrams, and asserts that the service is still alive (`/healthz` 200) and that every valid record was delivered (SC-006).
+- [ ] T085 [P] Add the malformed-input corpus `tests/fixtures/malformed/` (truncated ADIF, length overflow, negative or huge lengths, binary noise, empty datagram, half XML, 64 KB of `<`, invalid UTF-8) and the integration test `tests/malformed_input.rs`. It sends every file plus a valid QSO in the same and in separate datagrams, against a service started with `pipeline::start` on port 0, and asserts that the service is still alive (`/healthz` 200) and that every valid record was delivered (SC-006).
 - [ ] T086 [P] Add a property-style test loop in `src/adif/parse.rs`: 10,000 pseudo-random byte strings from a seeded xorshift (no extra crate) must never panic.
-- [ ] T087 [P] Write `tests/load_ws.rs` as an `#[ignore]` test (SC-004): 50 WebSocket clients and 10 QSO/s for 60 s; assert every client received 600 upserts. Document how to run it on a Raspberry Pi in `quickstart.md` §7.
+- [ ] T087 [P] Write `tests/load_ws.rs` as an `#[ignore]` test (SC-004): 50 WebSocket clients and 10 QSO/s for 60 s; assert every client received 600 upserts. Also record each QSO's send-to-receive latency, and assert that the 95th percentile is at most 2 s (SC-001). Document how to run it on a Raspberry Pi in `quickstart.md` §7.
 - [ ] T088 [P] Add a `scripts/send_burst.sh N` developer helper that sends N synthetic ADIF QSOs with spread grid squares and increasing times via `nc -u` (quickstart §6).
 - [ ] T089 [P] Create `deploy/config.example.toml`, mirroring contracts/configuration.md with every key commented, and `deploy/live-qso-map.service` (systemd: `DynamicUser=yes`, `StateDirectory=live-qso-map`, `LQM_CTY_PATH=/var/lib/live-qso-map/cty.dat`, `--config /etc/live-qso-map/config.toml`, `Restart=on-failure`, hardening options `NoNewPrivileges`, `ProtectSystem=strict` and `ProtectHome`).
 - [ ] T090 [P] [R:YELLOW] Create a multi-stage `Dockerfile`: a builder stage on `rust:1.98` with the musl target, building a release `--target x86_64-unknown-linux-musl`, then a runtime stage on a minimal non-root image with CA certificates for the rustls lookups. Add `EXPOSE 12060/udp 8080/tcp`, `VOLUME /data`, `ENV LQM_CTY_PATH=/data/cty.dat` and `ENTRYPOINT ["/live-qso-map"]`. Add a `.dockerignore` excluding `target/`, `.git/` and `specs/`.
-- [ ] T091 [P] Create `Cross.toml` for `x86_64-unknown-linux-musl`, `aarch64-unknown-linux-musl` and `armv7-unknown-linux-musleabihf`, and verify that all three build with `cross build --release --target <t>`. If `ring` or `aws-lc` fails on a target, adjust the reqwest/rustls features per R17 and record the choice in `research.md` R17.
+- [ ] T091 [P] Create `Cross.toml` for `x86_64-unknown-linux-musl`, `aarch64-unknown-linux-musl` and `armv7-unknown-linux-musleabihf`, and verify that all three still build with `cross build --release --target <t>`, using the crypto provider chosen in T001 (R17).
 - [ ] T092 [P] Write `README.md`: what the service does, quick start, configuration table (link to the contract), supported inputs (ADIF UDP, QARTest), provider notes (quotas; no lookup caching by design, FR-016), the open-access warning (FR-035) and deployment options.
 - [ ] T093 Verify that secrets never reach the logs: run with `--log-level trace` and fake credentials against the fixtures and assert that no password or session key appears in the output. Add an assertion test in `src/enrich/provider/mod.rs` that `Debug` of every provider config is redacted.
 - [ ] T094 Run the complete quality gates: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test`, `node --test web/`. Then walk through quickstart §1–§8 end to end and tick off SC-001 to SC-009 in a short verification note at `specs/001-live-qso-map/checklists/verification.md`.
