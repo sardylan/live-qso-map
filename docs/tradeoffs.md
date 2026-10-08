@@ -14,6 +14,7 @@ we deliberately gave up. Records the *why*, not just the *what*.
 | ID | Status | Title | Date |
 |----|--------|-------|------|
 | TR-001 | proposed | Drop identical resends before enrichment, order versions by revision | 2026-10-08 |
+| TR-003 | proposed | Pin MapLibre 5.24.0 instead of 6.x | 2026-10-08 |
 
 ## Decisions
 
@@ -55,6 +56,46 @@ In the context of uncached lookups and frequent logger resends, facing quota cos
 
 - Positive: Identical resends are free; corrections are deterministic regardless of worker count.
 - Negative / debt accepted: Gate and history must share the same capacity rule; extra state to test.
+
+## TR-003: Pin MapLibre 5.24.0 instead of 6.x
+
+- Status: proposed
+- Date: 2026-10-08
+- Phase: plan
+- Deciders: project owner
+- Links: specs/002-maplibre/research.md#r1-maplibre-version-and-delivery-fr-011
+<!-- key: b9d7d1e5c046 -->
+
+### Context & problem
+
+Feature 002 replaces Leaflet with MapLibre GL JS, loaded from a CDN with full Subresource Integrity (FR-011). MapLibre 6.x is ES-module only: its entry imports a shared chunk and starts a module worker, which SRI cannot cover.
+
+### Decision drivers
+
+- Full SRI on the map library (FR-011, clarified)
+- Globe projection and GPU layers needed (FR-010, SC-002)
+- Keep the CDN decision (no embedding)
+
+### Options considered
+
+| Option | Pros | Cons / what it sacrifices |
+|--------|------|---------------------------|
+| MapLibre 5.24.0 UMD from cdnjs (chosen) | single bundle, JS and CSS fully SRI-checked; has globe, setDOMContent, circle-sort-key | 5.x line no longer updated |
+| MapLibre 6.11.2 with partial SRI via import map | current major | worker module loads unverified; relies on import-map integrity support |
+| MapLibre 6.11.2 embedded in the binary | no CDN, no SRI needed | reverses the clarified CDN decision; ~1.1 MB larger binary |
+
+### Decision
+
+Pin MapLibre GL JS 5.24.0 from cdnjs with SHA-512 SRI verified against the downloaded files.
+
+### Y-statement
+
+In the context of replacing Leaflet with full-SRI CDN delivery, facing MapLibre 6 being ESM-only with an unverifiable worker, we decided for the last 5.x UMD release, and neglected 6.x partial-SRI or embedding, to achieve fully integrity-checked delivery, accepting a frozen 5.x line and a later migration.
+
+### Consequences
+
+- Positive: Every byte of the map library is integrity-checked; same delivery model as Leaflet.
+- Negative / debt accepted: No upstream updates on 5.x; migrating to 6 later touches index.html and the app.js glue.
 
 ## Archive
 
