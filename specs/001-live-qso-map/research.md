@@ -243,9 +243,14 @@ and what else was considered.
 
 ## R17. Outbound HTTP
 
-- **Decision**: `reqwest` 0.13 with only its rustls TLS backend (no native-tls/OpenSSL) and a shared
-  `Client` with connect and read timeouts. Prefer the `ring` crypto provider if the feature set allows
-  it, because it cross-compiles to musl/armv7 without cmake. Check this when adding the dependency.
+- **Decision** (settled in T001, 2026-10-08): `reqwest` 0.13 with `default-features = false` and
+  `rustls-no-provider`, plus a direct `rustls` 0.23 dependency with only `ring`, `std` and `tls12`.
+  `main` installs `rustls::crypto::ring::default_provider()` once at startup. A shared `Client` has
+  connect and read timeouts. Server certificates are verified with `rustls-platform-verifier`, so the
+  container image must ship CA certificates (T090).
+- **Why ring**: reqwest's default `rustls` feature uses `aws-lc-rs`, which needs cmake and a C
+  toolchain to cross-compile to musl/armv7. `ring` builds with just a C compiler, which `cross`
+  images provide. `cross` was not installed when T001 ran, so the armv7 build check moves to T091.
 - **Alternatives**: `ureq`, which is blocking and would need `spawn_blocking` for every lookup, and
   hyper-util's client, which needs more boilerplate.
 

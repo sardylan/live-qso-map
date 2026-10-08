@@ -34,7 +34,7 @@ UDP ──► ingest (detect → parse → normalise → station defaults → id
 ## Technical Context
 
 **Language/Version**: Rust (edition 2024, stable toolchain; developed on 1.98)
-**Primary Dependencies**: tokio, axum, async-channel, reqwest (rustls), quick-xml, clap, serde, toml, serde_json, tracing, tracing-subscriber
+**Primary Dependencies**: tokio, axum, async-channel, reqwest (rustls, ring provider), rustls, quick-xml, clap, serde, toml, serde_json, tracing, tracing-subscriber
 **Storage**: in-memory history (bounded, lost on restart); cty.dat file cached on disk
 **Testing**: `cargo test` (unit, integration, replay of the reference capture); `node --test` for the frontend state module (dev only, no npm packages)
 **Target Platform**: Linux x86_64, aarch64 and armv7 (static musl), in a container or under systemd; macOS for development
@@ -77,6 +77,7 @@ UDP ──► ingest (detect → parse → normalise → station defaults → id
 | `axum` (http1, ws, tokio) | HTTP server for the page, assets and `/healthz`; WebSocket upgrade | plain hyper plus tungstenite (more glue code); actix-web (second runtime model) |
 | `async-channel` | bounded **MPMC** queue for channel 1, shared by W workers | tokio `mpsc` is single-consumer; `Mutex<Receiver>` works around it and obscures intent; `flume` has a larger API |
 | `reqwest` (rustls only, no default features) | HTTPS client for QRZ.com, HamQTH, QRZCQ and the cty.dat download, with timeouts | `ureq` is blocking (`spawn_blocking` per lookup); hyper-util client needs much more code; std has no HTTP |
+| `rustls` (ring, std, tls12; no default features) | selects the `ring` crypto provider for reqwest (`rustls-no-provider`), installed once at startup | reqwest's default `rustls` feature pulls `aws-lc-rs`, which needs cmake and a C toolchain to cross-compile to musl/armv7 (R17) |
 | `quick-xml` | parse QARTest messages and provider XML responses | hand-written scanning is fragile (entities, CDATA); `roxmltree` builds a DOM that is not needed |
 | `clap` (derive, env) | command line plus `LQM_*` environment with built-in precedence (FR-032) | hand-rolled argv/env parsing: error-prone, no help text |
 | `serde` (derive) | deserialise the TOML file; serialise the WebSocket JSON | none practical |
@@ -209,5 +210,5 @@ No violations.
   fixtures.
 - [x] II: there is no `unsafe`. Every external input (UDP, provider XML, cty.dat, WebSocket JSON,
   configuration) goes through a fallible parser that is logged and skipped.
-- [x] III: 10 runtime crates and 1 dev crate, all justified. No new runtime services: providers and
+- [x] III: 11 runtime crates (rustls added in T001 for the ring provider, R17) and 1 dev crate, all justified. No new runtime services: providers and
   cty.dat are optional and degrade gracefully.

@@ -1,2 +1,8 @@
 /target
-.idea
+.idea*.rs.bk
+*.log
+.env*
+.DS_Store
+*.swp
+node_modules/
+/cty.dat

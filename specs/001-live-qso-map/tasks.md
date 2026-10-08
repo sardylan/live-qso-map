@@ -35,7 +35,7 @@ run with `cargo test`. Frontend tests run with `node --test web/`, using Node fr
 
 **Purpose**: dependencies, crate layout and lint gates.
 
-- [ ] T001 Add runtime dependencies to `Cargo.toml` per plan.md "Dependency Justification". Use the latest compatible versions and turn off default features where possible:
+- [X] T001 Add runtime dependencies to `Cargo.toml` per plan.md "Dependency Justification". Use the latest compatible versions and turn off default features where possible:
   - `tokio` (rt-multi-thread, net, sync, time, macros, signal, fs)
   - `axum` (http1, ws, tokio)
   - `async-channel`
@@ -53,7 +53,7 @@ run with `cargo test`. Frontend tests run with `node --test web/`, using Node fr
   Decide the rustls crypto provider now: build the crate with the chosen reqwest features for
   `armv7-unknown-linux-musleabihf` (`cross build --target armv7-unknown-linux-musleabihf`), and
   record the result in `research.md` R17.
-- [ ] T002 Create the crate layout from plan.md "Source Code":
+- [X] T002 Create the crate layout from plan.md "Source Code":
   - `src/lib.rs` with `#![forbid(unsafe_code)]` and `pub mod` declarations for `errors`, `config`,
     `adif`, `band`, `mode`, `maidenhead`, `position`, `ingest`, `enrich`, `history`, `pipeline` and
     `web`;
@@ -63,8 +63,8 @@ run with `cargo test`. Frontend tests run with `node --test web/`, using Node fr
     (re-exported from `src/pipeline.rs`, see T025).
 
   `cargo build` must pass.
-- [ ] T003 [P] Add `[lints.rust] unsafe_code = "forbid"` and `[lints.clippy] unwrap_used = "deny"`, `expect_used = "deny"` and `panic = "deny"` to `Cargo.toml`. Allow those three in tests with `#![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used, clippy::panic))]` in `src/lib.rs`. Because `[lints]` also applies to integration-test crates, every `tests/*.rs` file must start with `#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]`. Verify that `cargo clippy --all-targets -- -D warnings` passes.
-- [ ] T004 [P] Create the test scaffolding:
+- [X] T003 [P] Add `[lints.rust] unsafe_code = "forbid"` and `[lints.clippy] unwrap_used = "deny"`, `expect_used = "deny"` and `panic = "deny"` to `Cargo.toml`. Allow those three in tests with `#![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used, clippy::panic))]` in `src/lib.rs`. Because `[lints]` also applies to integration-test crates, every `tests/*.rs` file must start with `#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]`. Verify that `cargo clippy --all-targets -- -D warnings` passes.
+- [X] T004 [P] Create the test scaffolding:
   - `tests/fixtures/README.md`, describing the fixture files to come;
   - `web/package.json` containing `{"type":"module","private":true}`, so that `node --test web/` treats
     the `.js` files as ES modules, with no dependencies;
