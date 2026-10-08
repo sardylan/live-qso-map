@@ -150,12 +150,12 @@ binary.
 
 ### Tests for User Story 2 (write first, confirm they FAIL)
 
-- [ ] T013 [P] [US2] Add a unit test in `src/pipeline.rs` for `pub fn bands_log_line(filter: Option<&BandSet>) -> String`: `None` gives `"bands considered: all"`; `hf,2m,-60m` gives `"bands considered: 160m 80m 40m 30m 20m 17m 15m 12m 10m 2m"`.
+- [X] T013 [P] [US2] Add a unit test in `src/pipeline.rs` for `pub fn bands_log_line(filter: Option<&BandSet>) -> String`: `None` gives `"bands considered: all"`; `hf,2m,-60m` gives `"bands considered: 160m 80m 40m 30m 20m 17m 15m 12m 10m 2m"`.
 
 ### Implementation for User Story 2
 
-- [ ] T014 [US2] Implement `bands_log_line` in `src/pipeline.rs` and log it at info level in `pipeline::start`, before `"live-qso-map started"` (FR-006). T013 must pass.
-- [ ] T015 [US2] Make `src/main.rs` print configuration errors as `invalid setting bands: …` and exit non-zero (already true for `Error::Config`; verify by hand). Run quickstart §3 with the real binary: one valid selection, `hf-dx` and `warc,-warc`.
+- [X] T014 [US2] Implement `bands_log_line` in `src/pipeline.rs` and log it at info level in `pipeline::start`, before `"live-qso-map started"` (FR-006). T013 must pass.
+- [X] T015 [US2] Make `src/main.rs` print configuration errors as `invalid setting bands: …` and exit non-zero (already true for `Error::Config`; verify by hand). Run quickstart §3 with the real binary: one valid selection, `hf-dx` and `warc,-warc`.
 
 **Checkpoint**: User Stories 1 and 2 work on their own.
 

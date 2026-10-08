@@ -159,6 +159,14 @@ async fn build_sources(config: &Config) -> Result<Vec<LookupSource>> {
     Ok(sources)
 }
 
+/// The startup line naming the considered bands, in frequency order (feature 003, FR-006).
+pub fn bands_log_line(filter: Option<&crate::band_filter::BandSet>) -> String {
+    match filter {
+        Some(set) => format!("bands considered: {set}"),
+        None => "bands considered: all".to_string(),
+    }
+}
+
 /// Binds the UDP and HTTP listeners (port 0 is allowed) and spawns every task.
 pub async fn start(config: Config, sources: LookupSources) -> Result<RunningService> {
     crate::install_crypto_provider();
@@ -167,6 +175,7 @@ pub async fn start(config: Config, sources: LookupSources) -> Result<RunningServ
         None => build_sources(&config).await?,
     };
     let lookups = crate::enrich::Lookups::new(sources, &config);
+    tracing::info!("{}", bands_log_line(config.band_filter.as_ref()));
     let udp = UdpSocket::bind((config.bind_address, config.udp_port)).await?;
     let http = TcpListener::bind((config.bind_address, config.http_port)).await?;
     let udp_addr = udp.local_addr()?;
@@ -328,5 +337,15 @@ mod tests {
         let begin = Instant::now();
         service.shutdown().await;
         assert!(begin.elapsed() < Duration::from_secs(1));
+    }
+
+    #[test]
+    fn bands_log_line_lists_the_effective_set() {
+        assert_eq!(bands_log_line(None), "bands considered: all");
+        let set = crate::band_filter::resolve(&["hf", "2m", "-60m"]).unwrap();
+        assert_eq!(
+            bands_log_line(Some(&set)),
+            "bands considered: 160m 80m 40m 30m 20m 17m 15m 12m 10m 2m"
+        );
     }
 }
