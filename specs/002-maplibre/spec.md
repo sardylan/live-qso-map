@@ -2,8 +2,7 @@
 
 **Feature Branch**: `002-maplibre`
 **Created**: 2026-10-09
-**Status**: Draft. Open decisions are listed under Clarifications; complete them with
-`/speckit-clarify` before `/speckit-plan`.
+**Status**: Ready for planning (clarified 2026-10-09).
 **Input**: User description: "Replace Leaflet with MapLibre GL JS"
 
 Terms follow `docs/ham-radio.md` §2. Band lists follow HR-2: always in frequency order.
@@ -35,7 +34,7 @@ The map now renders smoothly with many markers, and the base map stays crisp at 
 minimum deliverable.
 
 **Independent Test**: Run the feature-001 quickstart §2, §3 and §6 against the new page, and check
-every item of FR-001 to FR-010 by hand in two browsers. Every frontend unit test from feature 001
+every parity item, FR-001 to FR-007, by hand in two browsers. Every frontend unit test from feature 001
 still passes unchanged.
 
 **Acceptance Scenarios**:
@@ -61,10 +60,13 @@ render each one, with its attribution visible.
 
 **Acceptance Scenarios**:
 
-1. **Given** no base-map setting, **When** a page opens, **Then** the default base map is shown, with
-   its attribution [NEEDS CLARIFICATION: which default base map: a free vector style (e.g.
-   OpenFreeMap, no key), the current OpenStreetMap raster tiles, or a setting that accepts either?].
-2. **Given** an operator-supplied base map, **When** a page opens, **Then** that base map is shown.
+1. **Given** no base-map setting, **When** a page opens, **Then** the OpenFreeMap vector style is
+   shown, with its attribution.
+2. **Given** an operator-supplied vector style URL, **When** a page opens, **Then** that style is
+   shown.
+3. **Given** an operator-supplied raster tile URL template and attribution (the feature-001
+   `tile_url`/`tile_attribution` settings), **When** a page opens, **Then** those raster tiles are
+   shown instead of a vector style.
 
 ---
 
@@ -81,17 +83,19 @@ against acceptance scenario 1.
 
 **Acceptance Scenarios**:
 
-1. **Given** a page at world zoom, **When** QSOs on several continents are shown, **Then** the
-   projection is [NEEDS CLARIFICATION: globe only, flat only, or globe with a per-viewer toggle to
-   flat?].
+1. **Given** a page opened for the first time, **When** it is at world zoom, **Then** the Earth is
+   shown as a globe, and long-distance paths follow the globe's surface.
+2. **Given** a viewer who switches to flat, **When** they toggle, **Then** that page switches to the
+   flat Mercator projection, and other pages are unaffected.
+3. **Given** a viewer who chose flat, **When** they reload the page, **Then** it opens in flat again
+   (remembered in that browser only, like the last-N selector).
 
 ---
 
 ### Edge Cases
 
-- **Browser without WebGL**: [the behaviour is to be decided during clarification. A suggested
-  default is a clear message that the map needs WebGL. Falling back to the old renderer is not
-  planned.]
+- **Browser without WebGL**: the page shows a clear message that the map needs WebGL, with a hint
+  to enable hardware acceleration. No map is rendered, and there is no fallback renderer (FR-012).
 - **Base map unreachable**: QSOs, markers and lines still render on an empty background, and a notice
   explains why.
 - **Very many markers** (All selected, thousands of QSOs): the page stays responsive (SC-002).
@@ -120,12 +124,20 @@ against acceptance scenario 1.
 **New**
 
 - **FR-008**: The base map is configurable by the operator, with the existing precedence (command
-  line, then environment, then file).
+  line, then environment, then file). It is either a vector style URL or a raster tile URL template
+  with its attribution (the feature-001 `tile_url`/`tile_attribution` settings, kept for
+  compatibility). The default is the OpenFreeMap vector style. The service MUST refuse to start when
+  both a style and raster tiles are configured, naming the conflict.
 - **FR-009**: The base map's attribution MUST always be visible, as its usage terms require.
-- **FR-010**: Projection: see User Story 3 (pending clarification).
-- **FR-011**: The map library MUST be pinned to an exact version and integrity-checked [NEEDS
-  CLARIFICATION: delivered from a CDN with Subresource Integrity as today, or embedded in the
-  service binary?].
+- **FR-010**: Pages MUST open in globe projection by default. Each page MUST offer a toggle between
+  globe and flat Mercator, which affects only that page and is remembered in that browser across
+  reloads. If storage is unavailable, the choice lasts for the page only.
+- **FR-011**: The map library MUST be loaded from a public CDN, pinned to an exact version, with
+  Subresource Integrity hashes that are verified independently against the served files, as for
+  Leaflet in feature 001. The service binary MUST NOT embed the library.
+- **FR-012**: When the browser cannot provide WebGL, the page MUST show a readable message saying
+  the map needs WebGL, with a hint to enable hardware acceleration, instead of a blank or broken
+  page. No other renderer is provided.
 
 ### Key Entities
 
@@ -138,27 +150,30 @@ against acceptance scenario 1.
 
 - **SC-001**: Every feature-001 frontend behaviour (FR-001 – FR-007) is confirmed in two browsers,
   and every existing frontend unit test passes unchanged.
-- **SC-002**: With 2,000 QSOs on the map and "All" selected, the page stays interactive (pan and
-  zoom without visible stalls) on a mid-range laptop. [The exact frame-rate target is to be set
-  during clarification.]
+- **SC-002**: With 2,000 QSOs on the map and "All" selected, panning and zooming run at 30 frames
+  per second or more on a mid-range laptop, measured with the browser's performance tools, in both
+  globe and flat projection.
 - **SC-003**: A live QSO appears on every open page within 2 s, as in feature 001.
 
 ## Assumptions
 
-- **Server side**: unchanged apart from the configuration of FR-008 and whatever FR-011 requires.
+- **Server side**: unchanged apart from the configuration of FR-008. FR-011 needs no server change.
   The WebSocket protocol is unchanged.
 - **Branch**: created from `main` after feature 001 was merged. Feature 003 (band filter) is planned
   separately; whichever of 002 and 003 lands second adapts to the other (FR-005, FR-006).
 
 ## Clarifications
 
-Open questions, to settle before planning. Each has a suggested default.
+### Session 2026-10-09
 
-| # | Question | Suggested default |
-|---|----------|-------------------|
-| 1 | Default base map | A free vector style without an API key (OpenFreeMap), configurable to any style URL |
-| 2 | Projection | Globe at low zoom, with a per-viewer toggle to flat |
-| 3 | Library delivery | CDN, pinned exact version, Subresource Integrity |
-| 4 | No-WebGL behaviour | A clear message; no fallback renderer |
-| 5 | SC-002 frame-rate target | 30 fps while panning with 2,000 QSOs |
-| 6 | Keep the `tile_url`/`tile_attribution` settings? | Keep them as a raster alternative, or deprecate them in favour of a style URL |
+- Q: Default base map? → A: Either, by configuration: a vector style URL or raster tiles. The
+  default is the OpenFreeMap vector style. The feature-001 raster settings stay as the raster option
+  (this also settles open question 6).
+- Q: Projection? → A: Globe by default, with a per-viewer toggle to flat Mercator, remembered in
+  the browser like the last-N selector.
+- Q: How does the map library reach the browser? → A: From a CDN, pinned to an exact version, with
+  independently verified Subresource Integrity hashes, as today.
+- Q: What happens in a browser without WebGL? → A: A clear message with a hint to enable hardware
+  acceleration; no fallback renderer.
+- Q: What is the SC-002 performance target? → A: At least 30 fps while panning and zooming with
+  2,000 QSOs, on a mid-range laptop.
