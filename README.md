@@ -1,0 +1,136 @@
+# live-qso-map
+
+A live map of every QSO an amateur radio station makes during a contest.
+
+Your logger sends each QSO over UDP. live-qso-map converts it to ADIF, works out where the other
+station is, and pushes it to every open map page. Each QSO shows up as a band-coloured marker
+with a great-circle line from your station. Each viewer chooses how many recent QSOs to show.
+
+It is contest-agnostic. It runs as one self-contained binary on a Raspberry Pi or mini PC, on a
+VM, or in a container, and needs only one UDP port and one TCP port.
+
+## Quick start
+
+```bash
+cargo build --release
+./target/release/live-qso-map --station-callsign IS0MZK --station-locator JM49NH
+```
+
+Open <http://localhost:8080>, then point your logger at UDP port **12060**. To try it without a
+logger:
+
+```bash
+printf '<CALL:5>DL5AB <QSO_DATE:8>20261008 <TIME_ON:6>150404 <BAND:3>40m <MODE:3>SSB <GRIDSQUARE:6>JO62QM <EOR>' \
+  | nc -u -w1 127.0.0.1 12060
+scripts/send_burst.sh 150          # 150 synthetic QSOs
+```
+
+## Inputs
+
+The format is detected from each datagram's content, so no per-sender setup is needed.
+
+| Source | What is accepted |
+|--------|------------------|
+| **ADIF over UDP** | One or more records per datagram, optional header. Each record is one QSO. Malformed records are skipped; the others still go through. |
+| **QARTest** | `contactinfo` (new QSO) and `contactreplace` (correction). Score (`dynamicresults`) and delete (`contactdelete`) messages are ignored. |
+
+Anything else, including ADX, is logged and dropped.
+
+Identical resends are ignored before any lookup. A changed resend, such as an edited exchange,
+updates the existing map entry in place. QARTest's QSO id even follows callsign edits.
+
+## Where markers go
+
+1. **The logger's own position**: `LAT`/`LON`, or `GRIDSQUARE` at the centre of the square. No
+   online lookup is made.
+2. **Otherwise**, every configured source is queried at the same time, and the most precise answer
+   wins: exact coordinates, then a 6-character locator, then a 4-character one, then the
+   ham-radio country centre.
+   - Online sources: **QRZ.com**, **HamQTH** and **QRZCQ**.
+   - Country data: the AD1C [cty.dat](https://www.country-files.com/). Sardinia, Sicily and Italy
+     are separate entities.
+3. **Nothing found**: the QSO is still kept, but it isn't drawn.
+
+Notes:
+
+- Every popup shows where the position came from and how precise it is.
+- **Provider quotas**: lookups are deliberately **not cached** (FR-016), so every QSO that needs a
+  lookup counts against your QRZ.com/HamQTH/QRZCQ quota. QRZ.com needs a subscription for full
+  data; HamQTH needs a free account.
+- **Country data**: cty.dat is downloaded at startup and refreshed after 30 days. If the download
+  fails, the cached copy is used.
+
+## Configuration
+
+Every setting can be given three ways, and the first one found wins:
+
+1. a command-line flag;
+2. an `LQM_*` environment variable;
+3. a TOML file (`--config`).
+
+The full list is in
+[`specs/001-live-qso-map/contracts/configuration.md`](specs/001-live-qso-map/contracts/configuration.md),
+and [`deploy/config.example.toml`](deploy/config.example.toml) is a commented starting point.
+The most common settings:
+
+| Setting | Flag / env | Default |
+|---------|-----------|---------|
+| UDP port | `--udp-port` / `LQM_UDP_PORT` | 12060 |
+| HTTP port | `--http-port` / `LQM_HTTP_PORT` | 8080 |
+| Station callsign and locator (used when a QSO lacks them) | `--station-callsign`, `--station-locator` | none |
+| QSOs kept in memory (0 = unbounded) | `--history-size` | 10000 |
+| QRZ.com credentials | `LQM_QRZ_USERNAME`, `LQM_QRZ_PASSWORD` | none |
+| HamQTH credentials | `LQM_HAMQTH_USERNAME`, `LQM_HAMQTH_PASSWORD` | none |
+| QRZCQ credentials | `LQM_QRZCQ_USERNAME`, `LQM_QRZCQ_PASSWORD` | none |
+| Band colours | `--band-color 20m=#1f77b4` (repeatable) | built-in palette |
+
+Passwords are never written to the logs. Prefer environment variables for them.
+
+> **Warning: open access.** By design (FR-035), the map page and the UDP port have no
+> authentication or source filtering. Anyone who can reach the UDP port can put QSOs on your map.
+> When the service runs on the Internet, restrict the UDP port with a firewall to your station's
+> address.
+
+The history lives in memory only and is lost on restart.
+
+## Deployment
+
+**Container**
+
+```bash
+docker build -t live-qso-map .
+docker run -p 12060:12060/udp -p 8080:8080 \
+  -e LQM_STATION_CALLSIGN=IS0MZK -e LQM_STATION_LOCATOR=JM49NH \
+  -v lqm-data:/data live-qso-map
+```
+
+**Static binaries**: built with [`cross`](https://github.com/cross-rs/cross). Targets are listed
+in `Cross.toml`.
+
+```bash
+cross build --release --target aarch64-unknown-linux-musl       # Raspberry Pi 4/5 (64-bit)
+cross build --release --target armv7-unknown-linux-musleabihf   # Raspberry Pi (32-bit OS)
+cross build --release --target x86_64-unknown-linux-musl        # PC, VM, cloud
+```
+
+**systemd** (Raspberry Pi or mini PC): see `deploy/live-qso-map.service`. Secrets go in
+`/etc/live-qso-map/env`.
+
+**Health check**: `GET /healthz` returns `{"status":"ok","history":…,"sessions":…,"uptime_s":…}`.
+
+## Development
+
+```bash
+cargo fmt --check
+cargo clippy --all-targets -- -D warnings
+cargo test
+node --test web/                                              # frontend logic, no npm packages
+cargo test --release --test load_ws -- --ignored --nocapture  # load test (SC-004)
+```
+
+| Document | Location |
+|----------|----------|
+| Project rules | [`.specify/memory/constitution.md`](.specify/memory/constitution.md) |
+| Rust conventions | [`docs/rust-guidelines.md`](docs/rust-guidelines.md) |
+| Specification, plan and tasks | [`specs/001-live-qso-map/`](specs/001-live-qso-map/) |
+| Debugging an unknown logger | `tools/udp_capture.py` records raw datagrams |

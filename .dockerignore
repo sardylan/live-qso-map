@@ -1,0 +1,14 @@
+target/
+.git/
+.idea/
+specs/
+docs/
+tests/
+web/
+tools/
+scripts/
+deploy/
+node_modules/
+*.log
+.env*
+cty.dat

@@ -313,4 +313,30 @@ mod tests {
         assert!(p[0].starts_with(b"<?xml"));
         assert!(String::from_utf8_lossy(&p[3]).contains("<dynamicresults>"));
     }
+
+    #[test]
+    fn mutated_packets_never_panic() {
+        let mut state: u64 = 0x2545_F491_4F6C_DD1D;
+        let mut next = || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            state
+        };
+        let station = crate::config::StationConfig::default();
+        let from: std::net::SocketAddr = "127.0.0.1:9".parse().unwrap();
+        for packet in packets() {
+            for _ in 0..500 {
+                let mut data = packet.clone();
+                let cut = (next() as usize) % (data.len() + 1);
+                data.truncate(cut);
+                if !data.is_empty() {
+                    let at = (next() as usize) % data.len();
+                    data[at] = next() as u8;
+                }
+                let _ = parse(&data);
+                let _ = crate::ingest::events_from_datagram(&data, from, &station);
+            }
+        }
+    }
 }

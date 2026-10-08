@@ -242,4 +242,39 @@ mod tests {
         assert!(errors.is_empty());
         assert_eq!(records[0].get("COMMENT"), Some(""));
     }
+
+    /// Seeded xorshift; deterministic, no extra crate (T086).
+    struct XorShift(u64);
+
+    impl XorShift {
+        fn next(&mut self) -> u64 {
+            self.0 ^= self.0 << 13;
+            self.0 ^= self.0 >> 7;
+            self.0 ^= self.0 << 17;
+            self.0
+        }
+    }
+
+    #[test]
+    fn random_input_never_panics() {
+        const ALPHABET: &[u8] = b"<>:EORHCALEOR0123456789 abcXYZ\n\xff";
+        let mut rng = XorShift(0x9E37_79B9_7F4A_7C15);
+        for _ in 0..10_000 {
+            let len = (rng.next() % 300) as usize;
+            let data: Vec<u8> = (0..len)
+                .map(|_| {
+                    let r = rng.next();
+                    if r.is_multiple_of(4) {
+                        (r >> 8) as u8
+                    } else {
+                        ALPHABET[(r >> 8) as usize % ALPHABET.len()]
+                    }
+                })
+                .collect();
+            let (records, _) = parse_datagram(&data);
+            for record in records {
+                let _ = crate::adif::write::to_adif_string(&record);
+            }
+        }
+    }
 }

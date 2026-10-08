@@ -279,4 +279,25 @@ mod tests {
         assert!(text.contains("IS0MZK"));
         assert!(!text.contains("hunter2-secret"));
     }
+
+    #[tokio::test]
+    async fn http_errors_never_contain_the_url() {
+        let client = ProviderClient::new(
+            ProviderKind::Qrz,
+            Credentials {
+                username: "IS0MZK".into(),
+                password: Secret::new("hunter2-secret"),
+            },
+            http_client(Duration::from_secs(1)).unwrap(),
+        );
+        // Port 9 (discard) is closed: the request fails at connect time.
+        let err = client
+            .get("http://127.0.0.1:9/xml?username=IS0MZK&password=hunter2-secret&s=SESSIONKEY")
+            .await
+            .unwrap_err();
+        for text in [err.to_string(), format!("{err:?}")] {
+            assert!(!text.contains("hunter2-secret"), "{text}");
+            assert!(!text.contains("SESSIONKEY"), "{text}");
+        }
+    }
 }

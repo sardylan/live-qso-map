@@ -1,0 +1,50 @@
+# live-qso-map configuration (contracts/configuration.md).
+# Precedence: command line > LQM_* environment variables > this file > built-in defaults.
+# Prefer environment variables for passwords, e.g. LQM_QRZ_PASSWORD.
+
+# bind_address = "0.0.0.0"     # UDP and HTTP listeners
+# udp_port = 12060             # QSO messages (ADIF, QARTest)
+# http_port = 8080             # map page, WebSocket, /healthz
+# history_size = 10000         # QSOs kept in memory; 0 = unbounded
+# workers = 1                  # enrichment workers
+# ingest_queue = 1024
+# broadcast_queue = 1024
+# log_level = "info"           # error, warn, info, debug, trace
+
+[station]
+# Used only when an incoming QSO lacks them.
+# callsign = "IS0MZK"
+# locator = "JM49NH"
+# latitude = 39.3125           # set both latitude and longitude, or neither
+# longitude = 9.125
+
+[lookup]
+# timeout_secs = 5             # per provider; providers are queried in parallel
+# provider_order = ["qrz", "hamqth", "qrzcq"]   # breaks ties at equal precision
+
+# A provider is enabled when both username and password are set.
+[lookup.qrz]
+# username = ""
+# password = ""
+
+[lookup.hamqth]
+# username = ""
+# password = ""
+
+[lookup.qrzcq]
+# username = ""
+# password = ""
+
+[country_data]
+# path = "/var/lib/live-qso-map/cty.dat"
+# url = "https://www.country-files.com/cty/cty.dat"
+# max_age_days = 30            # 0 = never re-download an existing file
+
+[map]
+# tile_url = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+# tile_attribution = "&copy; OpenStreetMap contributors"
+# fallback_color = "#7f7f7f"
+
+[map.bands]
+# "40m" = "#d62728"
+# "20m" = "#1f77b4"

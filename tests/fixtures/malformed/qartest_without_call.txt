@@ -1,0 +1,1 @@
+<?xml version="1.0"?><contactinfo><logger>QARTest 16.9.1</logger><mycall>IS0MZK</mycall><call></call><timestamp>2026-10-08 15:00:00</timestamp></contactinfo>
