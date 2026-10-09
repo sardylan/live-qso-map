@@ -1,33 +1,30 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 1.2.0 → 1.3.0
-Bump rationale: MINOR, because guidance is materially expanded. Technical Constraints gains a binding
-reference to the HTTP/WebSocket interface rules in docs/http-api.md (API-1 to API-5): JSON payloads
-on every HTTP endpoint and WebSocket message, and JSON error bodies. Compliance review now covers
-them. No principle is removed or redefined.
+Version change: 1.3.0 → 1.4.0
+Bump rationale: MINOR, because a new principle is added (IV. Persistent Viewer Settings). No
+principle is removed or redefined.
 
 Modified principles: none (I–III unchanged)
+Added principles: IV. Persistent Viewer Settings
 
 Modified sections:
-  - Technical Constraints: new bullet; interface rules in docs/http-api.md are binding.
-  - Governance / Compliance review: also verifies the interface rules.
+  - Governance / Compliance review: covers Principles I–IV.
 
-Added sections: none (new external document docs/http-api.md)
+Added sections: none
 Removed sections: none
 
 Templates:
-  - .specify/templates/plan-template.md   ✅ updated (Constitution Check gains an "Interface rules" gate)
-  - .specify/templates/spec-template.md   ✅ no change needed (specs state what, contracts state shapes)
-  - .specify/templates/tasks-template.md  ✅ no change needed (contract tests already expected)
+  - .specify/templates/plan-template.md   ✅ updated (Constitution Check gains Principle IV)
+  - .specify/templates/spec-template.md   ✅ no change needed
+  - .specify/templates/tasks-template.md  ✅ no change needed
   - .specify/templates/commands/*.md      ⚠ not present
-  - CLAUDE.md                             ✅ updated (pointer outside the managed SPECKIT block)
+  - CLAUDE.md                             ✅ no change needed (points to the constitution)
 
-Follow-up TODOs (current code vs API-3):
-  - unknown paths answer 404 with an empty body (src/web/mod.rs fallback);
-  - wrong methods answer 405 with an empty body (axum default);
-  - failed WebSocket upgrades on /ws answer with a plain-text body (axum rejection).
-  API-1, API-2 and API-4 are already met (/healthz JSON; WebSocket JSON text frames with `type`).
+Follow-up TODOs (current code vs Principle IV):
+  - the map's "Last N" is kept in sessionStorage (feature 001): it is moved to local storage by
+    feature 006 (spec FR-011). Every other viewer setting (projection, auto-zoom, last-QSO box
+    visibility) already uses local storage.
 -->
 
 # live-qso-map Constitution
@@ -87,6 +84,19 @@ guards that catch whole classes of defects before they reach the operator.
 Rationale: contest stations run on varied, often modest hardware, sometimes with poor
 connectivity. Fewer moving parts mean an easier setup and fewer failures on the day.
 
+### IV. Persistent Viewer Settings
+
+- Every setting a viewer can change on the map page MUST be saved in the browser's local
+  storage, so that it survives closing and reopening the browser. Examples: the map's
+  "Last N", the projection, auto-zoom, the last-QSO box choices.
+- Reading a saved setting MUST NOT fail the page: missing, unknown or unreadable values, and a
+  browser that refuses storage, MUST fall back to the setting's default.
+- Settings chosen by the operator in the service configuration are not viewer settings. They
+  are not stored in the browser.
+
+Rationale: the map often runs unattended on a wall screen or kiosk that gets restarted during a
+contest. A viewer's choices must come back by themselves, without anyone setting them again.
+
 ## Technical Constraints
 
 - Language: Rust, edition 2024. The project builds with stable `cargo` and no
@@ -128,8 +138,8 @@ connectivity. Fewer moving parts mean an easier setup and fewer failures on the 
     expanded.
   - PATCH: clarifications, wording and typo fixes that do not change meaning.
 - Compliance review: every plan's Constitution Check and every code review MUST verify
-  adherence to Principles I–III, to the domain rules in `docs/ham-radio.md` §1 and to the
+  adherence to Principles I–IV, to the domain rules in `docs/ham-radio.md` §1 and to the
   interface rules in `docs/http-api.md`.
   Unjustified violations block the merge.
 
-**Version**: 1.3.0 | **Ratified**: 2026-10-08 | **Last Amended**: 2026-10-09
+**Version**: 1.4.0 | **Ratified**: 2026-10-08 | **Last Amended**: 2026-10-09
