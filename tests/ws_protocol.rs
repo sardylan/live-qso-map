@@ -248,3 +248,83 @@ async fn history_is_capped() {
     assert_eq!(health["history"], 1000);
     service.shutdown().await;
 }
+
+/// Checks one error response against `docs/http-api.md` API-3 and returns its body.
+async fn json_error(response: reqwest::Response, status: u16, code: &str) -> Value {
+    assert_eq!(response.status(), status, "{code}");
+    let ct = response.headers()["content-type"]
+        .to_str()
+        .unwrap()
+        .to_string();
+    assert!(ct.starts_with("application/json"), "{code}: {ct}");
+    let body: Value = serde_json::from_str(&response.text().await.unwrap()).unwrap();
+    assert_eq!(body["error"], code);
+    let message = body["message"].as_str().unwrap();
+    assert!(!message.is_empty());
+    assert!(
+        !message.contains("/nonexistent/cty.dat"),
+        "no paths in errors"
+    );
+    body
+}
+
+#[tokio::test]
+async fn every_error_response_has_a_json_body() {
+    let service = start(test_config(), None).await.unwrap();
+    live_qso_map::install_crypto_provider();
+    let client = reqwest::Client::new();
+    let base = format!("http://{}", service.http_addr);
+
+    let missing = client.get(format!("{base}/nope")).send().await.unwrap();
+    let body = json_error(missing, 404, "not_found").await;
+    assert!(body["message"].as_str().unwrap().contains("/nope"));
+
+    let wrong = client.post(format!("{base}/healthz")).send().await.unwrap();
+    assert!(wrong.headers().contains_key("allow"), "405 keeps Allow");
+    json_error(wrong, 405, "method_not_allowed").await;
+
+    let plain = client.get(format!("{base}/ws")).send().await.unwrap();
+    let status = plain.status().as_u16();
+    assert!((400..500).contains(&status), "{status}");
+    json_error(plain, status, "websocket_upgrade_required").await;
+
+    service.shutdown().await;
+}
+
+#[tokio::test]
+async fn a_page_gets_the_station_and_qsos_that_share_it() {
+    let service = start(test_config(), None).await.unwrap();
+    let mut rx = service.subscribe();
+    // Seven QSOs sent out of time order, with no station position of their own.
+    for minute in [3, 1, 7, 2, 6, 4, 5] {
+        let qso = format!(
+            "<CALL:5>K{minute}ABC <QSO_DATE:8>20261009 <TIME_ON:4>15{minute:02} <BAND:3>20m <MODE:2>CW <GRIDSQUARE:4>FN42 <EOR>"
+        );
+        send_udp(service.udp_addr, qso.as_bytes()).await;
+    }
+    for _ in 0..7 {
+        common::next_upsert(&mut rx, Duration::from_secs(2))
+            .await
+            .expect("upsert");
+    }
+
+    let mut ws = connect(service.http_addr).await;
+    let hello = next_json(&mut ws, Duration::from_secs(2)).await.unwrap();
+    assert_eq!(hello["protocol"], 3);
+    let station = hello["station"]["position"].clone();
+    assert_eq!(station["source"], "config");
+    let snapshot = next_json(&mut ws, Duration::from_secs(2)).await.unwrap();
+    let qsos = snapshot["qsos"].as_array().unwrap();
+    assert_eq!(qsos.len(), 7);
+    let keys: Vec<&str> = qsos
+        .iter()
+        .map(|q| q["sort_key"].as_str().unwrap())
+        .collect();
+    let mut sorted = keys.clone();
+    sorted.sort_unstable();
+    assert_eq!(keys, sorted, "snapshot in sort_key order");
+    for q in qsos {
+        assert_eq!(q["station"], station, "{}", q["call"]);
+    }
+    service.shutdown().await;
+}

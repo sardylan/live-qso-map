@@ -10,8 +10,9 @@ use std::time::Instant;
 
 use axum::Router;
 use axum::extract::State;
+use axum::extract::ws::rejection::WebSocketUpgradeRejection;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
-use axum::http::{StatusCode, header};
+use axum::http::{Method, StatusCode, Uri, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use tokio::net::TcpListener;
@@ -96,7 +97,8 @@ pub async fn serve(
         .route("/recent.js", get(|| asset("text/javascript", RECENT_JS)))
         .route("/ws", get(ws_handler))
         .route("/healthz", get(healthz))
-        .fallback(|| async { StatusCode::NOT_FOUND })
+        .fallback(not_found)
+        .method_not_allowed_fallback(method_not_allowed)
         .with_state(state);
 
     let mut stop = shutdown;
@@ -128,8 +130,46 @@ async fn healthz(State(state): State<AppState>) -> Response {
         .into_response()
 }
 
-async fn ws_handler(ws: WebSocketUpgrade, State(state): State<AppState>) -> Response {
-    ws.on_upgrade(move |socket| session_task(socket, state))
+/// An error response with the JSON body every error must have (`docs/http-api.md` API-3).
+/// `message` is for people; it never carries configuration values or file paths.
+pub fn json_error(status: StatusCode, code: &str, message: &str) -> Response {
+    let body = serde_json::json!({ "error": code, "message": message });
+    (
+        status,
+        [(header::CONTENT_TYPE, "application/json")],
+        body.to_string(),
+    )
+        .into_response()
+}
+
+async fn not_found(uri: Uri) -> Response {
+    json_error(
+        StatusCode::NOT_FOUND,
+        "not_found",
+        &format!("no such endpoint: {}", uri.path()),
+    )
+}
+
+async fn method_not_allowed(method: Method, uri: Uri) -> Response {
+    json_error(
+        StatusCode::METHOD_NOT_ALLOWED,
+        "method_not_allowed",
+        &format!("method {method} not allowed on {}", uri.path()),
+    )
+}
+
+async fn ws_handler(
+    ws: std::result::Result<WebSocketUpgrade, WebSocketUpgradeRejection>,
+    State(state): State<AppState>,
+) -> Response {
+    match ws {
+        Ok(ws) => ws.on_upgrade(move |socket| session_task(socket, state)),
+        Err(rejection) => json_error(
+            rejection.status(),
+            "websocket_upgrade_required",
+            &rejection.body_text(),
+        ),
+    }
 }
 
 async fn session_task(socket: WebSocket, state: AppState) {

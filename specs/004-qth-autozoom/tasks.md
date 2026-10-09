@@ -453,14 +453,14 @@ with auto-zoom on, and switch back; never save automatic switches (FR-015–FR-0
 
 ### JSON error responses (FR-027, `docs/http-api.md` API-3)
 
-- [ ] T046 [P] Write tests in `tests/ws_protocol.rs` (contracts/http-endpoints.md). For each case,
+- [X] T046 [P] Write tests in `tests/ws_protocol.rs` (contracts/http-endpoints.md). For each case,
   check the status, `Content-Type: application/json`, the `error` code, and a `message` that is a
   non-empty string:
   - `GET /nope` → 404, `{"error":"not_found",…}`;
   - `POST /healthz` → 405 with an `Allow` header, `method_not_allowed`;
   - plain `GET /ws` with no upgrade headers → 4xx, `websocket_upgrade_required`;
   - every body parses as JSON, and no `message` contains the configured cty path.
-- [ ] T047 Implement `json_error(status, code, message)` in `src/web/mod.rs`, then:
+- [X] T047 Implement `json_error(status, code, message)` in `src/web/mod.rs`, then:
   - `Router::fallback` → 404;
   - `method_not_allowed_fallback` → 405, keeping `Allow`;
   - `ws_handler` takes `Result<WebSocketUpgrade, WebSocketUpgradeRejection>` and maps the
@@ -470,17 +470,17 @@ with auto-zoom on, and switch back; never save automatic switches (FR-015–FR-0
 
 ### Tooling, docs and gates
 
-- [ ] T048 Add an end-to-end test to `tests/ws_protocol.rs` for the page's inputs. With a
+- [X] T048 Add an end-to-end test to `tests/ws_protocol.rs` for the page's inputs. With a
   configured station, send 7 ADIF QSOs over UDP, then connect a page. Assert:
   - `hello` v3 carries the station;
   - the snapshot holds the 7 QSOs in `sort_key` order;
   - each QSO's `station` equals the configured position.
 
   Run it after T046, because both edit the same file.
-- [ ] T049 [P] Extend `scripts/send_burst.sh` with optional `delay` (seconds, default 0) and
+- [X] T049 [P] Extend `scripts/send_burst.sh` with optional `delay` (seconds, default 0) and
   `offset` (default 0) arguments, so that calls and QSO times continue from `offset`. Update its
   usage comment (quickstart §3 step 5).
-- [ ] T050 [P] Documentation:
+- [X] T050 [P] Documentation:
   - **`README.md`**:
     - a section on the QTH house and auto-zoom: where the QTH comes from, and that the station
       callsign also picks the entity framed with no QSOs;

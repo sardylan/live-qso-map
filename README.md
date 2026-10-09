@@ -74,6 +74,23 @@ checked with Subresource Integrity.
   says so.
 - **WebGL**: the page needs it. Browsers without WebGL get a message suggesting to enable hardware
   acceleration.
+- **QTH**: a house marks the station. Its position is the configured `[station]` position;
+  without one, it is the station position of the newest QSO on the page. Every QSO is joined to
+  the house by a black great-circle line.
+- **Auto-zoom**: the **Auto-zoom** button, on by default, keeps the house and every QSO in view.
+  - It refits after every change, at most once a second, and keeps clear of the legend, the box
+    and the controls.
+  - It pauses while a popup is open; a popup nobody touches closes after 30 s.
+  - Any drag, zoom or rotation by hand switches it off.
+  - With no QSOs yet, it frames the station's DXCC entity, found from `station.callsign`, or 500 km
+    around the house when the entity is unknown.
+  - On the globe, it switches to the flat map only when the QSOs cannot all fit on one side of the
+    Earth, and returns to the globe when they fit again. Your saved choice is never changed.
+- **Last QSOs**: a box at the bottom left lists the five newest QSOs (by QSO time, in UTC). Click
+  a row to open its popup; the **Last QSOs** button hides it.
+- **Scale**: a metric scale bar, shown on the flat map only.
+
+Each browser remembers its own Globe/Flat, Auto-zoom and Last QSOs choices.
 
 ## Configuration
 
@@ -175,3 +192,17 @@ cargo test --release --test load_ws -- --ignored --nocapture  # load test (SC-00
 | Rust conventions | [`docs/rust-guidelines.md`](docs/rust-guidelines.md) |
 | Specification, plan and tasks | [`specs/001-live-qso-map/`](specs/001-live-qso-map/) |
 | Debugging an unknown logger | `tools/udp_capture.py` records raw datagrams |
+| HTTP and WebSocket rules | [`docs/http-api.md`](docs/http-api.md): JSON payloads, JSON error bodies |
+| Entity extents for auto-zoom | `tools/entity_extents.py` (below) |
+
+The DXCC entity extents in `src/web/entity_extents.json` are generated from
+[Natural Earth](https://www.naturalearthdata.com/) (public domain). To regenerate them after
+changing `tools/entity_extents.toml` or updating `cty.dat`:
+
+```bash
+python3 -m unittest tools/test_entity_extents.py
+python3 tools/entity_extents.py --cty cty.dat --mapping tools/entity_extents.toml \
+  --out src/web/entity_extents.json   # downloads Natural Earth v5.1.2 once into .cache/
+```
+
+The script fails when a cty.dat entity is neither mapped nor listed under `[unmapped]`.

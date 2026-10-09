@@ -1,5 +1,9 @@
 # Contract: HTTP Endpoints
 
+> **Changed by feature 004**: every error response has a JSON body
+> `{"error": "<code>", "message": "<text>"}` (`docs/http-api.md` API-3), and four page modules
+> were added. See [`../../004-qth-autozoom/contracts/http-endpoints.md`](../../004-qth-autozoom/contracts/http-endpoints.md).
+
 The service listens on `http_port` (default 8080) on `bind_address`. There is no authentication
 (FR-035). All assets are embedded in the binary.
 

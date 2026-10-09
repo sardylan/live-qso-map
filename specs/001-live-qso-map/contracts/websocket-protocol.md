@@ -1,5 +1,8 @@
 # Contract: WebSocket Protocol
 
+> **Changed by feature 004**: protocol version 3. `hello` gains `station` and `entity`. See
+> [`../../004-qth-autozoom/contracts/websocket-protocol.md`](../../004-qth-autozoom/contracts/websocket-protocol.md).
+
 > **Added by feature 003**: the server message `{"type":"remove","id":…}` and the band-filtered
 > `hello.bands`; the protocol stays 2. See [`../../003-band-filter/contracts/websocket-protocol.md`](../../003-band-filter/contracts/websocket-protocol.md).
 

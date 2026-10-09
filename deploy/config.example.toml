@@ -24,7 +24,8 @@
 # bands = ["hf-contest", "-60m"]   # not set = every band
 
 [station]
-# Used only when an incoming QSO lacks them.
+# Used when an incoming QSO lacks them. The map also draws the house (QTH) at this position, and
+# auto-zoom frames the callsign's DXCC entity before the first QSO arrives.
 # callsign = "IS0MZK"
 # locator = "JM49NH"
 # latitude = 39.3125           # set both latitude and longitude, or neither
