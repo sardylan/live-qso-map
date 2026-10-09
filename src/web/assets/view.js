@@ -81,3 +81,22 @@ export function saveAutoZoom(storage, enabled) {
     // Storage may be unavailable; the choice then lasts for this page only.
   }
 }
+
+const RECENT_KEY = 'lqm.recent';
+
+/** The last-QSO box: shown unless the viewer hid it (FR-021). Never throws. */
+export function loadRecent(storage) {
+  try {
+    return storage?.getItem(RECENT_KEY) !== 'hidden';
+  } catch {
+    return true;
+  }
+}
+
+export function saveRecent(storage, shown) {
+  try {
+    storage?.setItem(RECENT_KEY, shown ? 'shown' : 'hidden');
+  } catch {
+    // Storage may be unavailable; the choice then lasts for this page only.
+  }
+}

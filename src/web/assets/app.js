@@ -18,7 +18,10 @@ import {
   popupToClose,
   loadAutoZoom,
   saveAutoZoom,
+  loadRecent,
+  saveRecent,
 } from './view.js';
+import { recentQsos, rowView } from './recent.js';
 import { createAutoZoom } from './autozoom.js';
 import {
   framedPoints,
@@ -87,6 +90,10 @@ let shown = projection;
 let projectionControl = null;
 const autozoom = createAutoZoom({ enabled: loadAutoZoom(localStore()) });
 let autoZoomControl = null;
+let recentShown = loadRecent(localStore());
+const RECENT_ROWS = 5;
+// How far inside the free area a marker opened from the box is brought (FR-022a).
+const PAN_INSET_PX = 40;
 
 function element(tag, className, text) {
   const node = document.createElement(tag);
@@ -254,6 +261,92 @@ class AutoZoomControl {
   }
 }
 
+/** A map control with one toggle button for the last-QSO box (FR-021). */
+class RecentControl {
+  onAdd() {
+    this.container = element('div', 'maplibregl-ctrl maplibregl-ctrl-group toggle-control');
+    this.button = element('button', null, 'Last QSOs');
+    this.button.type = 'button';
+    this.button.addEventListener('click', () => {
+      recentShown = !recentShown;
+      saveRecent(localStore(), recentShown);
+      renderRecent();
+      this.update();
+      autozoom.change();
+    });
+    this.container.append(this.button);
+    this.update();
+    return this.container;
+  }
+
+  update() {
+    this.button.setAttribute('aria-pressed', String(recentShown));
+    this.button.classList.toggle('active', recentShown);
+    const label = recentShown ? 'Hide the last QSOs' : 'Show the last QSOs';
+    this.button.title = label;
+    this.button.setAttribute('aria-label', label);
+  }
+
+  onRemove() {
+    this.container.remove();
+  }
+}
+
+/** Opens a marker's popup from the box, panning only when the marker is hidden (FR-022a). */
+function openFromBox(markerKey) {
+  const marker = current.get(markerKey);
+  if (!marker || !loaded) return;
+  const rect = map.getContainer().getBoundingClientRect();
+  const padding = paddingFor(rect, panelRects(), FIT);
+  const point = map.project([marker.lon, marker.lat]);
+  const left = padding.left + PAN_INSET_PX;
+  const right = rect.width - padding.right - PAN_INSET_PX;
+  const top = padding.top + PAN_INSET_PX;
+  const bottom = rect.height - padding.bottom - PAN_INSET_PX;
+  const dx = point.x < left ? point.x - left : point.x > right ? point.x - right : 0;
+  const dy = point.y < top ? point.y - top : point.y > bottom ? point.y - bottom : 0;
+  // A page-made move carries no browser event, so auto-zoom stays on (FR-011).
+  if (dx !== 0 || dy !== 0) map.panBy([dx, dy], { duration: 400 });
+  openTrackedPopup([marker.lon, marker.lat], popupContent(marker), markerKey);
+}
+
+/** The last-QSO box: plain text only (FR-019, FR-020, FR-022). */
+function renderRecent() {
+  const box = document.getElementById('recent');
+  box.hidden = !recentShown || !state;
+  if (box.hidden) return;
+  const rows = recentQsos(state, RECENT_ROWS).map(rowView);
+  if (rows.length === 0) {
+    box.replaceChildren(element('div', 'empty', 'No QSOs received yet'));
+    return;
+  }
+  const table = element('table');
+  for (const row of rows) {
+    const tr = element('tr');
+    tr.append(
+      element('td', 'call', row.call),
+      element('td', null, row.band),
+      element('td', null, row.mode),
+      element('td', null, row.time),
+    );
+    if (row.markerKey !== null) {
+      tr.className = 'clickable';
+      tr.tabIndex = 0;
+      tr.setAttribute('role', 'button');
+      tr.title = `Show ${row.call} on the map`;
+      tr.addEventListener('click', () => openFromBox(row.markerKey));
+      tr.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          openFromBox(row.markerKey);
+        }
+      });
+    }
+    table.append(tr);
+  }
+  box.replaceChildren(table);
+}
+
 function runActions(actions) {
   for (const action of actions) {
     if (action.type === 'save') {
@@ -389,6 +482,7 @@ function createMap(hello) {
   map.addControl(projectionControl, 'top-left');
   autoZoomControl = new AutoZoomControl();
   map.addControl(autoZoomControl, 'top-left');
+  map.addControl(new RecentControl(), 'top-left');
   map.on('load', () => {
     map.setProjection({ type: shown });
     addOverlays();
@@ -449,6 +543,7 @@ function onHello(hello) {
   helloStation = hello.station ?? null;
   entity = hello.entity ?? null;
   state = createState({ bands: hello.bands, fallbackColor: hello.fallback_color, limit: connection.limit });
+  renderRecent();
   for (const message of handshake(connection)) {
     socket.send(JSON.stringify(message));
   }
@@ -471,6 +566,8 @@ function onMessage(message) {
     return;
   }
   render();
+  // After a snapshot too, so the box refills after a reconnection.
+  renderRecent();
   autozoom.change();
 }
 

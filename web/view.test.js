@@ -125,3 +125,18 @@ test('auto-zoom preference survives a storage that throws', () => {
   assert.equal(loadAutoZoom(throwingStorage), true);
   assert.doesNotThrow(() => saveAutoZoom(throwingStorage, false));
 });
+
+import { loadRecent, saveRecent } from '../src/web/assets/view.js';
+
+test('the last-QSO box is shown by default and its choice round-trips (FR-021)', () => {
+  assert.equal(loadRecent(memoryStorage()), true);
+  const storage = memoryStorage();
+  saveRecent(storage, false);
+  assert.equal(storage.data['lqm.recent'], 'hidden');
+  assert.equal(loadRecent(storage), false);
+  saveRecent(storage, true);
+  assert.equal(loadRecent(storage), true);
+  assert.equal(loadRecent(memoryStorage({ 'lqm.recent': 'maybe' })), true);
+  assert.equal(loadRecent(throwingStorage), true);
+  assert.doesNotThrow(() => saveRecent(throwingStorage, false));
+});

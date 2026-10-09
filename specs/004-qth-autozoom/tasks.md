@@ -376,7 +376,7 @@ with auto-zoom on, and switch back; never save automatic switches (FR-015–FR-0
 
 ### Tests for User Story 4 (write first, confirm they FAIL)
 
-- [ ] T036 [P] [US4] Write `web/recent.test.js`:
+- [X] T036 [P] [US4] Write `web/recent.test.js`:
   - **`recentQsos(state, 5)`**:
     - after seven QSOs, the five newest by `sort_key`, newest first;
     - a late QSO with an older time doesn't enter;
@@ -392,23 +392,23 @@ with auto-zoom on, and switch back; never save automatic switches (FR-015–FR-0
     - `markerKey` is `"lat,lon"`, matching `markers()` keys, or `null` with no remote;
     - `call` is returned verbatim (`<b>X</b>` stays a string; escaping is the glue's job, via
       `textContent`).
-- [ ] T037 [P] [US4] Extend `web/view.test.js`: `loadRecent` and `saveRecent` (`lqm.recent`): the
+- [X] T037 [P] [US4] Extend `web/view.test.js`: `loadRecent` and `saveRecent` (`lqm.recent`): the
   default is shown; `hidden` round-trips; an unknown value → shown; a storage that throws → shown.
 
 ### Implementation for User Story 4
 
-- [ ] T038 [P] [US4] Implement `recentQsos` and `rowView` in `src/web/assets/recent.js`. T036 must
+- [X] T038 [P] [US4] Implement `recentQsos` and `rowView` in `src/web/assets/recent.js`. T036 must
   pass.
-- [ ] T039 [P] [US4] Implement `loadRecent` and `saveRecent` in `src/web/assets/view.js`. T037 must
+- [X] T039 [P] [US4] Implement `loadRecent` and `saveRecent` in `src/web/assets/view.js`. T037 must
   pass.
-- [ ] T040 [US4] Add `<div id="recent" class="recent" hidden>` to `src/web/assets/index.html`. In
+- [X] T040 [US4] Add `<div id="recent" class="recent" hidden>` to `src/web/assets/index.html`. In
   `src/web/assets/app.css`:
   - bottom-left, stacked above the scale control;
   - the same panel look as the legend;
   - rows with a `markerKey` get `cursor: pointer` and a hover state;
   - an empty-state style;
   - it must never cover the bottom-right attribution.
-- [ ] T041 [US4] Glue in `src/web/assets/app.js`:
+- [X] T041 [US4] Glue in `src/web/assets/app.js`:
   - **box contents**:
     - `renderRecent()` after every `render()` builds the rows with `textContent` only. That
       includes the render after a snapshot, so the box refills after a reconnection;

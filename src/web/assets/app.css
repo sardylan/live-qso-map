@@ -105,3 +105,48 @@ body {
   background: #dbe9ff;
   font-weight: 600;
 }
+
+/* Last-QSO box (feature 004, FR-019): bottom left, above the scale bar when it is shown. */
+.recent {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  z-index: 2;
+  max-width: 45%;
+  background: rgba(255, 255, 255, 0.92);
+  padding: 6px 8px;
+  border-radius: 4px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+body.scale-on .recent {
+  bottom: 40px;
+}
+
+.recent table {
+  border-collapse: collapse;
+}
+
+.recent td {
+  padding: 1px 8px 1px 0;
+  white-space: nowrap;
+}
+
+.recent .call {
+  font-weight: 600;
+}
+
+.recent tr.clickable {
+  cursor: pointer;
+}
+
+.recent tr.clickable:hover,
+.recent tr.clickable:focus {
+  background: #dbe9ff;
+  outline: none;
+}
+
+.recent .empty {
+  color: #666;
+  font-style: italic;
+}
