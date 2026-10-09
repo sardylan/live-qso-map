@@ -250,8 +250,7 @@ pub async fn start(config: Config, sources: LookupSources) -> Result<RunningServ
         Arc::new(config),
         pipeline.clone(),
         shutdown_rx,
-        udp,
-        http,
+        (udp, http),
         lookups,
         hello_station,
     );
@@ -271,8 +270,7 @@ fn spawn_tasks(
     config: Arc<Config>,
     pipeline: Pipeline,
     shutdown: watch::Receiver<bool>,
-    udp: UdpSocket,
-    http: TcpListener,
+    (udp, http): (UdpSocket, TcpListener),
     lookups: crate::enrich::Lookups,
     hello_station: HelloStation,
 ) {
