@@ -503,7 +503,7 @@ async fn malformed_scores_change_nothing() {
             .await
             .is_none()
     );
-    assert!(service.pipeline().latest_score().is_none());
+    assert!(service.latest_score().is_none());
     service.shutdown().await;
 }
 

@@ -347,3 +347,15 @@ Then:      T020 manual check
 2. **US2**: the corners rearranged; the Last QSOs switch moves into the settings panel with its
    saved state.
 3. **Polish**: documentation, gates and the verification note.
+
+---
+
+## Phase 5: Convergence
+
+Appended by `/speckit-converge` on review of the current codebase against
+spec/plan/tasks. Complete with `/speckit-implement`.
+
+- [X] T028 Add `RunningService::latest_score() -> Option<Arc<ScoreState>>` in `src/pipeline.rs`,
+  next to `history_len()`, delegating to the pipeline. Use it instead of
+  `service.pipeline().latest_score()` in `tests/ws_protocol.rs` (`malformed_scores_change_nothing`)
+  and `tests/qartest_replay.rs`. <!-- gap: T014 "RunningService gets latest_score() for tests" -->

@@ -173,6 +173,10 @@ impl RunningService {
         self.pipeline.history_len()
     }
 
+    pub fn latest_score(&self) -> Option<Arc<ScoreState>> {
+        self.pipeline.latest_score()
+    }
+
     pub fn pipeline(&self) -> &Pipeline {
         &self.pipeline
     }

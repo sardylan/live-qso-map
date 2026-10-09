@@ -47,7 +47,7 @@ async fn reference_capture_gives_sc_009() {
     tokio::time::sleep(Duration::from_millis(300)).await;
 
     // Packet 10 is the last score in the capture (feature 007).
-    let score = service.pipeline().latest_score().expect("a score");
+    let score = service.latest_score().expect("a score");
     assert_eq!(
         (score.score.score, score.score.qsos, score.score.mults),
         (132, 7, 11)
