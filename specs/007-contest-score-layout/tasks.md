@@ -217,7 +217,7 @@ for the frontend (Node via nvm: `~/.nvm/versions/node/v26.11.1/bin/node`).
   - render on each `score` message and from a `setInterval` every 5 s;
   - add `'#score'` to `PANELS`, and call `autozoom.change()` whenever `renderScore()` writes new
     text, because the line's width may have changed.
-- [ ] T020 [US1] Manually run quickstart §2 (steps 1–7, including the 5-minute stale check and a
+- [X] T020 [US1] Manually run quickstart §2 (steps 1–7, including the 5-minute stale check and a
   service restart). Record the results in `checklists/verification.md`.
 
 **Checkpoint**: the score line works on the current layout; the Last QSOs button is still among
@@ -273,7 +273,7 @@ the map controls.
     it needs).
 
   T021 and T022 must pass.
-- [ ] T025 [US2] Manually run quickstart §3 at 1024 px and 1920 px, on the globe and flat, with
+- [X] T025 [US2] Manually run quickstart §3 at 1024 px and 1920 px, on the globe and flat, with
   the box shown and hidden, including a browser restart and a viewer who had the box hidden before
   the upgrade (SC-004, SC-005). Record the results in `checklists/verification.md`.
 

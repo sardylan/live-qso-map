@@ -2,7 +2,7 @@
 
 **Feature Branch**: `007-contest-score-layout`
 **Created**: 2026-10-09
-**Status**: Draft
+**Status**: Complete
 **Input**: User description: "Add a new spec for displaying contest scores, taken from the
 'every-minute' message broadcast by QARTest. The current score must be a new simple one-line box
 on the bottom left corner of the page, on top of the Last QSO box (if visible), always visible.
