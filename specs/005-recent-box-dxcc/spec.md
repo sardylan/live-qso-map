@@ -103,8 +103,8 @@ next to the existing call, band, mode, time and position source.
 
 - **FR-006**: Each row MUST show, in this order: callsign, band, UTC date as `YYYY-MM-DD`, UTC
   time as `HH:MMZ` (HR-1), and the entity as `prefix · name`. The mode MUST NOT be shown.
-- **FR-007**: Entity names longer than 18 characters MUST be cut to fit, ending with "…". The
-  full `prefix · name` MUST be available on hover.
+- **FR-007**: Entity names longer than 18 characters MUST be cut to 18 characters, the last of
+  which is "…". The full `prefix · name` MUST be available on hover.
 - **FR-008**: A row whose QSO has no entity MUST show "—" in the entity cell.
 - **FR-009**: Every rule of feature 004 for the box is unchanged: the five newest by QSO time,
   clickable rows, the hide button and the plain-text rendering.

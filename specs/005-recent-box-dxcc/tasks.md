@@ -54,12 +54,19 @@ read it.
   - `is0mzk` → `IS` / `Sardinia` (HR-5);
   - `IT9ABC` → `IT9` / `Sicily` (the WAE `*` is stripped);
   - `IS0MZK/P` → `IS` (portable);
+  - **exact call** (spec Edge Cases): the exact match wins over the prefix.
+    - `IT9QZW/4` → `I` / `Italy`, not Sicily;
+    - `KH6QZ` → `K` / `United States`, not Hawaii;
+  - **prefixed call**: `KH6/W1XX` → `KH6` / `Hawaii`;
   - `QQ9QQ` → `None`;
   - with `country: None` → `None`;
   - **position source does not matter (FR-002)**: a record with `GRIDSQUARE`, so the logger gives
     the position, still gets its entity;
   - **corrections (FR-004)**: enriching a second event with the same id and `CALL=K1ABC`, after
-    `IS0MZK`, gives `K`.
+    `IS0MZK`, gives `K`;
+  - **SC-001**: a table-driven test over 30 callsigns from the fixture: ordinary, portable (`/P`,
+    `/M`), prefixed, exact-call and WAE. For each, the entity name from `CountryData::entity_of`
+    equals the `COUNTRY` that `CountryData::lookup` returns for the same callsign.
 - [ ] T003 [P] Write unit tests in `src/web/protocol.rs`:
   - `QsoView::from` of a QSO with an entity serialises
     `"entity": {"prefix": "IS", "name": "Sardinia"}`;
@@ -70,7 +77,9 @@ read it.
     Some(Arc::new(CountryData::parse(fixture))))`;
   - send ADIF QSOs for `K1ABC` and `QQ9QQ`;
   - assert that the upserts and a later snapshot carry `{"prefix": "K", "name": "United States"}`
-    and `null`.
+    and `null`;
+  - assert that each upsert arrives within 2 s of the UDP send, using the existing `next_json`
+    timeout (SC-004).
 
 ### Implementation
 
@@ -165,11 +174,13 @@ file is needed.
 - [ ] T014 [P] Documentation:
   - in `README.md`, under "The map page" → **Last QSOs**, list the new row content: date, time
     (UTC) and the DXCC entity from cty.dat, with long names cut and shown in full on hover;
-  - add a note pointing to `specs/005-recent-box-dxcc/contracts/websocket-protocol.md` in
-    `specs/004-qth-autozoom/contracts/websocket-protocol.md`.
+  - add a note pointing to `specs/005-recent-box-dxcc/contracts/websocket-protocol.md` in both
+    `specs/004-qth-autozoom/contracts/websocket-protocol.md` and
+    `specs/001-live-qso-map/contracts/websocket-protocol.md`, which defines the QSO object.
 - [ ] T015 Run the complete gates (`cargo fmt --check`,
   `cargo clippy --all-targets -- -D warnings`, `cargo test`, `node --test web/`). Complete
-  `checklists/verification.md` with the automated results and SC-001 to SC-004.
+  `checklists/verification.md` with the automated results and the success criteria: SC-001 from
+  T002, SC-002 and SC-003 from T011, and SC-004 from T004.
 
 ---
 
