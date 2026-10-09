@@ -150,7 +150,7 @@ ignores the new fields.
     popup wins (FR-005);
   - track it like the marker popups (`openPopup`/`openKey = 'qth'`);
   - add a style in `src/web/assets/app.css`.
-- [ ] T013 [US1] Manually run quickstart §2 in a browser. Record the result in
+- [X] T013 [US1] Manually run quickstart §2 in a browser. Record the result in
   `specs/004-qth-autozoom/checklists/verification.md` (create the file).
 
 **Checkpoint**: the house and the black lines work; US1 is deliverable on its own.
@@ -293,7 +293,7 @@ FR-012a).
   - **popup timer**: wire popup open and close to `popupOpened`/`popupClosed`. While auto-zoom is
     on, add the 30 s inactivity timer, reset on `pointerdown`, `pointermove`, `wheel` and `keydown`
     inside the popup.
-- [ ] T028 [US2] Manually run quickstart §3 (steps 1–4, 6 and 7, plus a rotate with right-drag
+- [X] T028 [US2] Manually run quickstart §3 (steps 1–4, 6 and 7, plus a rotate with right-drag
   that must turn auto-zoom off), and step 5 after T049. Record the
   results for SC-002, SC-003 and SC-004 in `checklists/verification.md`.
 
@@ -379,7 +379,7 @@ with auto-zoom on, and switch back; never save automatic switches (FR-015–FR-0
   tests in `web/autozoom.test.js`; FR-018 is updated. Page files are also served with
   `Cache-Control: no-cache` (`src/web/mod.rs`, test in `tests/ws_protocol.rs`), so browsers do
   not keep stale modules after a rebuild.
-- [ ] T035 [US3] Manually run quickstart §4 and record SC-006 in `checklists/verification.md`.
+- [X] T035 [US3] Manually run quickstart §4 and record SC-006 in `checklists/verification.md`.
 
 ---
 
@@ -438,7 +438,7 @@ with auto-zoom on, and switch back; never save automatic switches (FR-015–FR-0
     - `popupOpened()` pauses auto-zoom;
   - **keyboard**: rows with a marker are `role="button"` and `tabindex="0"`, and Enter or Space
     opens them.
-- [ ] T042 [US4] Manually run quickstart §5 and record SC-007 in `checklists/verification.md`.
+- [X] T042 [US4] Manually run quickstart §5 and record SC-007 in `checklists/verification.md`.
 
 ---
 
@@ -461,7 +461,7 @@ with auto-zoom on, and switch back; never save automatic switches (FR-015–FR-0
   - add it at `bottom-left` whenever the effective projection becomes `mercator`, by preference or
     automatic switch, and remove it on `globe`;
   - the `#recent` box stays stacked above it (T040).
-- [ ] T045 [US5] Manually run quickstart §6 and record SC-008 in `checklists/verification.md`.
+- [X] T045 [US5] Manually run quickstart §6 and record SC-008 in `checklists/verification.md`.
 
 ---
 
@@ -507,7 +507,7 @@ with auto-zoom on, and switch back; never save automatic switches (FR-015–FR-0
     `contracts/websocket-protocol.md`, added to `specs/002-maplibre/contracts/websocket-protocol.md`
     and `specs/001-live-qso-map/contracts/websocket-protocol.md`;
   - **`specs/001-live-qso-map/contracts/http-endpoints.md`**: a note on JSON errors.
-- [ ] T051 Run the complete gates:
+- [X] T051 Run the complete gates:
   - `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test`,
     `node --test web/` and `python3 -m unittest tools/test_entity_extents.py`;
   - quickstart §7 (the JSON errors);

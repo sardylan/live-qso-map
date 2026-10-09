@@ -2,7 +2,7 @@
 
 **Feature Branch**: `004-qth-autozoom`
 **Created**: 2026-10-09
-**Status**: Draft
+**Status**: Complete (2026-10-09). See `checklists/verification.md`.
 **Input**: User description: "Create a new spec for the frontend: show the QTH location with a house as
 icon (use common icons or emoji) with position of the local station; display a geodesic line that
 connects the local station with each remote station, using black color; show a button to enable

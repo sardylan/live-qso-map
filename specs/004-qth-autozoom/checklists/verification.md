@@ -15,18 +15,19 @@
 | `boundingCap` with 2,000 points (plan goal < 5 ms) | median 3.5 ms (Node 26, development Mac) |
 | JSON errors (FR-027) | 404, 405 with `Allow`, and `/ws` without an upgrade: all JSON, checked in `tests/ws_protocol.rs` |
 
-## Manual (browser), to be run by the project owner
+## Manual (browser), run by the project owner
 
-Run quickstart §2–§7 in one pass and record the outcome of each item.
+Confirmed by the owner in a browser on 2026-10-09, after the fixes T052 (globe zoom), T053
+(button follows the view) and T054 (a switch turns auto-zoom off; page files revalidate).
 
-- [ ] T013 / SC-001: the house is shown within 2 s, with black lines from it and the house popup (§2)
-- [ ] T028 / SC-002, SC-003, SC-004: auto-zoom keeps everything clear of the panels at 1024×600
+- [x] T013 / SC-001: the house is shown within 2 s, with black lines from it and the house popup (§2)
+- [x] T028 / SC-002, SC-003, SC-004: auto-zoom keeps everything clear of the panels at 1024×600
   and 3840×2160; entity framing for IS, I, W, VK; manual moves (drag, zoom, rotate) switch it
   off; popups pause it; reconnection (§3)
-- [ ] SC-005: at most one refit per second at about 10 QSOs/s with 2,000 shown (§3 step 5)
-- [ ] T035 / SC-006: the globe is kept while everything fits, flat otherwise, the globe again
+- [x] SC-005: at most one refit per second at about 10 QSOs/s with 2,000 shown (§3 step 5)
+- [x] T035 / SC-006: the globe is kept while everything fits, flat otherwise, the globe again
   afterwards; the preference is never overwritten; a drag keeps the automatic flat view (§4)
-- [ ] T042 / SC-007: the box shows the five newest, late QSOs stay out, corrections and removals
+- [x] T042 / SC-007: the box shows the five newest, late QSOs stay out, corrections and removals
   are followed, rows open popups, the hidden state is remembered, text is shown literally (§5)
-- [ ] T045 / SC-008: the scale is within 5 % over 10 zoom levels, and hidden on the globe (§6)
-- [ ] §7: the JSON errors reproduced with `curl`
+- [x] T045 / SC-008: the scale is within 5 % over 10 zoom levels, and hidden on the globe (§6)
+- [x] §7: the JSON errors reproduced with `curl`
