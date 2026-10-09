@@ -237,12 +237,12 @@ the map controls.
 
 ### Tests for User Story 2 (write first, confirm they FAIL)
 
-- [ ] T021 [P] [US2] Extend `static_assets_are_served` in `tests/ws_protocol.rs`, as a regression
+- [X] T021 [P] [US2] Extend `static_assets_are_served` in `tests/ws_protocol.rs`, as a regression
   guard on the markup:
   - `/` contains `id="settings"`, `id="recent-shown"`, `id="corner-bl"` and `id="score"`;
   - `/` no longer contains `class="limit-control"`;
   - `/app.js` no longer contains `class RecentControl`.
-- [ ] T022 [P] [US2] In `web/view.test.js`, add a case: a value saved with `saveRecent(storage,
+- [X] T022 [P] [US2] In `web/view.test.js`, add a case: a value saved with `saveRecent(storage,
   false)` before this feature reads back as `false` with `loadRecent`, so the moved checkbox
   starts unticked (Principle IV). Keep the existing fallback cases. This is a regression guard and
   may already pass, because the helpers don't change: it pins the key. The failing-first test for
@@ -250,7 +250,7 @@ the map controls.
 
 ### Implementation for User Story 2
 
-- [ ] T023 [US2] In `src/web/assets/index.html`, turn `.limit-control` into
+- [X] T023 [US2] In `src/web/assets/index.html`, turn `.limit-control` into
   `<div id="settings" class="settings">`, with:
   1. "Map: last [N] QSOs";
   2. the separated box section:
@@ -261,7 +261,7 @@ the map controls.
   In `src/web/assets/app.css`, rename `.limit-control` to `.settings` (and
   `.limit-control .box-settings` to `.settings .box-settings`), and lay the box section out on
   one row.
-- [ ] T024 [US2] Glue in `src/web/assets/app.js`:
+- [X] T024 [US2] Glue in `src/web/assets/app.js`:
   - remove `class RecentControl` and its `addControl`, so the top left keeps the Navigation,
     Projection and Auto-zoom controls, in that order (FR-009);
   - wire `#recent-shown`:

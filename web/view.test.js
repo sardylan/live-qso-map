@@ -174,3 +174,10 @@ test('box order defaults to newest at the bottom and round-trips (feature 006)',
   assert.equal(loadRecentOrder(throwingStorage), 'bottom');
   assert.doesNotThrow(() => saveRecentOrder(throwingStorage, 'top'));
 });
+
+test('a box hidden before feature 007 stays hidden once the switch is a checkbox (Principle IV)', () => {
+  // The value written by the feature-004 map control, under the same key the checkbox reads.
+  const storage = memoryStorage({ 'lqm.recent': 'hidden' });
+  assert.equal(loadRecent(storage), false);
+  assert.equal(loadRecent(memoryStorage({ 'lqm.recent': 'shown' })), true);
+});

@@ -57,7 +57,7 @@ const PANELS = [
   '#legend',
   '#recent',
   '#score',
-  '.limit-control',
+  '#settings',
   '.maplibregl-ctrl-top-left',
   '.maplibregl-ctrl-bottom-left',
   '.maplibregl-ctrl-bottom-right',
@@ -272,37 +272,6 @@ class AutoZoomControl {
     this.button.setAttribute('aria-pressed', String(on));
     this.button.classList.toggle('active', on);
     const label = on ? 'Auto-zoom is on: click to stop following the QSOs' : 'Auto-zoom is off: click to show every QSO';
-    this.button.title = label;
-    this.button.setAttribute('aria-label', label);
-  }
-
-  onRemove() {
-    this.container.remove();
-  }
-}
-
-/** A map control with one toggle button for the last-QSO box (FR-021). */
-class RecentControl {
-  onAdd() {
-    this.container = element('div', 'maplibregl-ctrl maplibregl-ctrl-group toggle-control');
-    this.button = element('button', null, 'Last QSOs');
-    this.button.type = 'button';
-    this.button.addEventListener('click', () => {
-      recentShown = !recentShown;
-      saveRecent(localStore(), recentShown);
-      renderRecent();
-      this.update();
-      autozoom.change();
-    });
-    this.container.append(this.button);
-    this.update();
-    return this.container;
-  }
-
-  update() {
-    this.button.setAttribute('aria-pressed', String(recentShown));
-    this.button.classList.toggle('active', recentShown);
-    const label = recentShown ? 'Hide the last QSOs' : 'Show the last QSOs';
     this.button.title = label;
     this.button.setAttribute('aria-label', label);
   }
@@ -563,7 +532,6 @@ function createMap(hello) {
   map.addControl(projectionControl, 'top-left');
   autoZoomControl = new AutoZoomControl();
   map.addControl(autoZoomControl, 'top-left');
-  map.addControl(new RecentControl(), 'top-left');
   updateScale();
   map.on('load', () => {
     map.setProjection({ type: shown });
@@ -698,6 +666,17 @@ function setupSelector() {
     if (socket && socket.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify({ type: 'set_limit', limit: serverLimit(connection.limit) }));
     }
+  });
+
+  // The box's show/hide switch, in the settings panel since feature 007 (FR-010), with the
+  // feature-004 key, so a viewer's choice survives the move (Principle IV).
+  const shownBox = document.getElementById('recent-shown');
+  shownBox.checked = recentShown;
+  shownBox.addEventListener('change', () => {
+    recentShown = shownBox.checked;
+    saveRecent(localStore(), recentShown);
+    renderRecent();
+    autozoom.change();
   });
 
   const size = document.getElementById('recent-size');

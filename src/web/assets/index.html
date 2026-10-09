@@ -25,7 +25,8 @@
     <div id="score" class="score" aria-live="polite">Score —</div>
     <div id="recent" class="recent" hidden aria-label="Last QSOs"></div>
   </div>
-  <div class="limit-control">
+  <!-- Top right: every viewer setting (feature 007, FR-010). -->
+  <div id="settings" class="settings">
     <label>Map: last
       <select id="limit">
         <option value="10">10</option>
@@ -39,6 +40,7 @@
       QSOs
     </label>
     <div class="box-settings">
+      <label><input type="checkbox" id="recent-shown"> Last QSOs</label>
       <label>Box: last
         <select id="recent-size">
           <option value="3">3</option>

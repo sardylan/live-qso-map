@@ -140,6 +140,26 @@ async fn static_assets_are_served() {
         "sha512-KIMsMWIdnoG9OwZa+oaIafmbDonqck1UCmq+/zcUi2aaZ97N9QE6TqpTM+n36EO40HGh64hU/375zxtjx7WTyQ=="
     ));
     assert!(!index.to_lowercase().contains("leaflet"));
+    // Feature 007 layout: one settings panel holding the box switch, and the bottom-left column.
+    for id in [
+        r#"id="settings""#,
+        r#"id="recent-shown""#,
+        r#"id="corner-bl""#,
+        r#"id="score""#,
+    ] {
+        assert!(index.contains(id), "{id}");
+    }
+    assert!(!index.contains(r#"class="limit-control""#));
+    let app = reqwest::get(format!("http://{}/app.js", service.http_addr))
+        .await
+        .unwrap()
+        .text()
+        .await
+        .unwrap();
+    assert!(
+        !app.contains("class RecentControl"),
+        "the box switch left the map controls"
+    );
     let missing = reqwest::get(format!("http://{}/nope", service.http_addr))
         .await
         .unwrap();
