@@ -91,7 +91,9 @@ for the frontend (Node via nvm: `~/.nvm/versions/node/v26.11.1/bin/node`).
   - `events_from_datagram` on packet 4 returns `Ingested { events: [], score: Some(90/6/10) }`;
   - on packet 1 it returns one event and `score: None`;
   - on an ADIF datagram it returns `score: None`;
-  - a `dynamicresults` with `<score>abc</score>` returns no events and no score (logged).
+  - a `dynamicresults` with `<score>abc</score>` returns no events and no score. It logs one WARN
+    event naming `score`, checked with a `tracing` layer that counts warnings, as
+    `tests/qartest_replay.rs` does.
 - [ ] T005 [P] [US1] Write unit tests in `src/pipeline.rs`:
   - `latest_score()` is `None` on a new pipeline;
   - after `publish_score(s)`:
@@ -116,6 +118,9 @@ for the frontend (Node via nvm: `~/.nvm/versions/node/v26.11.1/bin/node`).
     `{"type":"score","score":90,"qsos":6,"mults":10,…}` with `age_s` 0 or 1 (SC-001);
   - **on connect**: a page that connects after the score gets `hello`, `snapshot` and that
     `score` within 1 s (SC-002);
+  - **latest wins** (spec Edge Cases): after packet 4, send packet 10 with `<call>IS0MZK</call>`
+    replaced by `<call>IQ0ZZZ</call>`. The page gets a second `score` with 132/7/11, and a page that
+    connects afterwards gets only 132/7/11;
   - **none held**: a page on a fresh service gets no `score` message within 500 ms;
   - **malformed** (SC-006): 100 datagrams of packet 4 with `<score>90</score>` replaced by
     `<score>x</score>`, then one QSO. The page gets the QSO's `upsert` and no `score`, and
@@ -166,7 +171,9 @@ for the frontend (Node via nvm: `~/.nvm/versions/node/v26.11.1/bin/node`).
 - [ ] T014 [US1] In `src/pipeline.rs`:
   - add `ScoreState { score, received: Instant, received_at: String }`, the `score` field,
     `publish_score`, `latest_score`, and `HistoryChange::Score(Arc<ScoreState>)`;
-  - `received_at` uses `SystemTime::now()` seconds and `history::format_rfc3339`;
+  - `received_at` uses `SystemTime::now().duration_since(UNIX_EPOCH)` seconds and
+    `history::format_rfc3339`. If the clock is before 1970, use 0 and log a warning, with no
+    `unwrap` (Principle II);
   - `RunningService` gets `latest_score()` for tests;
   - recover a poisoned lock as `lock_history` does.
 
@@ -202,11 +209,14 @@ for the frontend (Node via nvm: `~/.nvm/versions/node/v26.11.1/bin/node`).
   - import from `./score.js`;
   - keep `scoreState`: reset it to `null` in `onHello`; on a `score` message, set it with
     `localReceived = Date.now() - age_s * 1000`;
-  - `renderScore()` sets `#score` with `textContent = scoreText(...)`, toggles `stale` with
-    `isStale`, and sets `title = updatedTitle(received_at)`;
+  - `renderScore()`:
+    - computes `text = scoreText(...)`;
+    - writes `textContent` only when `text` differs from what is shown, so the `aria-live` region
+      announces real changes only;
+    - toggles `stale` with `isStale` and sets `title = updatedTitle(received_at)` on every call;
   - render on each `score` message and from a `setInterval` every 5 s;
-  - add `'#score'` to `PANELS`, and call `autozoom.change()` when the line's text changes width
-    (first score, `Score —` reset).
+  - add `'#score'` to `PANELS`, and call `autozoom.change()` whenever `renderScore()` writes new
+    text, because the line's width may have changed.
 - [ ] T020 [US1] Manually run quickstart §2 (steps 1–7, including the 5-minute stale check and a
   service restart). Record the results in `checklists/verification.md`.
 
@@ -234,8 +244,9 @@ the map controls.
   - `/app.js` no longer contains `class RecentControl`.
 - [ ] T022 [P] [US2] In `web/view.test.js`, add a case: a value saved with `saveRecent(storage,
   false)` before this feature reads back as `false` with `loadRecent`, so the moved checkbox
-  starts unticked (Principle IV). Keep the existing fallback cases. This test may already pass,
-  because the helpers don't change: it pins the key.
+  starts unticked (Principle IV). Keep the existing fallback cases. This is a regression guard and
+  may already pass, because the helpers don't change: it pins the key. The failing-first test for
+  moving the switch is T021.
 
 ### Implementation for User Story 2
 

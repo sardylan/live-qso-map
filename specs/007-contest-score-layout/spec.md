@@ -147,8 +147,8 @@ place.
   `1.234.567 pts · 1.523 QSO · 183 mults`. Before the first score, it MUST show `Score —`.
 - **FR-006**: The score line MUST always be visible: it has no hide switch.
 - **FR-007**: When the latest score is more than 5 minutes old, by the time the service received it,
-  the line MUST be greyed out, with a tooltip `Last updated HH:MMZ` in UTC (HR-1). A new score
-  restores the normal look.
+  the line MUST be greyed out. Once a score is shown, the line always has the tooltip
+  `Last updated HH:MMZ` in UTC (HR-1). A new score restores the normal look.
 - **FR-008**: The score values MUST be rendered as plain text.
 
 **Layout**
@@ -196,8 +196,9 @@ place.
 - **Source**: only QARTest score messages are read. Other loggers' score formats are out of scope.
 - **Units**: "pts" is the contest score, the number QARTest reports as `<score>`. The points total
   of the breakdown is not shown.
-- **Mults**: the sum of all `band='total'` multiplier entries, whatever their type. For CQ WW that
-  is countries plus zones.
+- **Mults**: the sum of all `band='total' mode='ALL'` multiplier entries, whatever their type.
+  Per-mode totals are not added, so mixed-mode contests are not double-counted. For CQ WW that is
+  countries plus zones.
 - **Staleness threshold**: fixed at 5 minutes, five missed one-minute broadcasts.
 - **Protocol**: the score reaches pages as an additive message, under the interface rules
   (`docs/http-api.md`). The plan decides whether the protocol version changes.
