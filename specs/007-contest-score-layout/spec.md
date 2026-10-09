@@ -27,6 +27,8 @@ the bottom right; last QSO box on the bottom left (togglable) with Scores."
 - Q: Which settings go in the top-right panel? → A: the map's "Last N", the box size, the box order,
   and the Last QSOs show/hide switch, which moves out of the top-left controls. The top left keeps
   only zoom, Globe/Flat and Auto-zoom.
+- Q: Must the layout work on narrow screens? → A: No. The layout must work from 1024 px wide up;
+  phones and smaller screens are out of scope.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -162,7 +164,9 @@ place.
   attribution.
 - **FR-013**: Auto-zoom MUST treat the score line like the other panels and keep the QSOs clear of
   it (feature 004, FR-009).
-- **FR-014**: Features 001–006 MUST keep working unchanged, apart from the positions of the controls
+- **FR-014**: The layout rules FR-009 to FR-013 apply to windows 1024 px wide or wider. Narrower
+  windows are out of scope.
+- **FR-015**: Features 001–006 MUST keep working unchanged, apart from the positions of the controls
   that this feature moves.
 
 ### Key Entities
@@ -202,4 +206,5 @@ place.
   - score history or graphs;
   - a rate (QSOs per hour);
   - claimed versus verified scores;
+  - layouts for windows narrower than 1024 px, such as phones;
   - keeping the score across restarts (QSO persistence is not part of the project).
