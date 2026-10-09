@@ -2,7 +2,7 @@
 
 **Feature Branch**: `005-recent-box-dxcc`
 **Created**: 2026-10-09
-**Status**: Draft
+**Status**: Complete (2026-10-09). See `checklists/verification.md`.
 **Input**: User description: "On frontend, in last QSO box, hide mode and add Date. Add also the
 DXCC country prefix and name."
 

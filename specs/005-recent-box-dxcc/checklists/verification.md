@@ -22,8 +22,10 @@
   004, FR-019). The box now sits above the attribution row: 30 px from the bottom, or 56 px with
   the scale bar.
 
-## Manual (browser), to be run by the project owner
+## Manual (browser), run by the project owner
 
-- [ ] T011 / SC-002, SC-003: quickstart §2, including the run with no country data and the
+Confirmed by the owner in a browser on 2026-10-09.
+
+- [x] T011 / SC-002, SC-003: quickstart §2, including the run with no country data and the
   1024 px width
-- [ ] T013: quickstart §3, popups with the entity, including a correction while a popup is open
+- [x] T013: quickstart §3, popups with the entity, including a correction while a popup is open

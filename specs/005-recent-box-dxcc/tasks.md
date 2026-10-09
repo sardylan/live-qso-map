@@ -142,7 +142,7 @@ read it.
 - [X] T016 [US1] Fix found in the headless browser check: the wider box covered the start of the
   attribution line at 1024 px (feature 004, FR-019, kept by FR-009). In `src/web/assets/app.css`,
   `.recent` now sits 30 px from the bottom, or 56 px with the scale bar.
-- [ ] T011 [US1] Manually run quickstart §2, including the 1024 px width check (SC-003) and the
+- [X] T011 [US1] Manually run quickstart §2, including the 1024 px width check (SC-003) and the
   run with no country data (SC-002). Record the results in
   `specs/005-recent-box-dxcc/checklists/verification.md` (create the file).
 
@@ -167,7 +167,7 @@ file is needed.
 - [X] T012 [US2] In `popupContent()` in `src/web/assets/app.js`, add a cell with
   `entityLabel(qso.entity)`, via `textContent`, to each row, keeping mode, time and source. Add
   styling in `src/web/assets/app.css` if needed.
-- [ ] T013 [US2] Manually run quickstart §3, including correcting a QSO while its popup is open,
+- [X] T013 [US2] Manually run quickstart §3, including correcting a QSO while its popup is open,
   and record the result in `checklists/verification.md`.
 
 ---
@@ -180,7 +180,7 @@ file is needed.
   - add a note pointing to `specs/005-recent-box-dxcc/contracts/websocket-protocol.md` in both
     `specs/004-qth-autozoom/contracts/websocket-protocol.md` and
     `specs/001-live-qso-map/contracts/websocket-protocol.md`, which defines the QSO object.
-- [ ] T015 Run the complete gates (`cargo fmt --check`,
+- [X] T015 Run the complete gates (`cargo fmt --check`,
   `cargo clippy --all-targets -- -D warnings`, `cargo test`, `node --test web/`). Complete
   `checklists/verification.md` with the automated results and the success criteria: SC-001 from
   T002, SC-002 and SC-003 from T011, and SC-004 from T004.
