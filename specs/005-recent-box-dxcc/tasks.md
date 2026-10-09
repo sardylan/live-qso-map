@@ -139,6 +139,9 @@ read it.
   - in `src/web/assets/app.css`, add `.recent .entity` with no wrap.
 
   Feature-004 behaviour is unchanged (FR-009).
+- [X] T016 [US1] Fix found in the headless browser check: the wider box covered the start of the
+  attribution line at 1024 px (feature 004, FR-019, kept by FR-009). In `src/web/assets/app.css`,
+  `.recent` now sits 30 px from the bottom, or 56 px with the scale bar.
 - [ ] T011 [US1] Manually run quickstart §2, including the 1024 px width check (SC-003) and the
   run with no country data (SC-002). Record the results in
   `specs/005-recent-box-dxcc/checklists/verification.md` (create the file).
@@ -171,7 +174,7 @@ file is needed.
 
 ## Phase 5: Polish & Cross-Cutting Concerns
 
-- [ ] T014 [P] Documentation:
+- [X] T014 [P] Documentation:
   - in `README.md`, under "The map page" → **Last QSOs**, list the new row content: date, time
     (UTC) and the DXCC entity from cty.dat, with long names cut and shown in full on hover;
   - add a note pointing to `specs/005-recent-box-dxcc/contracts/websocket-protocol.md` in both

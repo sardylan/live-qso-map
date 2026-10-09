@@ -1,5 +1,8 @@
 # Contract: WebSocket Protocol (delta to features 001–003)
 
+> **Added by feature 005**: each QSO object gains `entity` (`{"prefix","name"}` from cty.dat, or
+> `null`); the protocol stays 3. See [`../../005-recent-box-dxcc/contracts/websocket-protocol.md`](../../005-recent-box-dxcc/contracts/websocket-protocol.md).
+
 - **Protocol version**: **3**.
 - **Unchanged**: everything else, including `snapshot`, `upsert`, `remove`, `set_limit`, the band
   list in frequency order and `basemap`.

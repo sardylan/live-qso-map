@@ -106,11 +106,12 @@ body {
   font-weight: 600;
 }
 
-/* Last-QSO box (feature 004, FR-019): bottom left, above the scale bar when it is shown. */
+/* Last-QSO box (feature 004, FR-019): bottom left, above the attribution line (which can run under
+   it on narrow windows) and above the scale bar when it is shown. */
 .recent {
   position: absolute;
   left: 10px;
-  bottom: 10px;
+  bottom: 30px;
   z-index: 2;
   max-width: 45%;
   background: rgba(255, 255, 255, 0.92);
@@ -120,7 +121,7 @@ body {
 }
 
 body.scale-on .recent {
-  bottom: 40px;
+  bottom: 56px;
 }
 
 .recent table {

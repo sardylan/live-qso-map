@@ -1,5 +1,8 @@
 # Contract: WebSocket Protocol
 
+> **Added by feature 005**: each QSO object gains `entity` (`{"prefix","name"}` from cty.dat, or
+> `null`); the protocol stays 3. See [`../../005-recent-box-dxcc/contracts/websocket-protocol.md`](../../005-recent-box-dxcc/contracts/websocket-protocol.md).
+
 > **Changed by feature 004**: protocol version 3. `hello` gains `station` and `entity`. See
 > [`../../004-qth-autozoom/contracts/websocket-protocol.md`](../../004-qth-autozoom/contracts/websocket-protocol.md).
 

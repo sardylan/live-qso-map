@@ -86,8 +86,10 @@ checked with Subresource Integrity.
     around the house when the entity is unknown.
   - On the globe, it switches to the flat map only when the QSOs cannot all fit on one side of the
     Earth, and returns to the globe when they fit again. Your saved choice is never changed.
-- **Last QSOs**: a box at the bottom left lists the five newest QSOs (by QSO time, in UTC). Click
-  a row to open its popup; the **Last QSOs** button hides it.
+- **Last QSOs**: a box at the bottom left lists the five newest QSOs (by QSO time). Each row shows
+  the callsign, band, UTC date and time, and the DXCC entity from cty.dat as `prefix · name`;
+  long names are cut, and hovering shows them in full. Click a row to open its popup; the
+  **Last QSOs** button hides it. Popups show each QSO's entity too.
 - **Scale**: a metric scale bar, shown on the flat map only.
 
 Each browser remembers its own Globe/Flat, Auto-zoom and Last QSOs choices.
