@@ -37,6 +37,9 @@ consider all items in the page, like the QSO box (if enabled), legend, etc."
   switching off. Rows without a remote position are not clickable.
 - Q: Where is the globe centred during auto-zoom? → A: On the point that best frames the house and
   all markers. The map switches to flat only when no centre can show them all.
+- Q: The view was switched to flat automatically and auto-zoom turns off. What happens to the
+  view? → A: It stays as it is. The automatic flat lasts until the viewer uses the projection
+  button or turns auto-zoom back on, and a reload restores the saved preference.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -129,6 +132,9 @@ when those QSOs are removed.
    preference is still the one they chose by hand; automatic switches are never saved.
 6. **Given** the flat preference, **When** auto-zoom fits the map, **Then** it never switches to the
    globe.
+7. **Given** an automatic switch to flat, **When** the viewer drags the map, **Then** auto-zoom
+   turns off and the map stays flat. It returns to the globe only through the projection button,
+   by turning auto-zoom back on (when everything fits), or by a reload.
 
 ---
 
@@ -238,7 +244,8 @@ globe: it disappears.
   window is resized.
 - **FR-009**: The fit MUST keep a margin so that nothing it frames lies under any visible page
   element: legend, last-QSO box, limit selector, map controls, attribution and status banners.
-  FR-019 is the only exception.
+  The only exception is the small-screen edge case: when panels leave a free area smaller than the
+  minimum, the fit uses the whole map.
 - **FR-010**: With a known QTH and no displayed remote markers, auto-zoom MUST frame the extent of
   the station's DXCC entity (HR-6). The entity comes from the station callsign and the bundled
   extent table. It MUST frame a fixed radius around the QTH when the entity is unknown or missing
@@ -267,7 +274,9 @@ globe: it disappears.
     necessarily the QTH.
   - "Cannot all be seen" means no centre exists from which they all lie on the visible side.
 - **FR-017**: The page MUST NOT change the projection by itself when auto-zoom is off, and it MUST
-  NOT switch a flat preference to the globe.
+  NOT switch a flat preference to the globe. Turning auto-zoom off, by the button or by a manual
+  move, MUST NOT change the projection. An automatic flat view stays until the viewer uses the
+  projection button or turns auto-zoom back on.
 - **FR-018**: Automatic projection switches MUST NOT change the saved preference. The projection
   button keeps setting and saving the viewer's choice, as in feature 002.
 

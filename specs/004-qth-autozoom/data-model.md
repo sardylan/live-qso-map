@@ -101,15 +101,16 @@ The transitions. Each returns a list of actions.
 
 | Event | Effect |
 |-------|--------|
-| `toggle()` | `enabled = !enabled`. When it becomes on, `pending = true` and the action is `fitNow`. When it becomes off, `autoFlat = false`, and the action is `restorePreference` if `autoFlat` was true. |
+| `toggle()` | `enabled = !enabled`. When it becomes on, `pending = true` and the action is `fitNow`. When it becomes off, there is no projection action, and `autoFlat` is kept, so turning auto-zoom back on can return to the globe when everything fits (FR-017). |
 | `change()` | when enabled, `pending = true` |
-| `userMove()` | when enabled, `enabled = false`, `pending = false`, and the actions are `saveOff` plus `restorePreference` if `autoFlat` was true |
+| `userMove()` | when enabled, `enabled = false`, `pending = false`, and the action is `saveOff` only; the projection is unchanged (FR-017) |
 | `popupOpened()` | `popupOpen = true` |
 | `popupClosed()` | `popupOpen = false`; when enabled, `pending = true` (the catch-up refit) |
 | `tick(now)` | when `enabled && pending && !popupOpen && now - lastFitAt ≥ 1000`, the action is `fit`; then `pending = false` and `lastFitAt = now` |
 | `fitted(fitsGlobe, preference)` | sets `autoFlat = preference === 'globe' && !fitsGlobe`, and returns the projection to apply |
 
-**Invariant**: `autoFlat` is true only while auto-zoom is enabled and the preference is the globe.
+**Invariant**: `autoFlat` is true only while the preference is the globe and auto-zoom switched the
+view to flat. It is cleared by the projection button, or by a fit that fits the globe.
 Nothing here writes `lqm.projection` (FR-018).
 
 ### Last-QSO box (`recent.js`, new)

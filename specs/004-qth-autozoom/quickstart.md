@@ -36,14 +36,16 @@ cargo run --release -- --station-callsign IS0MZK --station-locator JM49NH
    exactly one refit. Open a popup and leave it alone for 30 s: it closes, then the map refits once.
 5. Set the limit to All and run `scripts/send_burst.sh 2000`. Then send a second burst with
    100 new QSOs paced at about 10 QSOs/s. `send_burst.sh` gains an optional delay argument for
-   this (`scripts/send_burst.sh 100 127.0.0.1 12060 0.1`) and a start offset, so the new calls
-   differ from the first burst.
+   this (`scripts/send_burst.sh 100 127.0.0.1 12060 0.1 2000`) and a start offset, so the new
+   calls differ from the first burst.
    **Expected**: at most one refit per second (the browser's performance panel shows camera
    animations about 1 s apart), and the map stays responsive.
 6. Restart with `--station-callsign` set to each of `I0XXX`, `W1XX` and `VK2XX` and their locators,
    and with no QSOs. **Expected**: Italy, the contiguous USA or Australia fills at least half of the
    free width or height (SC-003). Start with no callsign and only a locator: the map frames 500 km
    around the house.
+7. With the page open, restart the service. **Expected**: auto-zoom, box visibility and the
+   projection are kept, and the box refills from the snapshot.
 
 ## 4. Globe and flat (User Story 3, SC-006)
 
@@ -54,7 +56,9 @@ cargo run --release -- --station-callsign IS0MZK --station-locator JM49NH
    **Expected**: the map returns to the globe.
 4. Turn auto-zoom off and add the DX QSOs back. **Expected**: the map stays a globe.
 5. Reload after step 2. **Expected**: the projection button still offers "Flat", because the saved
-   preference is Globe.
+   preference is Globe. Before reloading, its tooltip says auto-zoom switched to flat.
+6. Repeat step 2, then drag the map. **Expected**: auto-zoom turns off and the map stays flat
+   (FR-017). Turn auto-zoom back on after removing the DX QSOs: the map returns to the globe.
 
 ## 5. Last-QSO box (User Story 4, SC-007)
 
