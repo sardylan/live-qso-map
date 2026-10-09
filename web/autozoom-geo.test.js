@@ -76,3 +76,81 @@ test('paddingFor falls back to a uniform gap when too little room is left', () =
   const tall = rect(0, 0, 900, 150);
   assert.deepEqual(paddingFor(MAP, [huge, tall], OPTIONS), { top: 12, right: 12, bottom: 12, left: 12 });
 });
+
+import { boundingCap, fitsGlobe, zoomForCap } from '../src/web/assets/autozoom-geo.js';
+
+const IS = [39.2, 9.1];
+const JA = [35.7, 139.7];
+const W6 = [34.0, -118.2];
+const ZL = [-41.3, 174.8];
+const PY = [-23.5, -46.6];
+const KH6 = [21.3, -157.9];
+const D2 = [-18.1, 178.4]; // Fiji (3D2)
+
+function angle([lat1, lon1], [lat2, lon2]) {
+  const r = Math.PI / 180;
+  const c = Math.sin(lat1 * r) * Math.sin(lat2 * r) + Math.cos(lat1 * r) * Math.cos(lat2 * r) * Math.cos((lon2 - lon1) * r);
+  return Math.acos(Math.min(1, Math.max(-1, c))) / r;
+}
+
+test('boundingCap of European points is small and centred in Europe', () => {
+  const cap = boundingCap([IS, [51.5, -0.1], [52.5, 13.4], [41.9, 12.5]]);
+  assert.ok(cap.radiusDeg < 30, `radius ${cap.radiusDeg}`);
+  assert.ok(cap.center[0] > 35 && cap.center[0] < 60 && cap.center[1] > -10 && cap.center[1] < 30, `centre ${cap.center}`);
+});
+
+test('boundingCap contains every point', () => {
+  const points = [IS, JA, W6, ZL, KH6];
+  const cap = boundingCap(points);
+  for (const p of points) assert.ok(angle(cap.center, p) <= cap.radiusDeg + 1e-6);
+});
+
+test('IS, JA and W6 fit on one side of the globe, seen from the north', () => {
+  const cap = boundingCap([IS, JA, W6]);
+  assert.ok(cap.radiusDeg < 70, `radius ${cap.radiusDeg}`);
+  assert.ok(cap.center[0] > 60, `centre ${cap.center}`);
+});
+
+test('IS, ZL, PY and JA cannot fit on one side of the globe', () => {
+  assert.ok(boundingCap([IS, ZL, PY, JA]).radiusDeg > 90);
+});
+
+test('a Pacific set is centred in the Pacific, not at longitude 0', () => {
+  const cap = boundingCap([ZL, KH6, D2]);
+  const lon = cap.center[1];
+  assert.ok(lon > 150 || lon < -150, `centre ${cap.center}`);
+});
+
+test('boundingCap of one point has radius 0', () => {
+  const cap = boundingCap([IS]);
+  assert.ok(cap.radiusDeg < 1e-6);
+  assert.ok(angle(cap.center, IS) < 1e-6);
+});
+
+test('boundingCap of 2,000 points stays fast', () => {
+  let seed = 7;
+  const random = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const points = Array.from({ length: 2000 }, () => [random() * 140 - 70, random() * 360 - 180]);
+  const times = [];
+  for (let i = 0; i < 20; i++) {
+    const start = performance.now();
+    boundingCap(points);
+    times.push(performance.now() - start);
+  }
+  times.sort((a, b) => a - b);
+  // A loose limit for slow machines; the 5 ms plan target is measured by hand (T051).
+  assert.ok(times[10] < 50, `median ${times[10]} ms`);
+});
+
+test('fitsGlobe needs the cap plus the margin within a hemisphere', () => {
+  assert.equal(fitsGlobe({ center: [0, 0], radiusDeg: 80 }, 5), true);
+  assert.equal(fitsGlobe({ center: [0, 0], radiusDeg: 88 }, 5), false);
+});
+
+test('zoomForCap grows as the cap shrinks, and stops at 12', () => {
+  const viewport = [1000, 800];
+  const z = [80, 40, 10, 1, 0.001].map((r) => zoomForCap({ center: [0, 0], radiusDeg: r }, viewport));
+  for (let i = 1; i < z.length; i++) assert.ok(z[i] >= z[i - 1], `${z}`);
+  assert.equal(zoomForCap({ center: [0, 0], radiusDeg: 0 }, viewport), 12);
+  assert.ok(z[0] >= 0);
+});

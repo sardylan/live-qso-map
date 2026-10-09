@@ -311,7 +311,7 @@ with auto-zoom on, and switch back; never save automatic switches (FR-015–FR-0
 
 ### Spike (before the glue that depends on it)
 
-- [ ] T029 [US3] Spike in a scratch page, not committed: does MapLibre 5.24.0
+- [X] T029 [US3] Spike in a scratch page, not committed: does MapLibre 5.24.0
   `cameraForBounds`/`fitBounds` with `padding` produce a sensible centre and zoom under
   `projection: globe` for (a) Europe, (b) Europe + JA, (c) a box across the antimeridian? Record
   the outcome in `research.md` R5, under "Spike result". If not, `zoomForCap` (T032) is used for
@@ -319,10 +319,11 @@ with auto-zoom on, and switch back; never save automatic switches (FR-015–FR-0
 
 ### Tests for User Story 3 (write first, confirm they FAIL)
 
-- [ ] T030 [P] [US3] Extend `web/autozoom-geo.test.js`:
+- [X] T030 [P] [US3] Extend `web/autozoom-geo.test.js`:
   - **`boundingCap`**:
     - for Europe-only points the radius is under 30° and the centre is in Europe;
-    - for IS + JA + W6 the radius is over 90°;
+    - IS + JA + W6 fit (radius under 70°, centred in the far north); IS + ZL + PY + JA have a
+      radius over 90° (research R5, spike result);
     - for points across the antimeridian (ZL, KH6, 3D2) the centre is in the Pacific, not at
       longitude 0;
     - one point gives radius 0;
@@ -332,7 +333,7 @@ with auto-zoom on, and switch back; never save automatic switches (FR-015–FR-0
     of 5°;
   - **`zoomForCap(cap, viewportPx)`**: monotonic, so a smaller cap gives a larger zoom, capped at
     12.
-- [ ] T031 [P] [US3] Extend `web/autozoom.test.js` for `fitted(fitsGlobe, preference)`:
+- [X] T031 [P] [US3] Extend `web/autozoom.test.js` for `fitted(fitsGlobe, preference)`:
   - **globe preference**:
     - with a fit that doesn't fit the globe → `projection: 'mercator'` and `autoFlat`;
     - when it fits again → `projection: 'globe'` and `autoFlat` cleared;
@@ -347,11 +348,11 @@ with auto-zoom on, and switch back; never save automatic switches (FR-015–FR-0
 
 ### Implementation for User Story 3
 
-- [ ] T032 [US3] Implement `boundingCap`, `fitsGlobe` and `zoomForCap` in
+- [X] T032 [US3] Implement `boundingCap`, `fitsGlobe` and `zoomForCap` in
   `src/web/assets/autozoom-geo.js`. T030 must pass.
-- [ ] T033 [US3] Implement `fitted` and `autoFlat` handling in `src/web/assets/autozoom.js`.
+- [X] T033 [US3] Implement `fitted` and `autoFlat` handling in `src/web/assets/autozoom.js`.
   T031 must pass.
-- [ ] T034 [US3] Glue in `src/web/assets/app.js`:
+- [X] T034 [US3] Glue in `src/web/assets/app.js`:
   - **when the preference is the globe**: compute `boundingCap(points)` and `fitsGlobe` with a
     margin derived from the padding;
     - when it fits, apply `globe` and centre on the cap centre, with the zoom from

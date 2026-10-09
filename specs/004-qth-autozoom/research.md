@@ -118,6 +118,18 @@ All of it lives in a new pure module, `autozoom-geo.js`:
   `cameraForBounds` under globe projection in MapLibre 5.24.0 is checked in a spike task, which
   runs before the glue that depends on it. If it falls short, the zoom is computed from the cap
   radius and the viewport size instead (`zoomForCap`, also pure).
+- **Spike result** (T029, 2026-10-09, from the MapLibre 5.24.0 source rather than a browser run):
+  - `cameraForBounds` and `fitBounds` support the globe. `GlobeCameraHelper` delegates to the
+    vertical-perspective helper. That helper takes the flat-map centre of the bounds and then
+    solves the zoom so that the box's corners and edge midpoints fall inside the padded clip
+    space.
+  - When no zoom satisfies them, it returns `undefined`, with a console warning.
+  - **Decision**: on the globe, the glue builds a box centred on the cap, takes its zoom from
+    `cameraForBounds`, and eases to the cap centre with the same padding. `zoomForCap` covers the
+    `undefined` case.
+  - **Test-set correction**: IS + JA + W6 do fit on one side of the globe, seen from over the North
+    Pole (cap radius about 56°). The "cannot fit" example is now IS + ZL + PY + JA, which needs more
+    than 90°.
 
 ## R6. Obstructed area and padding (FR-009)
 

@@ -51,7 +51,9 @@ cargo run --release -- --station-callsign IS0MZK --station-locator JM49NH
 
 1. Choose Globe and turn auto-zoom on, from the IS0 QTH. Send QSOs from Europe only. **Expected**:
    the map stays a globe.
-2. Add JA and W6 QSOs. **Expected**: the map switches to flat and shows everything.
+2. Add ZL, PY and JA QSOs. **Expected**: the map switches to flat and shows everything. JA and W6
+   alone are not enough: with IS they fit on one side of the globe, viewed from over the North
+   Pole, so the globe stays.
 3. Remove them (correct them onto an ignored band with feature 003, or lower the limit).
    **Expected**: the map returns to the globe.
 4. Turn auto-zoom off and add the DX QSOs back. **Expected**: the map stays a globe.

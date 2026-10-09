@@ -88,3 +88,76 @@ export function paddingFor(mapRect, rects, { gap = 12, minFree = [240, 160] } = 
   }
   return padding;
 }
+
+const RAD = Math.PI / 180;
+
+function toVector([lat, lon]) {
+  const φ = lat * RAD;
+  const λ = lon * RAD;
+  return [Math.cos(φ) * Math.cos(λ), Math.cos(φ) * Math.sin(λ), Math.sin(φ)];
+}
+
+function normalise(v) {
+  const n = Math.hypot(v[0], v[1], v[2]);
+  return n < 1e-12 ? null : [v[0] / n, v[1] / n, v[2] / n];
+}
+
+function angleBetween(a, b) {
+  const dot = a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  return Math.acos(Math.min(1, Math.max(-1, dot))) / RAD;
+}
+
+const CAP_ITERATIONS = 400;
+
+/**
+ * An approximately smallest spherical cap holding every `[lat, lon]` point (research R5): the
+ * Bădoiu–Clarkson iteration on unit vectors, which moves the centre a shrinking step towards the
+ * farthest point. The radius is exact for the centre found, so the cap always contains the points.
+ */
+export function boundingCap(points) {
+  const vectors = points.map(toVector);
+  let centre = normalise(vectors.reduce((s, v) => [s[0] + v[0], s[1] + v[1], s[2] + v[2]], [0, 0, 0])) ?? vectors[0];
+  const farthest = () => {
+    let best = vectors[0];
+    let bestAngle = -1;
+    for (const v of vectors) {
+      const a = angleBetween(centre, v);
+      if (a > bestAngle) {
+        bestAngle = a;
+        best = v;
+      }
+    }
+    return [best, bestAngle];
+  };
+  for (let i = 1; i <= CAP_ITERATIONS; i++) {
+    const [p, a] = farthest();
+    if (a < 1e-9) break;
+    const t = 1 / (i + 1);
+    const next = normalise([centre[0] + (p[0] - centre[0]) * t, centre[1] + (p[1] - centre[1]) * t, centre[2] + (p[2] - centre[2]) * t]);
+    if (next) centre = next;
+  }
+  const [, radiusDeg] = farthest();
+  const lat = Math.asin(Math.max(-1, Math.min(1, centre[2]))) / RAD;
+  const lon = Math.atan2(centre[1], centre[0]) / RAD;
+  return { center: [lat, lon], radiusDeg };
+}
+
+/** True when the cap, plus a margin, lies on one side of the globe (FR-016). */
+export function fitsGlobe(cap, marginDeg) {
+  return cap.radiusDeg + marginDeg <= 90;
+}
+
+const TILE_SIZE = 512;
+
+/**
+ * A globe zoom that shows the cap inside the viewport (`[width, height]` of the free area), used
+ * when the camera cannot compute one itself. Capped at 12 (FR-013).
+ */
+export function zoomForCap(cap, viewport) {
+  const half = Math.min(viewport[0], viewport[1]) / 2;
+  const reach = Math.sin(Math.min(cap.radiusDeg, 90) * RAD);
+  if (reach < 1e-9) return 12;
+  const radiusPx = half / reach;
+  const zoom = Math.log2((radiusPx * 2 * Math.PI) / TILE_SIZE);
+  return Math.max(0, Math.min(12, zoom));
+}

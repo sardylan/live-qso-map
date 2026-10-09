@@ -20,7 +20,15 @@ import {
   saveAutoZoom,
 } from './view.js';
 import { createAutoZoom } from './autozoom.js';
-import { framedPoints, fallbackFrame, flatBounds, paddingFor } from './autozoom-geo.js';
+import {
+  framedPoints,
+  fallbackFrame,
+  flatBounds,
+  paddingFor,
+  boundingCap,
+  fitsGlobe,
+  zoomForCap,
+} from './autozoom-geo.js';
 import { createConnection, onOpen, onClose, onHello as handshake, loadLimit, saveLimit } from './connection.js';
 
 const OVERLAYS = ['qso-lines', 'qth', 'qso-markers'];
@@ -40,6 +48,8 @@ const FIT = { gap: 12, minFree: [240, 160] };
 const MAX_ZOOM = 12;
 const POPUP_IDLE_MS = 30_000;
 const WORLD = { center: [0, 30], zoom: 1.5 };
+// Points right on the globe's limb are unreadable: keep them this far inside (FR-016).
+const GLOBE_MARGIN_DEG = 5;
 
 let map = null;
 let loaded = false;
@@ -72,6 +82,9 @@ function localStore() {
 
 const connection = createConnection(loadLimit(sessionStore()));
 let projection = loadProjection(localStore());
+// What the map shows: the preference, or flat while auto-zoom has switched it (FR-016).
+let shown = projection;
+let projectionControl = null;
 const autozoom = createAutoZoom({ enabled: loadAutoZoom(localStore()) });
 let autoZoomControl = null;
 
@@ -189,20 +202,25 @@ class ProjectionControl {
     this.button.type = 'button';
     this.button.addEventListener('click', () => {
       projection = nextProjection(projection);
-      // Before `load` the choice is only stored; the load handler applies it.
-      if (loaded) map.setProjection({ type: projection });
       saveProjection(localStore(), projection);
+      autozoom.preferenceChanged();
+      // Before `load` the choice is only stored; the load handler applies it.
+      showProjection(projection);
       this.update();
+      autozoom.change();
     });
     this.container.append(this.button);
     this.update();
     return this.container;
   }
 
+  /** The label follows the preference, not an automatic switch (FR-018). */
   update() {
     const target = nextProjection(projection) === 'globe' ? 'Globe' : 'Flat';
     this.button.textContent = target;
-    this.button.title = `Switch to ${target.toLowerCase()} view`;
+    this.button.title = autozoom.state.autoFlat
+      ? 'Auto-zoom switched to flat; click to make it your preference'
+      : `Switch to ${target.toLowerCase()} view`;
   }
 
   onRemove() {
@@ -253,14 +271,50 @@ function panelRects() {
     .map((node) => node.getBoundingClientRect());
 }
 
-/** Frames the house and every marker clear of the panels (FR-008–FR-010, FR-013). */
+function showProjection(next) {
+  if (next === shown) return;
+  shown = next;
+  if (loaded) map.setProjection({ type: shown });
+  if (projectionControl) projectionControl.update();
+}
+
+/** `[lat, lon]` points of what auto-zoom frames: the markers and QTH, or the fallback box corners. */
+function framePoints(bounds) {
+  if (current.size > 0) return framedPoints(qth, current);
+  if (!bounds) return [];
+  const [[w, s], [e, n]] = bounds;
+  return [[s, w], [s, e], [n, w], [n, e], [(s + n) / 2, (w + e) / 2]];
+}
+
+/** A camera on the globe centred on the cap (FR-016), zoomed to show all of it. */
+function globeCamera(cap, padding) {
+  const [lat, lon] = cap.center;
+  const r = Math.max(cap.radiusDeg, 0.01);
+  const dLon = Math.min(r / Math.max(Math.cos((lat * Math.PI) / 180), 0.05), 179);
+  const box = [
+    [lon - dLon, Math.max(lat - r, -85)],
+    [lon + dLon, Math.min(lat + r, 85)],
+  ];
+  const camera = map.cameraForBounds(box, { padding, maxZoom: MAX_ZOOM });
+  const rect = map.getContainer().getBoundingClientRect();
+  const free = [rect.width - padding.left - padding.right, rect.height - padding.top - padding.bottom];
+  const zoom = camera && Number.isFinite(camera.zoom) ? camera.zoom : zoomForCap(cap, free);
+  return { center: [lon, lat], zoom: Math.min(zoom, MAX_ZOOM), padding };
+}
+
+/** Frames the house and every marker clear of the panels (FR-008–FR-010, FR-013, FR-015–FR-017). */
 function fitNow() {
   if (!loaded) return;
   const padding = paddingFor(map.getContainer().getBoundingClientRect(), panelRects(), FIT);
   const bounds = current.size > 0 ? flatBounds(framedPoints(qth, current)) : fallbackFrame(qth, entity);
+  const points = framePoints(bounds);
+  const cap = points.length > 0 ? boundingCap(points) : null;
+  const fits = cap ? fitsGlobe(cap, GLOBE_MARGIN_DEG) : true;
+  showProjection(autozoom.fitted(fits, projection));
   try {
-    if (bounds) map.fitBounds(bounds, { padding, maxZoom: MAX_ZOOM, duration: 800 });
-    else map.easeTo({ ...WORLD, padding, duration: 800 });
+    if (!bounds) map.easeTo({ ...WORLD, padding, duration: 800 });
+    else if (shown === 'globe') map.easeTo({ ...globeCamera(cap, padding), duration: 800 });
+    else map.fitBounds(bounds, { padding, maxZoom: MAX_ZOOM, duration: 800 });
   } catch (error) {
     console.error('auto-zoom fit failed', error);
   }
@@ -331,11 +385,12 @@ function createMap(hello) {
     new maplibregl.AttributionControl({ compact: false, customAttribution: hello.basemap.attribution || undefined }),
   );
   map.addControl(new maplibregl.NavigationControl(), 'top-left');
-  map.addControl(new ProjectionControl(), 'top-left');
+  projectionControl = new ProjectionControl();
+  map.addControl(projectionControl, 'top-left');
   autoZoomControl = new AutoZoomControl();
   map.addControl(autoZoomControl, 'top-left');
   map.on('load', () => {
-    map.setProjection({ type: projection });
+    map.setProjection({ type: shown });
     addOverlays();
     loaded = true;
     current = new Map();

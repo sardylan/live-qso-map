@@ -80,3 +80,73 @@ test('page-made camera moves are never fed to the controller, so they never swit
   // The fit animation moves the camera, but only user moves call userMove().
   assert.equal(az.state.enabled, true);
 });
+
+test('globe preference: flat when the frame does not fit, globe again when it does', () => {
+  const az = createAutoZoom({ enabled: true });
+  assert.equal(az.fitted(false, 'globe'), 'mercator');
+  assert.equal(az.state.autoFlat, true);
+  assert.equal(az.fitted(true, 'globe'), 'globe');
+  assert.equal(az.state.autoFlat, false);
+});
+
+test('flat preference: auto-zoom never switches to the globe (FR-017)', () => {
+  const az = createAutoZoom({ enabled: true });
+  assert.equal(az.fitted(true, 'mercator'), 'mercator');
+  assert.equal(az.fitted(false, 'mercator'), 'mercator');
+  assert.equal(az.state.autoFlat, false);
+});
+
+test('turning auto-zoom off keeps an automatic flat view (FR-017)', () => {
+  const az = createAutoZoom({ enabled: true });
+  az.fitted(false, 'globe');
+  assert.deepEqual(kinds(az.toggle(0)), ['save']);
+  assert.equal(az.state.autoFlat, true);
+
+  const moved = createAutoZoom({ enabled: true });
+  moved.fitted(false, 'globe');
+  assert.deepEqual(kinds(moved.userMove()), ['save']);
+  assert.equal(moved.state.autoFlat, true);
+});
+
+test('turning auto-zoom back on may return to the globe', () => {
+  const az = createAutoZoom({ enabled: true });
+  az.fitted(false, 'globe');
+  az.toggle(0);
+  assert.deepEqual(kinds(az.toggle(5000)), ['save', 'fit']);
+  assert.equal(az.fitted(true, 'globe'), 'globe');
+});
+
+test('the projection button clears the automatic flat view', () => {
+  const az = createAutoZoom({ enabled: true });
+  az.fitted(false, 'globe');
+  az.preferenceChanged();
+  assert.equal(az.state.autoFlat, false);
+});
+
+test('no action ever saves the projection (FR-018)', () => {
+  const az = createAutoZoom({ enabled: true });
+  const all = [
+    ...az.toggle(0),
+    ...az.toggle(1),
+    ...az.change(),
+    ...az.tick(5000),
+    ...az.userMove(),
+    ...az.popupOpened(),
+    ...az.popupClosed(),
+  ];
+  assert.ok(all.every((a) => a.type === 'save' ? 'enabled' in a && !('projection' in a) : true));
+});
+
+test('a scripted run of 50 changes switches only by the rule (SC-006)', () => {
+  const az = createAutoZoom({ enabled: true });
+  let seed = 3;
+  const random = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  for (let i = 0; i < 50; i++) {
+    const preference = random() < 0.8 ? 'globe' : 'mercator';
+    const fits = random() < 0.5;
+    const shown = az.fitted(fits, preference);
+    const expected = preference === 'globe' && fits ? 'globe' : 'mercator';
+    assert.equal(shown, expected, `step ${i}`);
+    assert.equal(az.state.autoFlat, preference === 'globe' && !fits);
+  }
+});

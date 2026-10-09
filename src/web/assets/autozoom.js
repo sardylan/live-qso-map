@@ -58,6 +58,21 @@ export function createAutoZoom({ enabled = true } = {}) {
       return [];
     },
 
+    /**
+     * After a fit is computed: the projection to show (FR-015–FR-017). Only a globe preference can
+     * become an automatic flat view, and only when the frame does not fit on the globe.
+     */
+    fitted(fitsGlobe, preference) {
+      state.autoFlat = preference === 'globe' && !fitsGlobe;
+      return state.autoFlat || preference !== 'globe' ? 'mercator' : 'globe';
+    },
+
+    /** The viewer chose a projection with the button: any automatic flat view ends (FR-018). */
+    preferenceChanged() {
+      state.autoFlat = false;
+      return [];
+    },
+
     /** Called on a timer: at most one fit per second, never while a popup is open (FR-014). */
     tick(now) {
       if (!state.enabled || !state.pending || state.popupOpen) return [];
