@@ -37,6 +37,9 @@ consider all items in the page, like the QSO box (if enabled), legend, etc."
   switching off. Rows without a remote position are not clickable.
 - Q: Where is the globe centred during auto-zoom? → A: On the point that best frames the house and
   all markers. The map switches to flat only when no centre can show them all.
+- Q: (Owner's browser test.) After an automatic switch to flat, the projection button still offered
+  "Flat". What should the button show and do? → A: It follows the view on screen. Clicking "Globe"
+  then shows the globe; if the QSOs cannot fit there, auto-zoom switches off so the globe stays.
 - Q: The view was switched to flat automatically and auto-zoom turns off. What happens to the
   view? → A: It stays as it is. The automatic flat lasts until the viewer uses the projection
   button or turns auto-zoom back on, and a reload restores the saved preference.
@@ -278,7 +281,10 @@ globe: it disappears.
   move, MUST NOT change the projection. An automatic flat view stays until the viewer uses the
   projection button or turns auto-zoom back on.
 - **FR-018**: Automatic projection switches MUST NOT change the saved preference. The projection
-  button keeps setting and saving the viewer's choice, as in feature 002.
+  button MUST always offer the view that is not on screen, automatic switches included. Clicking it
+  shows that view and saves it as the preference (feature 002). When the viewer picks the globe
+  while auto-zoom is on and the frame cannot fit on the globe, auto-zoom MUST switch off, as after
+  a manual move, so that the chosen globe stays.
 
 **Last-QSO box**
 

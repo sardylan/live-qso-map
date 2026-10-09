@@ -119,7 +119,7 @@ test('turning auto-zoom back on may return to the globe', () => {
 test('the projection button clears the automatic flat view', () => {
   const az = createAutoZoom({ enabled: true });
   az.fitted(false, 'globe');
-  az.preferenceChanged();
+  az.projectionChosen('mercator', false);
   assert.equal(az.state.autoFlat, false);
 });
 
@@ -149,4 +149,37 @@ test('a scripted run of 50 changes switches only by the rule (SC-006)', () => {
     assert.equal(shown, expected, `step ${i}`);
     assert.equal(az.state.autoFlat, preference === 'globe' && !fits);
   }
+});
+
+test('choosing the globe while it cannot show the frame switches auto-zoom off', () => {
+  const az = createAutoZoom({ enabled: true });
+  az.fitted(false, 'globe');
+  assert.deepEqual(az.projectionChosen('globe', false), [{ type: 'save', enabled: false }]);
+  assert.equal(az.state.enabled, false);
+  assert.equal(az.state.autoFlat, false);
+  // Auto-zoom is off, so the globe is not taken back.
+  az.change();
+  assert.deepEqual(az.tick(10_000), []);
+});
+
+test('choosing the globe when the frame fits keeps auto-zoom on and refits', () => {
+  const az = createAutoZoom({ enabled: true });
+  assert.deepEqual(az.projectionChosen('globe', true), []);
+  assert.equal(az.state.enabled, true);
+  assert.deepEqual(kinds(az.tick(10_000)), ['fit']);
+});
+
+test('choosing the flat map keeps auto-zoom on and refits', () => {
+  const az = createAutoZoom({ enabled: true });
+  az.fitted(false, 'globe');
+  assert.deepEqual(az.projectionChosen('mercator', false), []);
+  assert.equal(az.state.enabled, true);
+  assert.equal(az.state.autoFlat, false);
+  assert.deepEqual(kinds(az.tick(10_000)), ['fit']);
+});
+
+test('with auto-zoom off, choosing a projection changes nothing else', () => {
+  const az = createAutoZoom({ enabled: false });
+  assert.deepEqual(az.projectionChosen('globe', false), []);
+  assert.equal(az.state.enabled, false);
 });

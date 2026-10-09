@@ -67,9 +67,20 @@ export function createAutoZoom({ enabled = true } = {}) {
       return state.autoFlat || preference !== 'globe' ? 'mercator' : 'globe';
     },
 
-    /** The viewer chose a projection with the button: any automatic flat view ends (FR-018). */
-    preferenceChanged() {
+    /**
+     * The viewer chose a projection with the button (FR-018): any automatic flat view ends. The
+     * globe chosen while it cannot show the frame would be taken back at the next refit, so the
+     * choice wins and auto-zoom switches off, as after a manual move. Otherwise auto-zoom refits.
+     */
+    projectionChosen(target, fitsGlobe) {
       state.autoFlat = false;
+      if (!state.enabled) return [];
+      if (target === 'globe' && !fitsGlobe) {
+        state.enabled = false;
+        state.pending = false;
+        return [{ type: 'save', enabled: false }];
+      }
+      state.pending = true;
       return [];
     },
 

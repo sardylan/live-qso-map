@@ -210,25 +210,25 @@ class ProjectionControl {
     this.button = element('button');
     this.button.type = 'button';
     this.button.addEventListener('click', () => {
-      projection = nextProjection(projection);
+      // The button switches the view on screen, whatever auto-zoom chose, and saves the choice.
+      projection = nextProjection(shown);
       saveProjection(localStore(), projection);
-      autozoom.preferenceChanged();
+      runActions(autozoom.projectionChosen(projection, frameFitsGlobe()));
       // Before `load` the choice is only stored; the load handler applies it.
       showProjection(projection);
       this.update();
-      autozoom.change();
     });
     this.container.append(this.button);
     this.update();
     return this.container;
   }
 
-  /** The label follows the preference, not an automatic switch (FR-018). */
+  /** The label offers the other view than the one on screen, automatic switches included. */
   update() {
-    const target = nextProjection(projection) === 'globe' ? 'Globe' : 'Flat';
+    const target = nextProjection(shown) === 'globe' ? 'Globe' : 'Flat';
     this.button.textContent = target;
     this.button.title = autozoom.state.autoFlat
-      ? 'Auto-zoom switched to flat; click to make it your preference'
+      ? 'Auto-zoom switched to flat because the QSOs do not fit on the globe'
       : `Switch to ${target.toLowerCase()} view`;
   }
 
@@ -397,20 +397,30 @@ function framePoints(bounds) {
   return [[s, w], [s, e], [n, w], [n, e], [(s + n) / 2, (w + e) / 2]];
 }
 
-/** Frames the house and every marker clear of the panels (FR-008–FR-010, FR-013, FR-015–FR-017). */
-function fitNow() {
-  if (!loaded) return;
-  const padding = paddingFor(map.getContainer().getBoundingClientRect(), panelRects(), FIT);
+/** What auto-zoom frames now: flat bounds, the bounding cap and the globe zoom that shows it. */
+function currentFrame() {
+  const rect = map.getContainer().getBoundingClientRect();
+  const padding = paddingFor(rect, panelRects(), FIT);
   const bounds = current.size > 0 ? flatBounds(framedPoints(qth, current)) : fallbackFrame(qth, entity);
   const points = framePoints(bounds);
   const cap = points.length > 0 ? boundingCap(points) : null;
-  const rect = map.getContainer().getBoundingClientRect();
   // The globe keeps the frame only when a zoom exists that really shows all of it (FR-016).
   const globeZoom =
     cap && fitsGlobe(cap, GLOBE_MARGIN_DEG)
       ? globeZoomForCap(cap, { width: rect.width, height: rect.height, padding, maxZoom: MAX_ZOOM })
       : null;
-  showProjection(autozoom.fitted(!cap || globeZoom !== null, projection));
+  return { padding, bounds, cap, globeZoom, fitsGlobe: !cap || globeZoom !== null };
+}
+
+function frameFitsGlobe() {
+  return !loaded || currentFrame().fitsGlobe;
+}
+
+/** Frames the house and every marker clear of the panels (FR-008–FR-010, FR-013, FR-015–FR-017). */
+function fitNow() {
+  if (!loaded) return;
+  const { padding, bounds, cap, globeZoom, fitsGlobe: fits } = currentFrame();
+  showProjection(autozoom.fitted(fits, projection));
   try {
     if (!bounds) {
       map.easeTo({ ...WORLD, padding, duration: 800 });

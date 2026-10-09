@@ -369,6 +369,11 @@ with auto-zoom on, and switch back; never save automatic switches (FR-015–FR-0
   MapLibre's perspective and the 1/cos(latitude) globe scale, with tests in
   `web/autozoom-geo.test.js`. Auto-zoom keeps the globe only when that zoom exists (research R5,
   "Browser finding").
+- [X] T053 [US3] Fix found in the owner's browser test: after an automatic switch to flat, the
+  projection button still offered "Flat". The button now follows the view on screen
+  (`src/web/assets/app.js`). The new `projectionChosen` in `src/web/assets/autozoom.js` switches
+  auto-zoom off when the viewer picks a globe that cannot show the frame, so the globe is not
+  taken back. Tests are in `web/autozoom.test.js`; FR-018 is updated.
 - [ ] T035 [US3] Manually run quickstart §4 and record SC-006 in `checklists/verification.md`.
 
 ---
