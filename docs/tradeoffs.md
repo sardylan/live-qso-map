@@ -17,6 +17,7 @@ we deliberately gave up. Records the *why*, not just the *what*.
 | TR-002 | proposed | Removals continue the revision sequence and leave a tombstone | 2026-10-08 |
 | TR-003 | proposed | Pin MapLibre 5.24.0 instead of 6.x | 2026-10-08 |
 | TR-004 | proposed | JSON interface rules in docs/http-api.md, referenced by the constitution | 2026-10-09 |
+| TR-005 | proposed | Entity extents generated from Natural Earth by a dev-only script | 2026-10-09 |
 
 ## Decisions
 
@@ -187,6 +188,52 @@ plain-text error responses.
 - Positive: Clients can rely on JSON everywhere, errors included; plans check it explicitly.
 - Negative / debt accepted: The 404, 405 and /ws upgrade error responses must be overridden (folded
   into feature 004, FR-027); every new endpoint needs an error-path contract test.
+
+## TR-005: Entity extents generated from Natural Earth by a dev-only script
+
+- Status: proposed
+- Date: 2026-10-09
+- Phase: plan
+- Deciders: project owner
+- Links: specs/004-qth-autozoom/research.md#r2-entity-extents-fr-010-sc-003, tools/entity_extents.py, src/web/entity_extents.json
+
+### Context & problem
+
+With no QSOs, auto-zoom must frame the station's whole DXCC entity (feature 004, FR-010). cty.dat
+gives only a centre point per entity, so the extents need another source, bundled with the service.
+
+### Decision drivers
+
+- No runtime download; single binary (Principle III)
+- Reviewable, reproducible data with no licence burden
+- Coverage of as many entities as possible (SC-003)
+
+### Options considered
+
+| Option | Pros | Cons / what it sacrifices |
+|--------|------|---------------------------|
+| Generated from Natural Earth v5.1.2 + hand mapping (chosen) | public domain; reproducible; one mapping line per entity | ~340-entry mapping to write once; Python script and ~55 MB download cache for maintainers |
+| Hand-curated full table | no tooling | accuracy cannot be reviewed |
+| Hand-curated subset (~60 entities) | small | many entities only get the radius fallback |
+
+### Decision
+
+A dev-only standard-library Python script maps cty.dat prefixes to Natural Earth admin-0 and
+admin-1 units and writes a committed JSON table, embedded in the binary. Unmapped entities fall back
+to a 500 km radius.
+
+### Y-statement
+
+In the context of framing the station's entity with no QSOs, facing cty.dat holding only centre
+points, we decided for extents generated from Natural Earth by a dev-only script, and neglected
+hand-curated tables, to achieve reviewable and reproducible coverage, accepting a one-off mapping
+effort and a maintainer-only download.
+
+### Consequences
+
+- Positive: Adding or fixing an entity is one mapping line plus a rerun; no runtime fetch.
+- Negative / debt accepted: The mapping must follow cty.dat changes; tiny entities missing from
+  Natural Earth get only the radius.
 
 ## Archive
 
