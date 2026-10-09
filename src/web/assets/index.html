@@ -21,18 +21,37 @@
   <div id="basemap-error" class="banner banner-low" hidden>Base map unavailable; QSOs are still shown.</div>
   <div id="legend" class="legend" hidden></div>
   <div id="recent" class="recent" hidden aria-label="Last QSOs"></div>
-  <label class="limit-control">Last
-    <select id="limit">
-      <option value="10">10</option>
-      <option value="20">20</option>
-      <option value="50">50</option>
-      <option value="100">100</option>
-      <option value="200">200</option>
-      <option value="500">500</option>
-      <option value="all">All</option>
-    </select>
-    QSOs
-  </label>
+  <div class="limit-control">
+    <label>Map: last
+      <select id="limit">
+        <option value="10">10</option>
+        <option value="20">20</option>
+        <option value="50">50</option>
+        <option value="100">100</option>
+        <option value="200">200</option>
+        <option value="500">500</option>
+        <option value="all">All</option>
+      </select>
+      QSOs
+    </label>
+    <div class="box-settings">
+      <label>Box: last
+        <select id="recent-size">
+          <option value="3">3</option>
+          <option value="5">5</option>
+          <option value="10">10</option>
+          <option value="15">15</option>
+          <option value="20">20</option>
+        </select>
+      </label>
+      <label>Newest:
+        <select id="recent-order">
+          <option value="bottom">bottom</option>
+          <option value="top">top</option>
+        </select>
+      </label>
+    </div>
+  </div>
   <script type="module" src="app.js"></script>
 </body>
 </html>

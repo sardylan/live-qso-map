@@ -8,7 +8,9 @@
 export function createState({ bands = [], fallbackColor = '#7f7f7f', limit = 20 } = {}) {
   const colors = {};
   for (const { band, color } of bands) colors[band.toLowerCase()] = color;
-  return { bands: colors, bandOrder: bands.map((b) => b.band), fallbackColor, limit, qsos: new Map() };
+  // `limit` is the server window (the last snapshot's); `mapLimit` is the viewer's map "Last N"
+  // (feature 006, research R1). They start equal.
+  return { bands: colors, bandOrder: bands.map((b) => b.band), fallbackColor, limit, mapLimit: limit, qsos: new Map() };
 }
 
 export function applySnapshot(state, qsos) {
@@ -36,15 +38,30 @@ function compare(a, b) {
   return 0;
 }
 
-/** Changes how many recent QSOs are shown (null = all). */
+/** Records the server window the page asked for (null = all); the map keeps its own limit. */
 export function setLimit(state, limit) {
   state.limit = limit;
 }
 
-/** The last `limit` QSOs by sort key (all when `limit` is null), ascending. */
+/** Changes how many recent QSOs the map shows (null = all) (feature 006). */
+export function setMapLimit(state, limit) {
+  state.mapLimit = limit;
+}
+
+/** The window to ask the server for: at least 20, the largest box (feature 006, TR-006). */
+export function serverLimit(mapLimit) {
+  return mapLimit == null ? null : Math.max(mapLimit, 20);
+}
+
+/** Every QSO the page holds, ascending by sort key: what the box draws from. */
+export function held(state) {
+  return [...state.qsos.values()].sort(compare);
+}
+
+/** The last `mapLimit` QSOs by sort key (all when null), ascending: what the map draws. */
 export function visible(state) {
-  const all = [...state.qsos.values()].sort(compare);
-  return state.limit == null ? all : all.slice(Math.max(0, all.length - state.limit));
+  const all = held(state);
+  return state.mapLimit == null ? all : all.slice(Math.max(0, all.length - state.mapLimit));
 }
 
 function colorOf(state, qso) {

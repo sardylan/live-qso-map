@@ -164,13 +164,13 @@ for the frontend (Node via nvm: `~/.nvm/versions/node/v26.11.1/bin/node`).
 
 ### Tests for User Story 2 (write first, confirm they FAIL)
 
-- [ ] T016 [P] [US2] Extend `web/map-state.test.js` (data-model "Map state"):
+- [X] T016 [P] [US2] Extend `web/map-state.test.js` (data-model "Map state"):
   - **map and server windows**: with 25 QSOs held, `mapLimit` 10 and a snapshot `limit` of 20,
     `visible()` gives the newest 10 and `held()` gives all 25, both ascending;
   - **All**: `setMapLimit(state, null)` makes `visible()` return every QSO;
   - **`serverLimit`**: 10 → 20, 20 → 20, 50 → 50, `null` → `null`;
   - **separation**: applying a snapshot does not change `mapLimit`.
-- [ ] T017 [P] [US2] Extend `web/recent.test.js`:
+- [X] T017 [P] [US2] Extend `web/recent.test.js`:
   - **`recentQsos(state, size, order)`**:
     - size 5 with `'bottom'` gives the newest 5 ascending (newest last);
     - `'top'` gives them descending;
@@ -181,7 +181,7 @@ for the frontend (Node via nvm: `~/.nvm/versions/node/v26.11.1/bin/node`).
   - **SC-003**: a table-driven test with 25 QSOs held. For each map size (10, 20, 50, `null`) and
     each box size (3, 5, 10, 15, 20), `recentQsos` returns exactly min(box size, 25) rows, and
     `visible` returns exactly min(map size, 25).
-- [ ] T018 [P] [US2] Extend `web/view.test.js` and `web/connection.test.js`:
+- [X] T018 [P] [US2] Extend `web/view.test.js` and `web/connection.test.js`:
   - **`loadRecentSize`/`saveRecentSize`** (`lqm.recent.size`): the default is 5; 3, 10, 15 and 20
     round-trip; an unknown value or `'7'` gives 5; a storage that throws gives 5, and saving
     doesn't throw;
@@ -192,16 +192,16 @@ for the frontend (Node via nvm: `~/.nvm/versions/node/v26.11.1/bin/node`).
 
 ### Implementation for User Story 2
 
-- [ ] T019 [P] [US2] Implement `mapLimit`, `held`, `setMapLimit` and `serverLimit` in
+- [X] T019 [P] [US2] Implement `mapLimit`, `held`, `setMapLimit` and `serverLimit` in
   `src/web/assets/map-state.js`. `visible()` uses `mapLimit`; `setLimit()` and snapshots keep the
   server window only. Update the feature-001 tests that relied on `setLimit` also driving the map.
   T016 must pass.
-- [ ] T020 [US2] After T019, which provides `held()`, implement
+- [X] T020 [US2] After T019, which provides `held()`, implement
   `recentQsos(state, size, order)` (over `held`) and `onMap` in
   `src/web/assets/recent.js`. T017 must pass.
-- [ ] T021 [P] [US2] Implement the four new helpers in `src/web/assets/view.js`. `connection.js`
+- [X] T021 [P] [US2] Implement the four new helpers in `src/web/assets/view.js`. `connection.js`
   needs no change. T018 must pass.
-- [ ] T022 [US2] In `src/web/assets/index.html`, turn the top-right `.limit-control` into a panel
+- [X] T022 [US2] In `src/web/assets/index.html`, turn the top-right `.limit-control` into a panel
   with three labelled selects:
   - "Map: last [10…500, All] QSOs";
   - "Box: last [3, 5, 10, 15, 20]";
@@ -209,7 +209,7 @@ for the frontend (Node via nvm: `~/.nvm/versions/node/v26.11.1/bin/node`).
 
   Style it in `src/web/assets/app.css` as one compact panel, as today, with the map selector
   visibly separate from the box settings.
-- [ ] T023 [US2] Glue in `src/web/assets/app.js`:
+- [X] T023 [US2] Glue in `src/web/assets/app.js`:
   - **storage**: read and save the map limit with `localStore()` instead of `sessionStore()`
     (Principle IV); remove `sessionStore` if it is no longer used;
   - **map limit**: on change, `setMapLimit`, re-render the map and box, `autozoom.change()`, and

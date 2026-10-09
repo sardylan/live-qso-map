@@ -105,3 +105,42 @@ export function saveRecent(storage, shown) {
 export function scaleVisible(projection) {
   return projection === 'mercator';
 }
+
+const RECENT_SIZE_KEY = 'lqm.recent.size';
+const RECENT_SIZES = [3, 5, 10, 15, 20];
+const RECENT_ORDER_KEY = 'lqm.recent.order';
+
+/** How many QSOs the box lists: 5 unless the viewer chose another size (feature 006). */
+export function loadRecentSize(storage) {
+  try {
+    const value = Number.parseInt(storage?.getItem(RECENT_SIZE_KEY), 10);
+    return RECENT_SIZES.includes(value) ? value : 5;
+  } catch {
+    return 5;
+  }
+}
+
+export function saveRecentSize(storage, size) {
+  try {
+    storage?.setItem(RECENT_SIZE_KEY, String(size));
+  } catch {
+    // Storage may be unavailable; the choice then lasts for this page only.
+  }
+}
+
+/** Where the newest QSO goes in the box: 'bottom' unless the viewer chose 'top' (feature 006). */
+export function loadRecentOrder(storage) {
+  try {
+    return storage?.getItem(RECENT_ORDER_KEY) === 'top' ? 'top' : 'bottom';
+  } catch {
+    return 'bottom';
+  }
+}
+
+export function saveRecentOrder(storage, order) {
+  try {
+    storage?.setItem(RECENT_ORDER_KEY, order);
+  } catch {
+    // Storage may be unavailable; the choice then lasts for this page only.
+  }
+}

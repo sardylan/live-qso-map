@@ -1,7 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createState, applySnapshot, applyUpsert, applyRemove, setLimit, markers } from '../src/web/assets/map-state.js';
-import { recentQsos, headerCells, rowCells, shortName, entityLabel } from '../src/web/assets/recent.js';
+import {
+  createState,
+  applySnapshot,
+  applyUpsert,
+  applyRemove,
+  setMapLimit,
+  markers,
+  visible,
+} from '../src/web/assets/map-state.js';
+import { recentQsos, headerCells, rowCells, shortName, entityLabel, onMap } from '../src/web/assets/recent.js';
 
 function qso(n, overrides = {}) {
   const minute = String(n).padStart(2, '0');
@@ -28,43 +36,70 @@ function stateOf(qsos, limit = 20) {
 
 const ids = (list) => list.map((q) => q.id);
 
-test('the five newest by QSO time, newest first', () => {
+test('the newest N by QSO time, newest at the bottom or the top', () => {
   const s = stateOf([1, 2, 3, 4, 5, 6, 7].map((n) => qso(n)));
-  assert.deepEqual(ids(recentQsos(s, 5)), ['Q07', 'Q06', 'Q05', 'Q04', 'Q03']);
+  assert.deepEqual(ids(recentQsos(s, 5, 'bottom')), ['Q03', 'Q04', 'Q05', 'Q06', 'Q07']);
+  assert.deepEqual(ids(recentQsos(s, 5, 'top')), ['Q07', 'Q06', 'Q05', 'Q04', 'Q03']);
 });
 
 test('a late QSO with an older time does not enter the box', () => {
   const s = stateOf([3, 4, 5, 6, 7].map((n) => qso(n)));
   applyUpsert(s, qso(1));
-  assert.deepEqual(ids(recentQsos(s, 5)), ['Q07', 'Q06', 'Q05', 'Q04', 'Q03']);
+  assert.deepEqual(ids(recentQsos(s, 5, 'top')), ['Q07', 'Q06', 'Q05', 'Q04', 'Q03']);
 });
 
 test('a correction that changes the time re-orders the box', () => {
   const s = stateOf([3, 4, 5, 6, 7].map((n) => qso(n)));
   applyUpsert(s, qso(3, { rev: 2, sort_key: '2026-10-08T15:59:00Z', datetime: '2026-10-08T15:59:00Z' }));
-  assert.deepEqual(ids(recentQsos(s, 5)), ['Q03', 'Q07', 'Q06', 'Q05', 'Q04']);
+  assert.deepEqual(ids(recentQsos(s, 5, 'top')), ['Q03', 'Q07', 'Q06', 'Q05', 'Q04']);
 });
 
-test('a removal moves the next one up', () => {
+test('a removal moves the next one in', () => {
   const s = stateOf([1, 2, 3, 4, 5, 6, 7].map((n) => qso(n)));
   applyRemove(s, 'Q06');
-  assert.deepEqual(ids(recentQsos(s, 5)), ['Q07', 'Q05', 'Q04', 'Q03', 'Q02']);
+  assert.deepEqual(ids(recentQsos(s, 5, 'top')), ['Q07', 'Q05', 'Q04', 'Q03', 'Q02']);
 });
 
-test('fewer than five gives them all; none gives an empty list', () => {
-  assert.deepEqual(ids(recentQsos(stateOf([qso(1), qso(2)]), 5)), ['Q02', 'Q01']);
-  assert.deepEqual(recentQsos(stateOf([]), 5), []);
+test('fewer QSOs than the box size gives them all; none gives an empty list', () => {
+  assert.deepEqual(ids(recentQsos(stateOf([qso(1), qso(2)]), 20, 'bottom')), ['Q01', 'Q02']);
+  assert.deepEqual(recentQsos(stateOf([]), 5, 'bottom'), []);
 });
 
-test('the box follows the limit window', () => {
+test('the box is independent of the map limit (FR-009)', () => {
   const s = stateOf(Array.from({ length: 20 }, (_, i) => qso(i + 1)), 20);
-  setLimit(s, 10);
-  assert.deepEqual(ids(recentQsos(s, 5)), ['Q20', 'Q19', 'Q18', 'Q17', 'Q16']);
+  setMapLimit(s, 10);
+  const box = recentQsos(s, 15, 'top');
+  assert.equal(box.length, 15);
+  assert.equal(box[0].id, 'Q20');
+  assert.equal(box[14].id, 'Q06', 'includes QSOs outside the map window');
 });
 
 test('QSOs without a remote position are listed', () => {
   const s = stateOf([qso(1), qso(2, { remote: null })]);
-  assert.deepEqual(ids(recentQsos(s, 5)), ['Q02', 'Q01']);
+  assert.deepEqual(ids(recentQsos(s, 5, 'top')), ['Q02', 'Q01']);
+});
+
+test('onMap is true only for QSOs whose marker is on the map', () => {
+  const s = stateOf(Array.from({ length: 12 }, (_, i) => qso(i + 1)), 20);
+  setMapLimit(s, 10);
+  const m = markers(s);
+  assert.equal(onMap(qso(12), m), true);
+  assert.equal(onMap(qso(3), m), true);
+  assert.equal(onMap(qso(2), m), false, 'outside the map window');
+  assert.equal(onMap(qso(12, { remote: null }), m), false, 'no remote position');
+});
+
+test('SC-003: every map size and box size gives the expected counts', () => {
+  const s = stateOf(Array.from({ length: 25 }, (_, i) => qso(i + 1)), null);
+  for (const mapSize of [10, 20, 50, null]) {
+    setMapLimit(s, mapSize);
+    assert.equal(visible(s).length, Math.min(mapSize ?? Infinity, 25), `map ${mapSize}`);
+    for (const boxSize of [3, 5, 10, 15, 20]) {
+      for (const order of ['bottom', 'top']) {
+        assert.equal(recentQsos(s, boxSize, order).length, Math.min(boxSize, 25), `map ${mapSize} box ${boxSize}`);
+      }
+    }
+  }
 });
 
 const ALL = ['call', 'band', 'mode', 'date', 'time', 'cqzone', 'country'];

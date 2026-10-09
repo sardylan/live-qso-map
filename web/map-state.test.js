@@ -1,6 +1,17 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createState, applySnapshot, applyUpsert, visible, markers, diffLayers, setLimit } from '../src/web/assets/map-state.js';
+import {
+  createState,
+  applySnapshot,
+  applyUpsert,
+  visible,
+  held,
+  markers,
+  diffLayers,
+  setLimit,
+  setMapLimit,
+  serverLimit,
+} from '../src/web/assets/map-state.js';
 
 const bands = [
   { band: '40m', color: '#d62728' },
@@ -137,13 +148,40 @@ test('a marker disappears when none of its QSOs is visible', () => {
   assert.deepEqual([...markers(s).keys()], ['52,10']);
 });
 
-test('setLimit(null) shows everything', () => {
+test('setMapLimit(null) shows everything on the map', () => {
   const s = state(10);
   for (let n = 1; n <= 30; n++) applyUpsert(s, qso(n));
-  setLimit(s, null);
+  setMapLimit(s, null);
   assert.equal(visible(s).length, 30);
-  setLimit(s, 5);
+  setMapLimit(s, 5);
   assert.equal(visible(s).length, 5);
+});
+
+test('the map shows its own Last N, the page holds the server window (feature 006)', () => {
+  const s = state(10);
+  for (let n = 1; n <= 25; n++) applyUpsert(s, qso(n));
+  setLimit(s, 20); // what a snapshot of 20 sets
+  assert.equal(visible(s).length, 10);
+  assert.deepEqual(visible(s).map((q) => q.id), held(s).slice(-10).map((q) => q.id));
+  assert.equal(held(s).length, 25);
+  const keys = held(s).map((q) => q.sort_key);
+  assert.deepEqual(keys, [...keys].sort(), 'held() is ascending');
+});
+
+test('a snapshot does not change the map limit', () => {
+  const s = state(10);
+  applySnapshot(s, Array.from({ length: 20 }, (_, i) => qso(i + 1)));
+  setLimit(s, 20);
+  assert.equal(s.mapLimit, 10);
+  assert.equal(visible(s).length, 10);
+});
+
+test('serverLimit asks for at least 20, or everything (TR-006)', () => {
+  assert.equal(serverLimit(10), 20);
+  assert.equal(serverLimit(20), 20);
+  assert.equal(serverLimit(50), 50);
+  assert.equal(serverLimit(500), 500);
+  assert.equal(serverLimit(null), null);
 });
 
 test('late arrivals are placed by sort_key, not arrival', () => {

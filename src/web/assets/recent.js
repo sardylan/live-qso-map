@@ -1,12 +1,23 @@
 // Pure helpers for the last-QSO box (feature 004, research R8).
 // No DOM, no MapLibre: everything here is tested with `node --test web/`.
 
-import { visible } from './map-state.js';
+import { held } from './map-state.js';
 
-/** The `n` most recent displayed QSOs by QSO time, newest first (FR-019). */
-export function recentQsos(state, n = 5) {
-  const window = visible(state);
-  return window.slice(Math.max(0, window.length - n)).reverse();
+/**
+ * The `size` most recent QSOs the page holds, by QSO time, independent of the map's limit
+ * (feature 006, FR-009): oldest first for 'bottom' (newest last), newest first for 'top'.
+ */
+export function recentQsos(state, size = 5, order = 'bottom') {
+  const all = held(state);
+  const newest = all.slice(Math.max(0, all.length - size));
+  return order === 'top' ? newest.reverse() : newest;
+}
+
+/** True when the QSO's marker is on the map (feature 006, FR-010). */
+export function onMap(qso, markers) {
+  const key = markerKeyOf(qso);
+  if (key === null || !markers.has(key)) return false;
+  return markers.get(key).qsos.some((q) => q.id === qso.id);
 }
 
 const ENTITY_NAME_MAX = 18;

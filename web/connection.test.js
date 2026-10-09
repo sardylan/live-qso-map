@@ -72,3 +72,14 @@ test('saveLimit stores and swallows storage errors', () => {
   assert.doesNotThrow(() => saveLimit(throwing, 10));
   assert.doesNotThrow(() => saveLimit(null, 10));
 });
+
+test('the map limit behaves the same in any storage (moved to local storage, Principle IV)', () => {
+  for (const storage of [memoryStorage(), memoryStorage()]) {
+    assert.equal(loadLimit(storage), 20);
+    saveLimit(storage, 50);
+    assert.equal(loadLimit(storage), 50);
+    saveLimit(storage, null);
+    assert.equal(loadLimit(storage), null);
+  }
+  assert.equal(loadLimit(throwing), 20);
+});

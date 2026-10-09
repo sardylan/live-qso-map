@@ -4,7 +4,17 @@
 // from an open UDP port (FR-035). Only the operator-configured attribution is HTML.
 /* global maplibregl */
 
-import { createState, applySnapshot, applyUpsert, applyRemove, markers, diffLayers, setLimit } from './map-state.js';
+import {
+  createState,
+  applySnapshot,
+  applyUpsert,
+  applyRemove,
+  markers,
+  diffLayers,
+  setLimit,
+  setMapLimit,
+  serverLimit,
+} from './map-state.js';
 import { markerFeatures, lineFeatures } from './layers.js';
 import { currentQth, houseFeature, HOUSE_SVG } from './qth.js';
 import {
@@ -21,8 +31,12 @@ import {
   loadRecent,
   saveRecent,
   scaleVisible,
+  loadRecentSize,
+  saveRecentSize,
+  loadRecentOrder,
+  saveRecentOrder,
 } from './view.js';
-import { recentQsos, headerCells, rowCells, markerKeyOf, entityLabel } from './recent.js';
+import { recentQsos, headerCells, rowCells, markerKeyOf, entityLabel, onMap } from './recent.js';
 import { createAutoZoom } from './autozoom.js';
 import {
   framedPoints,
@@ -70,14 +84,6 @@ let openPopup = null;
 let openKey = null;
 let popupTimer = null;
 
-function sessionStore() {
-  try {
-    return window.sessionStorage;
-  } catch {
-    return null;
-  }
-}
-
 function localStore() {
   try {
     return window.localStorage;
@@ -86,7 +92,8 @@ function localStore() {
   }
 }
 
-const connection = createConnection(loadLimit(sessionStore()));
+// Every viewer setting lives in local storage and survives a browser restart (Principle IV).
+const connection = createConnection(loadLimit(localStore()));
 let projection = loadProjection(localStore());
 // What the map shows: the preference, or flat while auto-zoom has switched it (FR-016).
 let shown = projection;
@@ -95,7 +102,9 @@ let scaleControl = null;
 const autozoom = createAutoZoom({ enabled: loadAutoZoom(localStore()) });
 let autoZoomControl = null;
 let recentShown = loadRecent(localStore());
-const RECENT_ROWS = 5;
+let recentSize = loadRecentSize(localStore());
+let recentOrder = loadRecentOrder(localStore());
+const OFF_MAP_TITLE = 'Not on the map (outside its last N)';
 // How far inside the free area a marker opened from the box is brought (FR-022a).
 const PAN_INSET_PX = 40;
 
@@ -320,7 +329,7 @@ function renderRecent() {
   const box = document.getElementById('recent');
   box.hidden = !recentShown || !state;
   if (box.hidden) return;
-  const qsos = recentQsos(state, RECENT_ROWS);
+  const qsos = recentQsos(state, recentSize, recentOrder);
   if (qsos.length === 0) {
     // The empty-state message replaces the header too (feature 006, FR-006a).
     box.replaceChildren(element('div', 'empty', 'No QSOs received yet'));
@@ -336,6 +345,8 @@ function renderRecent() {
     table.append(head);
   }
   const body = element('tbody');
+  // From the state, not the drawn layers, so rows are right even before the map has loaded.
+  const onMapMarkers = markers(state);
   for (const qso of qsos) {
     const tr = element('tr');
     for (const { column, text, title } of rowCells(qso, recentConfig.columns)) {
@@ -344,7 +355,13 @@ function renderRecent() {
       tr.append(td);
     }
     const markerKey = markerKeyOf(qso);
-    if (markerKey !== null) {
+    if (!onMap(qso, onMapMarkers)) {
+      // Outside the map's last N, or no position: faded and not clickable (FR-010).
+      if (markerKey !== null) {
+        tr.className = 'off-map';
+        tr.title = OFF_MAP_TITLE;
+      }
+    } else {
       tr.className = 'clickable';
       tr.tabIndex = 0;
       tr.setAttribute('role', 'button');
@@ -578,7 +595,8 @@ function onHello(hello) {
   if (hello.recent && Array.isArray(hello.recent.columns)) recentConfig = hello.recent;
   state = createState({ bands: hello.bands, fallbackColor: hello.fallback_color, limit: connection.limit });
   renderRecent();
-  for (const message of handshake(connection)) {
+  // Ask for at least 20 QSOs, so the box has its rows whatever the map shows (TR-006).
+  for (const message of handshake({ limit: serverLimit(connection.limit) })) {
     socket.send(JSON.stringify(message));
   }
 }
@@ -630,10 +648,33 @@ function setupSelector() {
   select.value = connection.limit === null ? 'all' : String(connection.limit);
   select.addEventListener('change', () => {
     connection.limit = select.value === 'all' ? null : Number.parseInt(select.value, 10);
-    saveLimit(sessionStore(), connection.limit);
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({ type: 'set_limit', limit: connection.limit }));
+    saveLimit(localStore(), connection.limit);
+    if (state) {
+      // The map takes its own window at once; the box keeps its own (FR-009).
+      setMapLimit(state, connection.limit);
+      render();
+      renderRecent();
+      autozoom.change();
     }
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({ type: 'set_limit', limit: serverLimit(connection.limit) }));
+    }
+  });
+
+  const size = document.getElementById('recent-size');
+  size.value = String(recentSize);
+  size.addEventListener('change', () => {
+    recentSize = Number.parseInt(size.value, 10);
+    saveRecentSize(localStore(), recentSize);
+    renderRecent();
+    autozoom.change();
+  });
+  const order = document.getElementById('recent-order');
+  order.value = recentOrder;
+  order.addEventListener('change', () => {
+    recentOrder = order.value === 'top' ? 'top' : 'bottom';
+    saveRecentOrder(localStore(), recentOrder);
+    renderRecent();
   });
 }
 

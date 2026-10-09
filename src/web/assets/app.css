@@ -83,6 +83,20 @@ body {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
 }
 
+/* The box settings sit under the map selector, visibly apart from it (feature 006, FR-007). */
+.limit-control .box-settings {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid #ddd;
+}
+
+/* Box rows whose QSO is not on the map (feature 006, FR-010). */
+.recent tr.off-map {
+  opacity: 0.55;
+}
+
 .no-webgl {
   max-width: 32em;
   margin: 20vh auto 0;
