@@ -1,5 +1,6 @@
 /target
-.idea*.rs.bk
+.idea/
+*.rs.bk
 *.log
 .env*
 .DS_Store
