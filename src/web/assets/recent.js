@@ -28,21 +28,57 @@ function utcDateTime(datetime) {
   return match ? [match[1], `${match[2]}Z`] : ['', ''];
 }
 
-/**
- * One box row (feature 005, FR-006): callsign, band, UTC date and time, and the entity with its
- * name cut; the full label is the title. Text is returned as is: the glue renders it with
- * textContent only (FR-022 of feature 004).
- */
-export function rowView(qso) {
+const LABELS = {
+  call: 'Call',
+  band: 'Band',
+  mode: 'Mode',
+  date: 'Date',
+  time: 'UTC',
+  cqzone: 'CQ',
+  country: 'Country',
+};
+
+/** The header row of the box: one short label per configured column (feature 006, FR-006a). */
+export function headerCells(columns) {
+  return columns.map((column) => ({ column, text: LABELS[column] ?? column }));
+}
+
+function cell(column, qso) {
   const [date, time] = utcDateTime(qso.datetime);
   const entity = qso.entity ?? null;
-  return {
-    call: qso.call ?? '',
-    band: qso.band ?? '',
-    date,
-    time,
-    entity: entity ? `${entity.prefix} · ${shortName(entity.name)}` : '—',
-    entityTitle: entity ? entityLabel(entity) : '',
-    markerKey: qso.remote ? `${qso.remote.lat},${qso.remote.lon}` : null,
-  };
+  switch (column) {
+    case 'call':
+      return { text: qso.call ?? '' };
+    case 'band':
+      return { text: qso.band ?? '' };
+    case 'mode': {
+      const mode = qso.mode ?? '';
+      return { text: qso.submode ? `${mode}/${qso.submode}` : mode };
+    }
+    case 'date':
+      return { text: date };
+    case 'time':
+      return { text: time };
+    case 'cqzone':
+      return { text: entity && entity.cq_zone != null ? String(entity.cq_zone) : '—' };
+    case 'country':
+      return entity
+        ? { text: `${entity.prefix} · ${shortName(entity.name)}`, title: entityLabel(entity) }
+        : { text: '—', title: '' };
+    default:
+      return { text: '' };
+  }
+}
+
+/**
+ * One box row: a cell per configured column, in order (feature 006, FR-004, FR-005). Text is
+ * returned as is: the glue renders it with textContent only (feature 004, FR-022).
+ */
+export function rowCells(qso, columns) {
+  return columns.map((column) => ({ column, title: '', ...cell(column, qso) }));
+}
+
+/** The marker key of a QSO's remote position (as `markers()` builds it), or null. */
+export function markerKeyOf(qso) {
+  return qso.remote ? `${qso.remote.lat},${qso.remote.lon}` : null;
 }

@@ -37,7 +37,7 @@ for the frontend (Node via nvm: `~/.nvm/versions/node/v26.11.1/bin/node`).
 
 ## Phase 1: Setup
 
-- [ ] T001 Create `src/recent_columns.rs` with the module doc comment
+- [X] T001 Create `src/recent_columns.rs` with the module doc comment
   `//! Last-QSO box columns chosen by the operator (feature 006, research R2).`, and add
   `pub mod recent_columns;` to `src/lib.rs`. `cargo build` must pass.
 
@@ -55,7 +55,7 @@ for the frontend (Node via nvm: `~/.nvm/versions/node/v26.11.1/bin/node`).
 
 ### Tests for User Story 1 (write first, confirm they FAIL)
 
-- [ ] T002 [P] [US1] Write unit tests in `src/recent_columns.rs` (data-model "Column"):
+- [X] T002 [P] [US1] Write unit tests in `src/recent_columns.rs` (data-model "Column"):
   - **parsing**:
     - `parse(["call","band","time","cqzone","country"])` gives `DEFAULT_COLUMNS`;
     - `[" Call ", "COUNTRY"]` gives `[Call, Country]`;
@@ -66,7 +66,7 @@ for the frontend (Node via nvm: `~/.nvm/versions/node/v26.11.1/bin/node`).
     - `["call","call"]` (repeated);
     - `[]` and `[" ", ""]` (no columns);
   - **JSON**: `Column` serialises as its keyword string.
-- [ ] T003 [P] [US1] Extend the unit tests in `src/config.rs` (contracts/configuration.md):
+- [X] T003 [P] [US1] Extend the unit tests in `src/config.rs` (contracts/configuration.md):
   - **defaults**: `map.recent_columns` is `DEFAULT_COLUMNS` and `map.recent_header` is `true`;
   - **TOML**: `[map] recent_columns = ["country","call"]` and `recent_header = false` are applied;
   - **environment**: `LQM_RECENT_COLUMNS="call, mode"` replaces the TOML list;
@@ -74,7 +74,7 @@ for the frontend (Node via nvm: `~/.nvm/versions/node/v26.11.1/bin/node`).
     `--recent-header true`;
   - **errors**: an invalid list gives `Error::Config { setting: "map.recent_columns" }` from any
     layer; `LQM_RECENT_HEADER=maybe` gives `Error::Config { setting: "map.recent_header" }`.
-- [ ] T004 [P] [US1] Write unit tests in `src/enrich/cty.rs` for
+- [X] T004 [P] [US1] Write unit tests in `src/enrich/cty.rs` for
   `CountryData::entity_info(call)`. Use `tests/fixtures/cty-excerpt.dat`, plus a new small
   fixture, `tests/fixtures/cty-zones.dat`. It holds the real cty.dat headers of Canada (`VE`,
   zone 5) and Asiatic Russia (`UA9`, zone 17), with the aliases `VE`, `VY1(1)`, `UA9` and
@@ -86,19 +86,19 @@ for the frontend (Node via nvm: `~/.nvm/versions/node/v26.11.1/bin/node`).
   - **unknown call**: `None`;
   - **consistency (SC-007)**: for 20 callsigns, `entity_info(c).cq_zone` equals the `CQZ` that
     `lookup(c)` returns.
-- [ ] T005 [P] [US1] Extend the tests in `src/enrich/mod.rs`:
+- [X] T005 [P] [US1] Extend the tests in `src/enrich/mod.rs`:
   - `enrich()` sets `entity.cq_zone`, for example `K1ABC` gives 5;
   - a corrected callsign gets the new zone.
-- [ ] T006 [P] [US1] Extend the tests in `src/web/protocol.rs`:
+- [X] T006 [P] [US1] Extend the tests in `src/web/protocol.rs`:
   - `hello` contains `"recent": {"columns": ["call","band","time","cqzone","country"],
     "header": true}` for the default `MapConfig`, and follows a custom configuration;
   - the QSO `entity` serialises as `{"prefix","name","cq_zone"}`;
   - `protocol` is still 3.
-- [ ] T007 [P] [US1] Extend `tests/ws_protocol.rs`:
+- [X] T007 [P] [US1] Extend `tests/ws_protocol.rs`:
   - over a real WebSocket, `hello.recent` matches `test_config()`;
   - with `start_with_country` and the fixture, an upsert for `K1ABC` carries
     `entity.cq_zone == 5`.
-- [ ] T008 [P] [US1] Extend `web/recent.test.js` (data-model "Box"):
+- [X] T008 [P] [US1] Extend `web/recent.test.js` (data-model "Box"):
   - **`headerCells`**: `headerCells(['call','band','time','cqzone','country'])` gives the labels
     Call, Band, UTC, CQ, Country, in order; every keyword has its label (Mode, Date);
   - **`rowCells`**:
@@ -111,9 +111,9 @@ for the frontend (Node via nvm: `~/.nvm/versions/node/v26.11.1/bin/node`).
 
 ### Implementation for User Story 1
 
-- [ ] T009 [US1] Implement `Column` (with `keyword()` and serialisation as the keyword),
+- [X] T009 [US1] Implement `Column` (with `keyword()` and serialisation as the keyword),
   `DEFAULT_COLUMNS` and `parse()` in `src/recent_columns.rs`. T002 must pass.
-- [ ] T010 [US1] In `src/config.rs`:
+- [X] T010 [US1] In `src/config.rs`:
   - add `recent_columns: Vec<Column>` and `recent_header: bool` to `MapConfig`, with defaults;
   - add the TOML keys and the CLI flags, `--recent-columns` (repeatable, comma-separated) and
     `--recent-header <true|false>`, with their env names in the help text. `--recent-header`
@@ -122,7 +122,7 @@ for the frontend (Node via nvm: `~/.nvm/versions/node/v26.11.1/bin/node`).
     only `true` or `false`.
 
   T003 must pass.
-- [ ] T011 [US1] Rename `CountryData::entity_of` to `entity_info` in `src/enrich/cty.rs`. It now
+- [X] T011 [US1] Rename `CountryData::entity_of` to `entity_info` in `src/enrich/cty.rs`. It now
   returns `EntityInfo { prefix, name, cq_zone }`, with `cq_zone = overrides.cq.unwrap_or(e.cq)`.
   Then:
   - add `cq_zone: u8` to `QsoEntity` in `src/history.rs`;
@@ -130,13 +130,13 @@ for the frontend (Node via nvm: `~/.nvm/versions/node/v26.11.1/bin/node`).
   - update `station_entity` in `src/pipeline.rs` and every caller and test.
 
   T004 and T005 must pass, and so must every feature-004/005 test.
-- [ ] T012 [US1] In `src/web/protocol.rs`, add `RecentView { columns: Vec<Column>, header: bool }`
+- [X] T012 [US1] In `src/web/protocol.rs`, add `RecentView { columns: Vec<Column>, header: bool }`
   and `ServerMessage::Hello.recent`, built from `MapConfig` in `ServerMessage::hello`. T006 and
   T007 must pass.
-- [ ] T013 [US1] Implement `headerCells` and `rowCells` in `src/web/assets/recent.js`, reusing
+- [X] T013 [US1] Implement `headerCells` and `rowCells` in `src/web/assets/recent.js`, reusing
   `shortName` and `entityLabel`. Remove the feature-005 fixed `rowView`, or keep it as a wrapper
   over `rowCells`, and update its tests. T008 must pass.
-- [ ] T014 [US1] Glue in `src/web/assets/app.js` and `src/web/assets/app.css`:
+- [X] T014 [US1] Glue in `src/web/assets/app.js` and `src/web/assets/app.css`:
   - keep `hello.recent`;
   - in `renderRecent()`, build one `<table>`, with a `<thead>` row from `headerCells` when
     `header` is true, and a `<tbody>` row per QSO from `rowCells`;

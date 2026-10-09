@@ -22,6 +22,14 @@ struct Entity {
     lon: f64,
 }
 
+/// A callsign's DXCC/WAE entity and CQ zone, borrowed from the country data.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EntityInfo<'a> {
+    pub prefix: &'a str,
+    pub name: &'a str,
+    pub cq_zone: u8,
+}
+
 #[derive(Debug, Clone, Default, PartialEq)]
 struct Overrides {
     cq: Option<u8>,
@@ -117,19 +125,24 @@ impl CountryData {
         self.candidate(entity, overrides)
     }
 
-    /// The entity of `call` as `(primary prefix, name)`, by the same rules as `lookup`.
-    pub fn entity_of(&self, call: &str) -> Option<(&str, &str)> {
+    /// The entity of `call` and its CQ zone, by the same rules as `lookup`: an exact call wins,
+    /// then the longest prefix; a per-callsign zone override replaces the entity's zone
+    /// (features 005 and 006).
+    pub fn entity_info(&self, call: &str) -> Option<EntityInfo<'_>> {
         let call = call.trim().to_ascii_uppercase();
         if call.is_empty() {
             return None;
         }
-        let entity = match self.exact.get(&call) {
-            Some((entity, _)) => *entity,
-            None => self.longest_prefix(&effective_call(&call)?)?.0,
+        let (entity, overrides) = match self.exact.get(&call) {
+            Some((entity, overrides)) => (*entity, overrides),
+            None => self.longest_prefix(&effective_call(&call)?)?,
         };
-        self.entities
-            .get(entity)
-            .map(|e| (e.prefix.as_str(), e.name.as_str()))
+        let e = self.entities.get(entity)?;
+        Some(EntityInfo {
+            prefix: &e.prefix,
+            name: &e.name,
+            cq_zone: overrides.cq.unwrap_or(e.cq),
+        })
     }
 
     fn longest_prefix(&self, call: &str) -> Option<(usize, &Overrides)> {
@@ -350,29 +363,117 @@ mod tests {
             .and_then(|c| c.fields.get("COUNTRY").map(str::to_string))
     }
 
-    #[test]
-    fn entity_of_resolves_prefix_and_name() {
-        let d = data();
-        assert_eq!(d.entity_of("IS0MZK"), Some(("IS", "Sardinia")));
-        assert_eq!(d.entity_of("is0mzk"), Some(("IS", "Sardinia")));
-        // WAE entity: the `*` marker is not part of the prefix.
-        assert_eq!(d.entity_of("IT9ABC"), Some(("IT9", "Sicily")));
-        assert_eq!(d.entity_of("I2XYZ"), Some(("I", "Italy")));
-        assert_eq!(d.entity_of("K1ABC"), Some(("K", "United States")));
-        assert_eq!(d.entity_of("KH6XX"), Some(("KH6", "Hawaii")));
-        assert_eq!(d.entity_of("IS0MZK/P"), Some(("IS", "Sardinia")));
-        assert_eq!(d.entity_of("QQ9QQ"), None);
-        assert_eq!(d.entity_of(""), None);
+    const ZONES: &str = include_str!("../../tests/fixtures/cty-zones.dat");
+
+    fn info(data: &CountryData, call: &str) -> Option<(String, String, u8)> {
+        data.entity_info(call)
+            .map(|e| (e.prefix.to_string(), e.name.to_string(), e.cq_zone))
+    }
+
+    fn triple(prefix: &str, name: &str, zone: u8) -> Option<(String, String, u8)> {
+        Some((prefix.to_string(), name.to_string(), zone))
     }
 
     #[test]
-    fn entity_of_matches_lookup() {
+    fn entity_info_gives_prefix_name_and_cq_zone() {
+        let d = data();
+        assert_eq!(info(&d, "K1ABC"), triple("K", "United States", 5));
+        assert_eq!(info(&d, "IS0MZK"), triple("IS", "Sardinia", 15));
+        // Exact call with its own zone override (=KH6QZ(5)[8] under United States).
+        assert_eq!(info(&d, "KH6QZ"), triple("K", "United States", 5));
+        assert_eq!(info(&d, "QQ9QQ"), None);
+    }
+
+    #[test]
+    fn entity_info_applies_prefix_zone_overrides() {
+        let z = CountryData::parse(ZONES);
+        assert_eq!(info(&z, "VE3ABC"), triple("VE", "Canada", 5));
+        assert_eq!(info(&z, "VY1ABC"), triple("VE", "Canada", 1));
+        assert_eq!(info(&z, "UA9AA"), triple("UA9", "Asiatic Russia", 17));
+        assert_eq!(info(&z, "R8HAA"), triple("UA9", "Asiatic Russia", 18));
+    }
+
+    #[test]
+    fn entity_info_zone_matches_the_lookup_for_20_callsigns() {
+        // SC-007: the zone shown equals the CQZ cty.dat gives for that callsign.
+        let excerpt = data();
+        let zones = CountryData::parse(ZONES);
+        let cases: [(&CountryData, &str); 20] = [
+            (&excerpt, "K1ABC"),
+            (&excerpt, "W6XYZ"),
+            (&excerpt, "KH6XX"),
+            (&excerpt, "KH6QZ"),
+            (&excerpt, "IS0MZK"),
+            (&excerpt, "I2XYZ"),
+            (&excerpt, "IT9ABC"),
+            (&excerpt, "IT9QZW/4"),
+            (&excerpt, "DL1ABC"),
+            (&excerpt, "HB9ABC"),
+            (&excerpt, "BY1AA"),
+            (&excerpt, "KH6/W1XX"),
+            (&excerpt, "DL1ABC/P"),
+            (&excerpt, "I2QXJ/RM"),
+            (&zones, "VE3ABC"),
+            (&zones, "VY1ABC"),
+            (&zones, "VY1ABC/P"),
+            (&zones, "UA9AA"),
+            (&zones, "R8HAA"),
+            (&zones, "R8H/UA9AA"),
+        ];
+        for (d, call) in cases {
+            let zone = d.entity_info(call).map(|e| e.cq_zone.to_string());
+            let cqz = d
+                .lookup(call)
+                .and_then(|c| c.fields.get("CQZ").map(str::to_string));
+            assert!(zone.is_some(), "{call} resolves");
+            assert_eq!(zone, cqz, "{call}");
+        }
+    }
+
+    #[test]
+    fn entity_info_resolves_prefix_and_name() {
+        let d = data();
+        assert_eq!(
+            d.entity_info("IS0MZK").map(|e| (e.prefix, e.name)),
+            Some(("IS", "Sardinia"))
+        );
+        assert_eq!(
+            d.entity_info("is0mzk").map(|e| (e.prefix, e.name)),
+            Some(("IS", "Sardinia"))
+        );
+        // WAE entity: the `*` marker is not part of the prefix.
+        assert_eq!(
+            d.entity_info("IT9ABC").map(|e| (e.prefix, e.name)),
+            Some(("IT9", "Sicily"))
+        );
+        assert_eq!(
+            d.entity_info("I2XYZ").map(|e| (e.prefix, e.name)),
+            Some(("I", "Italy"))
+        );
+        assert_eq!(
+            d.entity_info("K1ABC").map(|e| (e.prefix, e.name)),
+            Some(("K", "United States"))
+        );
+        assert_eq!(
+            d.entity_info("KH6XX").map(|e| (e.prefix, e.name)),
+            Some(("KH6", "Hawaii"))
+        );
+        assert_eq!(
+            d.entity_info("IS0MZK/P").map(|e| (e.prefix, e.name)),
+            Some(("IS", "Sardinia"))
+        );
+        assert_eq!(d.entity_info("QQ9QQ"), None);
+        assert_eq!(d.entity_info(""), None);
+    }
+
+    #[test]
+    fn entity_info_matches_lookup() {
         let d = data();
         for call in [
             "IS0MZK", "IT9ABC", "I2XYZ", "K1ABC", "KH6XX", "DL1ABC", "HB9XX",
         ] {
             let by_lookup = country(call);
-            let by_entity = d.entity_of(call).map(|(_, name)| name.to_string());
+            let by_entity = d.entity_info(call).map(|e| e.name.to_string());
             assert_eq!(by_entity, by_lookup, "{call}");
         }
     }

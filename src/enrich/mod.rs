@@ -79,10 +79,11 @@ pub async fn enrich(event: QsoEvent, config: &Config, lookups: &Lookups) -> Enri
     }
     // The entity always comes from cty.dat, whatever gave the position (feature 005, FR-002).
     let entity = lookups.country.as_ref().and_then(|country| {
-        let (prefix, name) = country.entity_of(record.get("CALL")?)?;
+        let info = country.entity_info(record.get("CALL")?)?;
         Some(QsoEntity {
-            prefix: prefix.to_string(),
-            name: name.to_string(),
+            prefix: info.prefix.to_string(),
+            name: info.name.to_string(),
+            cq_zone: info.cq_zone,
         })
     });
     let sort_ts = record
@@ -159,19 +160,22 @@ mod tests {
         call: &str,
         extra: &[(&str, &str)],
         with_country: bool,
-    ) -> Option<QsoEntity> {
+    ) -> Option<(String, String)> {
         let config = Config::default();
         let country = with_country.then(|| Arc::new(CountryData::parse(CTY)));
         enrich(event(call, extra), &config, &lookups(country, &config))
             .await
             .entity
+            .map(|e| (e.prefix, e.name))
     }
 
-    fn entity(prefix: &str, name: &str) -> Option<QsoEntity> {
-        Some(QsoEntity {
-            prefix: prefix.into(),
-            name: name.into(),
-        })
+    /// Prefix and name only; the CQ zone has its own tests.
+    fn entity(prefix: &str, name: &str) -> Option<(String, String)> {
+        Some((prefix.into(), name.into()))
+    }
+
+    fn named(e: Option<QsoEntity>) -> Option<(String, String)> {
+        e.map(|e| (e.prefix, e.name))
     }
 
     #[tokio::test]
@@ -208,6 +212,20 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn enrich_fills_the_cq_zone_and_updates_it_on_corrections() {
+        let config = Config::default();
+        let l = lookups(Some(Arc::new(CountryData::parse(CTY))), &config);
+        let first = enrich(event("IS0MZK", &[]), &config, &l).await;
+        assert_eq!(first.entity.as_ref().map(|e| e.cq_zone), Some(15));
+        let mut correction = event("K1ABC", &[]);
+        correction.kind = EventKind::Correction;
+        correction.id = first.id.clone();
+        correction.rev = first.rev + 1;
+        let second = enrich(correction, &config, &l).await;
+        assert_eq!(second.entity.as_ref().map(|e| e.cq_zone), Some(5));
+    }
+
+    #[tokio::test]
     async fn no_country_data_means_no_entity() {
         assert_eq!(entity_of("K1ABC", &[], false).await, None);
     }
@@ -222,7 +240,7 @@ mod tests {
             q.remote.unwrap().source,
             crate::position::PositionSource::Logger
         );
-        assert_eq!(q.entity, entity("K", "United States"));
+        assert_eq!(named(q.entity), entity("K", "United States"));
     }
 
     #[tokio::test]
@@ -235,8 +253,8 @@ mod tests {
         correction.id = first.id.clone();
         correction.rev = first.rev + 1;
         let second = enrich(correction, &config, &l).await;
-        assert_eq!(first.entity, entity("IS", "Sardinia"));
-        assert_eq!(second.entity, entity("K", "United States"));
+        assert_eq!(named(first.entity), entity("IS", "Sardinia"));
+        assert_eq!(named(second.entity), entity("K", "United States"));
     }
 
     #[test]
@@ -277,7 +295,7 @@ mod tests {
         ];
         assert_eq!(calls.len(), 30);
         for call in calls {
-            let by_entity = data.entity_of(call).map(|(_, name)| name.to_string());
+            let by_entity = data.entity_info(call).map(|e| e.name.to_string());
             let by_lookup = data
                 .lookup(call)
                 .and_then(|c| c.fields.get("COUNTRY").map(str::to_string));

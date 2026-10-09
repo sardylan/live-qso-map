@@ -1,6 +1,7 @@
 //! Configuration: command line, then `LQM_*` environment, then TOML file, then defaults
 //! (FR-032, FR-033, contracts/configuration.md).
 
+use crate::recent_columns::{Column, DEFAULT_COLUMNS, parse as parse_columns};
 use std::collections::BTreeMap;
 use std::fmt;
 use std::net::{IpAddr, Ipv4Addr};
@@ -140,6 +141,13 @@ pub struct Cli {
     /// comma-separated or repeated; prefix with - to exclude [env: LQM_BANDS] [default: all]
     #[arg(long = "bands")]
     pub bands: Vec<String>,
+    /// Last-QSO box columns in order: call, band, mode, date, time, cqzone, country;
+    /// comma-separated or repeated [env: LQM_RECENT_COLUMNS] [default: call,band,time,cqzone,country]
+    #[arg(long = "recent-columns")]
+    pub recent_columns: Vec<String>,
+    /// Show the last-QSO box header row: true or false [env: LQM_RECENT_HEADER] [default: true]
+    #[arg(long = "recent-header")]
+    pub recent_header: Option<bool>,
 }
 
 /// A secret value whose `Debug` output is redacted.
@@ -230,6 +238,10 @@ pub struct MapConfig {
     pub tile_attribution: Option<String>,
     pub fallback_color: String,
     pub bands: BTreeMap<String, String>,
+    /// Last-QSO box columns, in display order (feature 006).
+    pub recent_columns: Vec<Column>,
+    /// Whether the last-QSO box shows its header row (feature 006).
+    pub recent_header: bool,
 }
 
 /// The background map sent to pages as `hello.basemap` (feature 002, data-model).
@@ -316,6 +328,8 @@ impl Default for Config {
                     .iter()
                     .map(|(b, c)| (b.to_string(), c.to_string()))
                     .collect(),
+                recent_columns: DEFAULT_COLUMNS.to_vec(),
+                recent_header: true,
             },
         }
     }
@@ -390,6 +404,8 @@ struct FileMap {
     fallback_color: Option<String>,
     #[serde(default)]
     bands: BTreeMap<String, String>,
+    recent_columns: Option<Vec<String>>,
+    recent_header: Option<bool>,
 }
 
 /// Looks up an environment variable; injected so tests never touch the process environment.
@@ -806,6 +822,30 @@ impl Config {
             )?,
             fallback_color,
             bands,
+            // A higher layer replaces the whole list, as for `bands` (feature 006, research R2).
+            recent_columns: {
+                let entries: Vec<String> = if !cli.recent_columns.is_empty() {
+                    cli.recent_columns.clone()
+                } else if let Some(raw) = env("LQM_RECENT_COLUMNS") {
+                    vec![raw]
+                } else if let Some(list) = file.map.recent_columns {
+                    list
+                } else {
+                    DEFAULT_COLUMNS
+                        .iter()
+                        .map(|c| c.keyword().to_string())
+                        .collect()
+                };
+                parse_columns(&entries)?
+            },
+            recent_header: layer(
+                "map.recent_header",
+                cli.recent_header,
+                env,
+                "LQM_RECENT_HEADER",
+                file.map.recent_header,
+            )?
+            .unwrap_or(true),
         };
         if map.style_url.is_some() && map.tile_url.is_some() {
             return Err(config_error(
@@ -1305,6 +1345,76 @@ style_attribution = "file credit"
         config_err(
             load(&[], &[], Some("bands = [\"warc\", \"-warc\"]\n")),
             "bands",
+        );
+    }
+
+    fn columns(c: &Config) -> Vec<&str> {
+        c.map
+            .recent_columns
+            .iter()
+            .map(|col| col.keyword())
+            .collect()
+    }
+
+    #[test]
+    fn recent_box_defaults() {
+        let (c, _) = load(&[], &[], None).unwrap();
+        assert_eq!(c.map.recent_columns, crate::recent_columns::DEFAULT_COLUMNS);
+        assert!(c.map.recent_header);
+    }
+
+    #[test]
+    fn recent_box_layers_replace_the_whole_list() {
+        let file = "[map]\nrecent_columns = [\"country\", \"call\"]\nrecent_header = false\n";
+        let (c, _) = load(&[], &[], Some(file)).unwrap();
+        assert_eq!(columns(&c), ["country", "call"]);
+        assert!(!c.map.recent_header);
+
+        let (c, _) = load(&[], &[("LQM_RECENT_COLUMNS", "call, mode")], Some(file)).unwrap();
+        assert_eq!(columns(&c), ["call", "mode"]);
+
+        let (c, _) = load(
+            &[
+                "--recent-columns",
+                "date",
+                "--recent-columns",
+                "time",
+                "--recent-header",
+                "true",
+            ],
+            &[
+                ("LQM_RECENT_COLUMNS", "call"),
+                ("LQM_RECENT_HEADER", "false"),
+            ],
+            Some(file),
+        )
+        .unwrap();
+        assert_eq!(columns(&c), ["date", "time"]);
+        assert!(c.map.recent_header);
+
+        let (c, _) = load(&["--recent-columns", "band,call"], &[], None).unwrap();
+        assert_eq!(columns(&c), ["band", "call"]);
+        let (c, _) = load(&[], &[("LQM_RECENT_HEADER", "false")], None).unwrap();
+        assert!(!c.map.recent_header);
+    }
+
+    #[test]
+    fn recent_box_errors() {
+        config_err(
+            load(&["--recent-columns", "call,freq"], &[], None),
+            "map.recent_columns",
+        );
+        config_err(
+            load(&[], &[("LQM_RECENT_COLUMNS", "call,call")], None),
+            "map.recent_columns",
+        );
+        config_err(
+            load(&[], &[], Some("[map]\nrecent_columns = []\n")),
+            "map.recent_columns",
+        );
+        config_err(
+            load(&[], &[("LQM_RECENT_HEADER", "maybe")], None),
+            "map.recent_header",
         );
     }
 }

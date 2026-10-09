@@ -46,6 +46,10 @@ async fn every_page_receives_hello_snapshot_and_live_upserts() {
         assert_eq!(hello["station"]["position"]["precision"], "locator6");
         assert_eq!(hello["station"]["position"]["source"], "config");
         assert!(hello.get("entity").is_some());
+        assert_eq!(
+            hello["recent"],
+            serde_json::json!({"columns": ["call", "band", "time", "cqzone", "country"], "header": true})
+        );
         assert_eq!(hello["basemap"]["kind"], "style");
         assert_eq!(
             hello["basemap"]["url"],
@@ -365,7 +369,7 @@ async fn a_page_receives_each_qso_entity() {
             upsert["qso"]["entity"].clone(),
         ));
     }
-    let expected = serde_json::json!({"prefix": "K", "name": "United States"});
+    let expected = serde_json::json!({"prefix": "K", "name": "United States", "cq_zone": 5});
     assert_eq!(seen[0], ("K1ABC".to_string(), expected.clone()));
     assert_eq!(seen[1], ("QQ9QQ".to_string(), Value::Null));
 

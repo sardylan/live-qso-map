@@ -202,10 +202,11 @@ pub fn station_entity(
         tracing::debug!("no country data: the station entity is unknown");
         return None;
     };
-    let Some((prefix, name)) = country.entity_of(call) else {
+    let Some(info) = country.entity_info(call) else {
         tracing::debug!(call, "station callsign matches no entity");
         return None;
     };
+    let (prefix, name) = (info.prefix, info.name);
     let Some(bounds) = extents.get(prefix) else {
         tracing::debug!(prefix, "no bundled extent for the station entity");
         return None;

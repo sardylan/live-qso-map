@@ -9,6 +9,7 @@ use crate::band_filter::BandSet;
 use crate::config::{BaseMap, MapConfig, StationConfig};
 use crate::history::{EnrichedQso, QsoEntity, format_rfc3339, qso_timestamp};
 use crate::position::Position;
+use crate::recent_columns::Column;
 
 pub const PROTOCOL_VERSION: u32 = 3;
 pub const DEFAULT_LIMIT: usize = 20;
@@ -65,6 +66,14 @@ pub struct EntityView {
     pub bounds: [f64; 4],
 }
 
+/// The operator's last-QSO box settings, sent in `hello` (feature 006).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct RecentView {
+    /// Columns in display order: an array, because order matters (API-4).
+    pub columns: Vec<Column>,
+    pub header: bool,
+}
+
 /// The station data every `hello` carries, computed once at startup.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct HelloStation {
@@ -109,6 +118,7 @@ pub enum ServerMessage {
         basemap: BaseMap,
         station: Option<StationView>,
         entity: Option<EntityView>,
+        recent: RecentView,
     },
     Snapshot {
         limit: Option<usize>,
@@ -139,6 +149,10 @@ impl ServerMessage {
             basemap: map.basemap(),
             station: station.station.clone(),
             entity: station.entity.clone(),
+            recent: RecentView {
+                columns: map.recent_columns.clone(),
+                header: map.recent_header,
+            },
         }
     }
 }
@@ -224,6 +238,8 @@ mod tests {
             tile_attribution: None,
             fallback_color: "#7f7f7f".into(),
             bands,
+            recent_columns: crate::recent_columns::DEFAULT_COLUMNS.to_vec(),
+            recent_header: true,
         }
     }
 
@@ -276,7 +292,8 @@ mod tests {
                 "fallback_color": "#7f7f7f",
                 "basemap": {"kind": "style", "url": "https://style.example/style.json", "attribution": "attr"},
                 "station": null,
-                "entity": null
+                "entity": null,
+                "recent": {"columns": ["call", "band", "time", "cqzone", "country"], "header": true}
             })
         );
     }
@@ -511,14 +528,33 @@ mod tests {
     }
 
     #[test]
+    fn hello_carries_the_operator_box_settings() {
+        use crate::recent_columns::Column;
+        let mut map = map_config();
+        map.recent_columns = vec![Column::Country, Column::Call, Column::Mode];
+        map.recent_header = false;
+        let v = serde_json::to_value(ServerMessage::hello(&map, None, &HelloStation::default()))
+            .unwrap();
+        assert_eq!(
+            v["recent"],
+            json!({"columns": ["country", "call", "mode"], "header": false})
+        );
+        assert_eq!(v["protocol"], 3);
+    }
+
+    #[test]
     fn qso_view_carries_the_entity_or_null() {
         let mut q = k6qa();
         q.entity = Some(crate::history::QsoEntity {
             prefix: "IS".into(),
             name: "Sardinia".into(),
+            cq_zone: 15,
         });
         let v = serde_json::to_value(QsoView::from(&q)).unwrap();
-        assert_eq!(v["entity"], json!({"prefix": "IS", "name": "Sardinia"}));
+        assert_eq!(
+            v["entity"],
+            json!({"prefix": "IS", "name": "Sardinia", "cq_zone": 15})
+        );
         q.entity = None;
         let v = serde_json::to_value(QsoView::from(&q)).unwrap();
         assert_eq!(v["entity"], serde_json::Value::Null);

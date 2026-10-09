@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createState, applySnapshot, applyUpsert, applyRemove, setLimit, markers } from '../src/web/assets/map-state.js';
-import { recentQsos, rowView, shortName, entityLabel } from '../src/web/assets/recent.js';
+import { recentQsos, headerCells, rowCells, shortName, entityLabel } from '../src/web/assets/recent.js';
 
 function qso(n, overrides = {}) {
   const minute = String(n).padStart(2, '0');
@@ -67,52 +67,46 @@ test('QSOs without a remote position are listed', () => {
   assert.deepEqual(ids(recentQsos(s, 5)), ['Q02', 'Q01']);
 });
 
-test('rowView: call, band, UTC date and time, entity and marker key; no mode', () => {
-  const s = stateOf([qso(4, { mode: 'SSB', submode: 'USB', entity: { prefix: 'JA', name: 'Japan' } })]);
-  const row = rowView(recentQsos(s, 5)[0]);
-  const keys = [...markers(s).keys()];
-  assert.deepEqual(row, {
-    call: 'K4AA',
-    band: '20m',
-    date: '2026-10-08',
-    time: '15:04Z',
-    entity: 'JA · Japan',
-    entityTitle: 'JA · Japan',
-    markerKey: keys[0],
-  });
-  assert.ok(!('mode' in row));
+const ALL = ['call', 'band', 'mode', 'date', 'time', 'cqzone', 'country'];
+const texts = (cells) => cells.map((c) => c.text);
+
+test('headerCells labels every column, in the configured order', () => {
+  assert.deepEqual(
+    headerCells(['call', 'band', 'time', 'cqzone', 'country']).map((c) => c.text),
+    ['Call', 'Band', 'UTC', 'CQ', 'Country'],
+  );
+  assert.deepEqual(headerCells(ALL).map((c) => c.text), ['Call', 'Band', 'Mode', 'Date', 'UTC', 'CQ', 'Country']);
+  assert.deepEqual(headerCells(['country', 'call']).map((c) => c.column), ['country', 'call']);
 });
 
-test('rowView cuts a long entity name but keeps the full label as the title', () => {
-  const row = rowView(qso(1, { entity: { prefix: 'TL', name: 'Central African Republic' } }));
-  assert.equal(row.entity, 'TL · Central African R…');
-  assert.equal(row.entityTitle, 'TL · Central African Republic');
+test('rowCells shows every column in the configured order', () => {
+  const q = qso(4, { mode: 'SSB', submode: 'USB', entity: { prefix: 'JA', name: 'Japan', cq_zone: 25 } });
+  assert.deepEqual(texts(rowCells(q, ALL)), ['K4AA', '20m', 'SSB/USB', '2026-10-08', '15:04Z', '25', 'JA · Japan']);
+  assert.deepEqual(texts(rowCells(q, ['country', 'call', 'mode'])), ['JA · Japan', 'K4AA', 'SSB/USB']);
+  assert.deepEqual(rowCells(q, ['call', 'band']).map((c) => c.column), ['call', 'band']);
 });
 
-test('rowView of an unknown entity shows a dash and no title', () => {
-  const row = rowView(qso(1, { entity: null }));
-  assert.equal(row.entity, '—');
-  assert.equal(row.entityTitle, '');
-  assert.equal(rowView(qso(2)).entity, '—', 'a QSO without the field');
+test('rowCells cuts a long country name and keeps the full label as the title', () => {
+  const [cell] = rowCells(qso(1, { entity: { prefix: 'TL', name: 'Central African Republic', cq_zone: 36 } }), ['country']);
+  assert.equal(cell.text, 'TL · Central African R…');
+  assert.equal(cell.title, 'TL · Central African Republic');
 });
 
-test('rowView without a remote position has no marker key', () => {
-  assert.equal(rowView(qso(1, { remote: null })).markerKey, null);
+test('rowCells placeholders: a dash for country and CQ zone, empty otherwise', () => {
+  const q = qso(1, { entity: null, mode: null, band: null, datetime: null });
+  assert.deepEqual(texts(rowCells(q, ALL)), ['K1AA', '', '', '', '', '—', '—']);
+  assert.equal(rowCells(q, ['country'])[0].title, '');
+  assert.deepEqual(texts(rowCells(qso(2), ['cqzone', 'country'])), ['—', '—'], 'a QSO without the field');
 });
 
-test('rowView shows different dates either side of midnight UTC', () => {
-  const before = rowView(qso(1, { datetime: '2026-10-09T23:59:00Z' }));
-  const after = rowView(qso(2, { datetime: '2026-10-10T00:01:00Z' }));
-  assert.deepEqual([before.date, before.time], ['2026-10-09', '23:59Z']);
-  assert.deepEqual([after.date, after.time], ['2026-10-10', '00:01Z']);
+test('rowCells shows different dates either side of midnight UTC', () => {
+  const cols = ['date', 'time'];
+  assert.deepEqual(texts(rowCells(qso(1, { datetime: '2026-10-09T23:59:00Z' }), cols)), ['2026-10-09', '23:59Z']);
+  assert.deepEqual(texts(rowCells(qso(2, { datetime: '2026-10-10T00:01:00Z' }), cols)), ['2026-10-10', '00:01Z']);
 });
 
-test("rowView keeps text verbatim; escaping is the page glue's job", () => {
-  const row = rowView(qso(1, { call: '<b>X</b>', datetime: null, band: null }));
-  assert.equal(row.call, '<b>X</b>');
-  assert.equal(row.date, '');
-  assert.equal(row.time, '');
-  assert.equal(row.band, '');
+test("rowCells keeps text verbatim; escaping is the page glue's job", () => {
+  assert.equal(rowCells(qso(1, { call: '<b>X</b>' }), ['call'])[0].text, '<b>X</b>');
 });
 
 test('shortName keeps names up to 18 characters and cuts longer ones to 18 with an ellipsis', () => {

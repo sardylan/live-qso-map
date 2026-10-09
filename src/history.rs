@@ -27,6 +27,8 @@ pub struct EnrichedQso {
 pub struct QsoEntity {
     pub prefix: String,
     pub name: String,
+    /// CQ zone from cty.dat, with per-callsign overrides (feature 006).
+    pub cq_zone: u8,
 }
 
 #[derive(Debug)]

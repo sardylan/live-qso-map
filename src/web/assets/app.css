@@ -128,17 +128,27 @@ body.scale-on .recent {
   border-collapse: collapse;
 }
 
-.recent td {
+.recent td,
+.recent th {
   padding: 1px 8px 1px 0;
   white-space: nowrap;
+  text-align: left;
+  border: 0;
 }
 
-.recent .call {
+/* Header row (feature 006, FR-006a): smaller and grey, no lines. */
+.recent th {
+  font-size: 11px;
+  font-weight: normal;
+  color: #777;
+}
+
+.recent td.call {
   font-weight: 600;
 }
 
-.recent .entity {
-  color: #444;
+.recent td.country {
+  color: #666;
 }
 
 .recent tr.clickable {

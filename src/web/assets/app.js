@@ -22,7 +22,7 @@ import {
   saveRecent,
   scaleVisible,
 } from './view.js';
-import { recentQsos, rowView, entityLabel } from './recent.js';
+import { recentQsos, headerCells, rowCells, markerKeyOf, entityLabel } from './recent.js';
 import { createAutoZoom } from './autozoom.js';
 import {
   framedPoints,
@@ -61,6 +61,8 @@ let state = null;
 let current = new Map();
 let helloStation = null;
 let entity = null;
+// The operator's box columns and header (feature 006), from hello.
+let recentConfig = { columns: ['call', 'band', 'time', 'cqzone', 'country'], header: true };
 let qth = null;
 let socket = null;
 // The open popup and the key of its marker, so removals and updates reach it (FR-012).
@@ -318,38 +320,46 @@ function renderRecent() {
   const box = document.getElementById('recent');
   box.hidden = !recentShown || !state;
   if (box.hidden) return;
-  const rows = recentQsos(state, RECENT_ROWS).map(rowView);
-  if (rows.length === 0) {
+  const qsos = recentQsos(state, RECENT_ROWS);
+  if (qsos.length === 0) {
+    // The empty-state message replaces the header too (feature 006, FR-006a).
     box.replaceChildren(element('div', 'empty', 'No QSOs received yet'));
     return;
   }
+  // Columns and header come from the operator's configuration (feature 006, FR-004).
   const table = element('table');
-  for (const row of rows) {
+  if (recentConfig.header) {
+    const head = element('thead');
     const tr = element('tr');
-    const entity = element('td', 'entity', row.entity);
-    if (row.entityTitle) entity.title = row.entityTitle;
-    tr.append(
-      element('td', 'call', row.call),
-      element('td', null, row.band),
-      element('td', null, row.date),
-      element('td', null, row.time),
-      entity,
-    );
-    if (row.markerKey !== null) {
+    for (const { column, text } of headerCells(recentConfig.columns)) tr.append(element('th', column, text));
+    head.append(tr);
+    table.append(head);
+  }
+  const body = element('tbody');
+  for (const qso of qsos) {
+    const tr = element('tr');
+    for (const { column, text, title } of rowCells(qso, recentConfig.columns)) {
+      const td = element('td', column, text);
+      if (title) td.title = title;
+      tr.append(td);
+    }
+    const markerKey = markerKeyOf(qso);
+    if (markerKey !== null) {
       tr.className = 'clickable';
       tr.tabIndex = 0;
       tr.setAttribute('role', 'button');
-      tr.title = `Show ${row.call} on the map`;
-      tr.addEventListener('click', () => openFromBox(row.markerKey));
+      tr.title = `Show ${qso.call ?? ''} on the map`;
+      tr.addEventListener('click', () => openFromBox(markerKey));
       tr.addEventListener('keydown', (event) => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
-          openFromBox(row.markerKey);
+          openFromBox(markerKey);
         }
       });
     }
-    table.append(tr);
+    body.append(tr);
   }
+  table.append(body);
   box.replaceChildren(table);
 }
 
@@ -565,6 +575,7 @@ function onHello(hello) {
   showLegend(hello.bands);
   helloStation = hello.station ?? null;
   entity = hello.entity ?? null;
+  if (hello.recent && Array.isArray(hello.recent.columns)) recentConfig = hello.recent;
   state = createState({ bands: hello.bands, fallbackColor: hello.fallback_color, limit: connection.limit });
   renderRecent();
   for (const message of handshake(connection)) {
