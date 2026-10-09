@@ -282,6 +282,52 @@ up to 10 extra QSOs per page.
 - Positive: the server and protocol are unchanged; the box and the map choices stay independent.
 - Negative / debt accepted: if the box maximum ever exceeds 20, the floor must follow it.
 
+## TR-007: Score staleness is judged from a server-supplied age, not the browser clock
+
+- Status: proposed
+- Date: 2026-10-09
+- Phase: plan
+- Deciders: project owner
+- Links: specs/007-contest-score-layout/research.md#r4-staleness-without-trusting-the-browsers-clock-fr-007-sc-003
+
+### Context & problem
+
+Feature 007 greys out the score line when no score has arrived for 5 minutes. The page and the
+service often run on different machines, and a shack PC's clock can be minutes off, so comparing
+the server's receive time with the browser clock would grey out live scores or hide stale ones.
+
+### Decision drivers
+
+- A correct stale look whatever the two clocks say (FR-007, SC-003)
+- No per-session timers or state on the server (Principle III)
+- The tooltip still shows the real UTC time of the last update (HR-1)
+
+### Options considered
+
+| Option | Pros | Cons / what it sacrifices |
+|--------|------|---------------------------|
+| `age_s` in each `score` message; the page subtracts it from its own clock and checks every 5 s (chosen) | immune to clock offsets; no server timers | one extra field; network delay makes the age a little short |
+| Compare `received_at` with the browser clock | one field fewer | wrong whenever the clocks differ |
+| The server pushes a `stale` flag from a per-session timer | the page holds no timer | a timer, state and another `select!` branch in every session |
+
+### Decision
+
+Each `score` message carries `received_at` (UTC, for the tooltip) and `age_s`. The page records
+`Date.now() - age_s × 1000` and greys the line out when that is more than 300 s old.
+
+### Y-statement
+
+In the context of a stale score indicator, facing page and service clocks that may differ by
+minutes, we decided for a server-supplied age measured on each side's own clock, and neglected
+comparing absolute times or server-pushed staleness, to achieve a correct stale look with no
+server timers, accepting one extra field and a sub-second error from network delay.
+
+### Consequences
+
+- Positive: staleness is right regardless of clock offsets; sessions stay timer-free.
+- Negative / debt accepted: the age is short by the network delay (well under 1 s), and every
+  `score` message carries one extra field.
+
 ## Archive
 
 Superseded or deprecated entries sink here; nothing is deleted (git keeps history).

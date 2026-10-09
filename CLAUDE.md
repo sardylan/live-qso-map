@@ -22,11 +22,13 @@ HTTP/WebSocket interface rules (binding): `docs/http-api.md`.
 - none new; the entity is stored on the enriched QSO in the in-memory history (005-recent-box-dxcc)
 - Rust (edition 2024, stable toolchain; developed on 1.98); browser ES modules + none new (006-recent-box-config)
 - browser `localStorage` for `lqm.limit` (moved from session storage), `lqm.recent.size`, `lqm.recent.order` (006-recent-box-config)
+- Rust (edition 2024, stable toolchain; developed on 1.98); browser ES modules + none new (existing `quick-xml` reads the score message) (007-contest-score-layout)
+- in memory, the latest score only, lost on restart; no new browser keys (007-contest-score-layout)
 
 ### Recent Changes
 
+- 007-contest-score-layout: Added Rust (edition 2024, stable toolchain; developed on 1.98); browser ES modules + none new (existing `quick-xml` reads the score message)
 - 006-recent-box-config: Added Rust (edition 2024, stable toolchain; developed on 1.98); browser ES modules + none new
 - 005-recent-box-dxcc: Added Rust (edition 2024, stable toolchain; developed on 1.98); browser ES modules + none new
-- 004-qth-autozoom: Added Rust (edition 2024, stable toolchain; developed on 1.98); browser ES modules; Python 3 stdlib (dev-only generator) + no new crates or frontend libraries
 
 <!-- SPECKIT END -->
