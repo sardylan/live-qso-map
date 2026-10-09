@@ -1,0 +1,1109 @@
+# cty.dat primary prefix → Natural Earth v5.1.2 selectors (feature 004, research R2).
+# Regenerate with tools/entity_extents.py; see its docstring for the selector keys.
+# One table per entity, in cty.dat order. The comment names the cty.dat entity.
+
+[1S]  # Spratly Islands
+admin0 = ["PGA"]
+
+[3A]  # Monaco
+admin0 = ["MCO"]
+
+[3B6]  # Agalega & St. Brandon
+admin0 = ["MUS"]
+clip = [56.0, -17.0, 60.0, -10.0]
+note = "Agalega and Cargados Carajos (St. Brandon)"
+
+[3B8]  # Mauritius
+admin0 = ["MUS"]
+clip = [57.0, -21.0, 58.0, -19.5]
+
+[3B9]  # Rodriguez Island
+admin0 = ["MUS"]
+clip = [63.0, -20.0, 64.0, -19.5]
+
+[3C]  # Equatorial Guinea
+admin0 = ["GNK", "GNR"]
+
+[3C0]  # Annobon Island
+admin0 = ["GNA"]
+
+[3D2]  # Fiji
+admin0 = ["FJI"]
+clip = [176.0, -22.0, -178.0, -15.0]
+note = "without Rotuma (3D2/r) and Conway Reef (3D2/c)"
+
+["3D2/c"]  # Conway Reef
+admin0 = ["FJI"]
+clip = [174.3, -22.0, 174.9, -21.4]
+
+["3D2/r"]  # Rotuma Island
+admin0 = ["FJI"]
+clip = [176.5, -13.0, 178.0, -12.0]
+
+[3DA]  # Kingdom of Eswatini
+admin0 = ["SWZ"]
+
+[3V]  # Tunisia
+admin0 = ["TUN"]
+
+[3W]  # Vietnam
+admin0 = ["VNM"]
+
+[3X]  # Guinea
+admin0 = ["GIN"]
+
+["3Y/b"]  # Bouvet
+admin0 = ["BVT"]
+
+["3Y/p"]  # Peter 1 Island
+admin0 = ["ATP"]
+
+[4J]  # Azerbaijan
+admin0 = ["AZE"]
+
+[4L]  # Georgia
+admin0 = ["GEG", "GEA"]
+
+[4O]  # Montenegro
+admin0 = ["MNE"]
+
+[4S]  # Sri Lanka
+admin0 = ["LKA"]
+
+[4W]  # Timor - Leste
+admin0 = ["TLX", "TLP"]
+
+[4X]  # Israel
+admin0 = ["ISR"]
+
+[5A]  # Libya
+admin0 = ["LBY"]
+
+[5B]  # Cyprus
+admin0 = ["CYP", "CYN", "CNM"]
+note = "Cyprus without the UK bases (ZC4)"
+
+[5H]  # Tanzania
+admin0 = ["TZA", "TZZ"]
+
+[5N]  # Nigeria
+admin0 = ["NGA"]
+
+[5R]  # Madagascar
+admin0 = ["MDG"]
+
+[5T]  # Mauritania
+admin0 = ["MRT"]
+
+[5U]  # Niger
+admin0 = ["NER"]
+
+[5V]  # Togo
+admin0 = ["TGO"]
+
+[5W]  # Samoa
+admin0 = ["WSM"]
+
+[5X]  # Uganda
+admin0 = ["UGA"]
+
+[5Z]  # Kenya
+admin0 = ["KEN"]
+
+[6W]  # Senegal
+admin0 = ["SEN"]
+
+[6Y]  # Jamaica
+admin0 = ["JAM"]
+
+[7O]  # Yemen
+admin0 = ["YEM", "YES"]
+
+[7P]  # Lesotho
+admin0 = ["LSO"]
+
+[7Q]  # Malawi
+admin0 = ["MWI"]
+
+[7X]  # Algeria
+admin0 = ["DZA"]
+
+[8P]  # Barbados
+admin0 = ["BRB"]
+
+[8Q]  # Maldives
+admin0 = ["MDV"]
+
+[8R]  # Guyana
+admin0 = ["GUY"]
+
+[9A]  # Croatia
+admin0 = ["HRV"]
+
+[9G]  # Ghana
+admin0 = ["GHA"]
+
+[9H]  # Malta
+admin0 = ["MLT"]
+
+[9J]  # Zambia
+admin0 = ["ZMB"]
+
+[9K]  # Kuwait
+admin0 = ["KWT"]
+
+[9L]  # Sierra Leone
+admin0 = ["SLE"]
+
+[9M2]  # West Malaysia
+admin0 = ["MYS"]
+clip = [99.0, 0.5, 105.0, 7.0]
+
+[9M6]  # East Malaysia
+admin0 = ["MYS"]
+clip = [108.0, 0.5, 120.0, 8.0]
+
+[9N]  # Nepal
+admin0 = ["NPL"]
+
+[9Q]  # Dem. Rep. of the Congo
+admin0 = ["COD"]
+
+[9U]  # Burundi
+admin0 = ["BDI"]
+
+[9V]  # Singapore
+admin0 = ["SGP"]
+
+[9X]  # Rwanda
+admin0 = ["RWA"]
+
+[9Y]  # Trinidad & Tobago
+admin0 = ["TTD", "TTG"]
+
+[A2]  # Botswana
+admin0 = ["BWA"]
+
+[A3]  # Tonga
+admin0 = ["TON"]
+
+[A4]  # Oman
+admin0 = ["OMN"]
+
+[A5]  # Bhutan
+admin0 = ["BTN"]
+
+[A6]  # United Arab Emirates
+admin0 = ["ARE"]
+
+[A7]  # Qatar
+admin0 = ["QAT"]
+
+[A9]  # Bahrain
+admin0 = ["BHR"]
+
+[AP]  # Pakistan
+admin0 = ["PAK"]
+
+[BS7]  # Scarborough Reef
+admin0 = ["SCR"]
+
+[BV]  # Taiwan
+admin0 = ["TWN"]
+
+[BY]  # China
+admin0 = ["CHI", "CHH"]
+
+[C2]  # Nauru
+admin0 = ["NRU"]
+
+[C3]  # Andorra
+admin0 = ["AND"]
+
+[C5]  # The Gambia
+admin0 = ["GMB"]
+
+[C6]  # Bahamas
+admin0 = ["BHS"]
+
+[C9]  # Mozambique
+admin0 = ["MOZ"]
+
+[CE]  # Chile
+admin0 = ["CHX"]
+
+[CE0Y]  # Easter Island
+admin0 = ["CHP", "CHS"]
+note = "Easter Island with Sala y Gomez"
+
+[CE9]  # Antarctica
+admin0 = ["ATB"]
+
+[CM]  # Cuba
+admin0 = ["CUB"]
+
+[CN]  # Morocco
+admin0 = ["MAR"]
+
+[CP]  # Bolivia
+admin0 = ["BOL"]
+
+[CT]  # Portugal
+admin0 = ["PRX"]
+
+[CT3]  # Madeira Islands
+admin0 = ["PMD"]
+
+[CU]  # Azores
+admin0 = ["PAZ"]
+
+[CX]  # Uruguay
+admin0 = ["URY"]
+
+[CY0]  # Sable Island
+admin0 = ["CAN"]
+clip = [-60.3, 43.9, -59.7, 44.1]
+
+[D2]  # Angola
+admin0 = ["AGO"]
+
+[D4]  # Cabo Verde
+admin0 = ["CPV"]
+
+[D6]  # Comoros
+admin0 = ["COM"]
+
+[DL]  # Fed. Rep. of Germany
+admin0 = ["DEU"]
+
+[DU]  # Philippines
+admin0 = ["PHL"]
+
+[E3]  # Eritrea
+admin0 = ["ERI"]
+
+[E4]  # Palestine
+admin0 = ["GAZ", "WEB"]
+
+["E5/n"]  # North Cook Islands
+admin0 = ["COK"]
+clip = [-166.0, -14.0, -157.0, -8.5]
+
+["E5/s"]  # South Cook Islands
+admin0 = ["COK"]
+clip = [-166.0, -22.5, -157.0, -17.5]
+
+[E6]  # Niue
+admin0 = ["NIU"]
+
+[E7]  # Bosnia-Herzegovina
+admin0 = ["BHF", "BHB", "BIS"]
+
+[EA]  # Spain
+admin0 = ["ESX"]
+
+[EA6]  # Balearic Islands
+admin0 = ["ESI"]
+
+[EA8]  # Canary Islands
+admin0 = ["ESC"]
+
+[EA9]  # Ceuta & Melilla
+admin0 = ["SEC", "SEM"]
+
+[EI]  # Ireland
+admin0 = ["IRL"]
+
+[EK]  # Armenia
+admin0 = ["ARM"]
+
+[EL]  # Liberia
+admin0 = ["LBR"]
+
+[EP]  # Iran
+admin0 = ["IRN"]
+
+[ER]  # Moldova
+admin0 = ["MDA"]
+
+[ES]  # Estonia
+admin0 = ["EST"]
+
+[ET]  # Ethiopia
+admin0 = ["ETH"]
+
+[EU]  # Belarus
+admin0 = ["BLR"]
+
+[EX]  # Kyrgyzstan
+admin0 = ["KGZ"]
+
+[EY]  # Tajikistan
+admin0 = ["TJK"]
+
+[EZ]  # Turkmenistan
+admin0 = ["TKM"]
+
+[F]  # France
+admin0 = ["FXX"]
+
+[FG]  # Guadeloupe
+admin0 = ["GLP"]
+
+[FH]  # Mayotte
+admin0 = ["MYT"]
+
+[FJ]  # St. Barthelemy
+admin0 = ["BLM"]
+
+[FK]  # New Caledonia
+admin0 = ["NCL"]
+
+[FM]  # Martinique
+admin0 = ["MTQ"]
+
+[FO]  # French Polynesia
+admin0 = ["PYF"]
+clip = [-152.0, -24.0, -134.0, -13.0]
+note = "Society, Tuamotu and Gambier Islands"
+
+["FO/a"]  # Austral Islands
+admin0 = ["PYF"]
+clip = [-155.0, -28.0, -143.0, -21.5]
+
+["FO/c"]  # Clipperton Island
+admin0 = ["CLP"]
+
+["FO/m"]  # Marquesas Islands
+admin0 = ["PYF"]
+clip = [-141.0, -11.0, -138.0, -7.5]
+
+[FP]  # St. Pierre & Miquelon
+admin0 = ["SPM"]
+
+[FR]  # Reunion Island
+admin0 = ["REU"]
+
+[FS]  # St. Martin
+admin0 = ["MAF"]
+
+["FT/g"]  # Glorioso Islands
+admin0 = ["GOI"]
+
+["FT/j"]  # Juan de Nova, Europa
+admin0 = ["JUI", "EUI", "BSI"]
+note = "Juan de Nova, Europa and Bassas da India"
+
+["FT/t"]  # Tromelin Island
+admin0 = ["TEI"]
+
+["FT/w"]  # Crozet Island
+admin0 = ["FSA"]
+clip = [50.0, -47.0, 53.0, -45.5]
+
+["FT/x"]  # Kerguelen Islands
+admin0 = ["FSA"]
+clip = [68.0, -50.0, 71.0, -48.0]
+
+["FT/z"]  # Amsterdam & St. Paul Is.
+admin0 = ["FSA"]
+clip = [77.0, -39.0, 78.0, -37.5]
+
+[FW]  # Wallis & Futuna Islands
+admin0 = ["WLF"]
+
+[FY]  # French Guiana
+admin0 = ["GUF"]
+
+[G]  # England
+admin0 = ["ENG"]
+
+[GD]  # Isle of Man
+admin0 = ["IMN"]
+
+[GI]  # Northern Ireland
+admin0 = ["NIR"]
+
+[GJ]  # Jersey
+admin0 = ["JEY"]
+
+[GM]  # Scotland
+admin0 = ["SCT"]
+clip = [-14.0, 54.0, 0.0, 59.6]
+note = "without Shetland (GM/s)"
+
+["GM/s"]  # Shetland Islands
+admin0 = ["SCT"]
+clip = [-2.5, 59.8, -0.5, 61.0]
+
+[GU]  # Guernsey
+admin0 = ["GGG", "GGA", "GGH", "GGS"]
+note = "Guernsey with Alderney, Herm and Sark"
+
+[GW]  # Wales
+admin0 = ["WLS"]
+
+[H4]  # Solomon Islands
+admin0 = ["SLB"]
+clip = [155.0, -12.5, 164.5, -6.0]
+
+[H40]  # Temotu Province
+admin0 = ["SLB"]
+clip = [165.0, -13.0, 171.0, -9.5]
+note = "Temotu Province"
+
+[HA]  # Hungary
+admin0 = ["HUN"]
+
+[HB]  # Switzerland
+admin0 = ["CHE"]
+
+[HB0]  # Liechtenstein
+admin0 = ["LIE"]
+
+[HC]  # Ecuador
+admin0 = ["ECD"]
+
+[HC8]  # Galapagos Islands
+admin0 = ["ECG"]
+
+[HH]  # Haiti
+admin0 = ["HTI"]
+
+[HI]  # Dominican Republic
+admin0 = ["DOM"]
+
+[HK]  # Colombia
+admin0 = ["COL"]
+clip = [-80.0, -5.0, -66.0, 13.0]
+note = "mainland, without San Andres (HK0/a) and Malpelo (HK0/m)"
+
+["HK0/a"]  # San Andres & Providencia
+admin0 = ["COL"]
+clip = [-82.0, 12.0, -78.0, 16.5]
+
+["HK0/m"]  # Malpelo Island
+admin0 = ["COL"]
+clip = [-81.7, 3.9, -81.5, 4.1]
+
+[HL]  # Republic of Korea
+admin0 = ["KOX", "KXI", "KOJ", "KOU", "KOB", "KOD", "KNX"]
+
+[HP]  # Panama
+admin0 = ["PAN"]
+
+[HR]  # Honduras
+admin0 = ["HND"]
+
+[HS]  # Thailand
+admin0 = ["THA"]
+
+[HV]  # Vatican City
+admin0 = ["VAT"]
+
+[HZ]  # Saudi Arabia
+admin0 = ["SAU"]
+
+[I]  # Italy
+admin0 = ["ITX"]
+note = "mainland Italy; Sardinia (IS), Sicily (IT9) and the Pelagie/Pantelleria islands (IG9) are separate"
+
+[IG9]  # African Italy
+admin0 = ["ITI", "ITP"]
+note = "Pelagie Islands and Pantelleria"
+
+[IS]  # Sardinia
+admin0 = ["ITD"]
+
+[IT9]  # Sicily
+admin0 = ["ITY"]
+
+[J2]  # Djibouti
+admin0 = ["DJI"]
+
+[J3]  # Grenada
+admin0 = ["GRD"]
+
+[J5]  # Guinea-Bissau
+admin0 = ["GNB"]
+
+[J6]  # St. Lucia
+admin0 = ["LCA"]
+
+[J7]  # Dominica
+admin0 = ["DMA"]
+
+[J8]  # St. Vincent
+admin0 = ["VCT"]
+
+[JA]  # Japan
+admin0 = ["JPH", "JPK", "JPS", "JPY", "JPO", "JPI", "JPX"]
+clip = [120.0, 20.0, 150.0, 46.0]
+note = "without Ogasawara (JD/o) and Minami Torishima (JD/m)"
+
+["JD/m"]  # Minami Torishima
+admin0 = ["JPX"]
+clip = [153.9, 24.2, 154.1, 24.4]
+
+["JD/o"]  # Ogasawara
+admin0 = ["JPB", "JPV"]
+note = "Bonin and Volcano Islands"
+
+[JT]  # Mongolia
+admin0 = ["MNG"]
+
+[JW]  # Svalbard
+admin0 = ["NSV"]
+clip = [10.0, 76.0, 34.0, 81.0]
+note = "Svalbard without Bear Island (JW/b)"
+
+["JW/b"]  # Bear Island
+admin0 = ["NSV"]
+clip = [18.5, 74.2, 19.5, 74.6]
+
+[JX]  # Jan Mayen
+admin0 = ["NJM"]
+
+[JY]  # Jordan
+admin0 = ["JOR"]
+
+[K]  # United States
+admin0 = ["USB"]
+note = "contiguous USA: Alaska (KL) and Hawaii (KH6) are separate"
+
+[KG4]  # Guantanamo Bay
+admin0 = ["USG"]
+
+[KH0]  # Mariana Islands
+admin0 = ["MNP"]
+
+[KH1]  # Baker & Howland Islands
+admin0 = ["FQI", "HQI"]
+
+[KH2]  # Guam
+admin0 = ["GUM"]
+
+[KH3]  # Johnston Island
+admin0 = ["JQI"]
+
+[KH4]  # Midway Island
+admin0 = ["MQI"]
+
+[KH5]  # Palmyra & Jarvis Islands
+admin0 = ["LQI", "DQI"]
+note = "Palmyra and Jarvis"
+
+[KH6]  # Hawaii
+admin0 = ["USH"]
+clip = [-178.0, 18.0, -154.0, 29.0]
+note = "without Kure (KH7K)"
+
+[KH7K]  # Kure Island
+admin0 = ["USH"]
+clip = [-178.5, 28.2, -178.2, 28.6]
+
+[KH8]  # American Samoa
+admin0 = ["ASM"]
+clip = [-171.5, -15.0, -168.0, -13.5]
+
+["KH8/s"]  # Swains Island
+admin0 = ["ASM"]
+clip = [-171.2, -11.2, -171.0, -11.0]
+
+[KH9]  # Wake Island
+admin0 = ["WQI"]
+
+[KL]  # Alaska
+admin0 = ["USK"]
+
+[KP1]  # Navassa Island
+admin0 = ["BQI"]
+
+[KP2]  # US Virgin Islands
+admin0 = ["VIR"]
+
+[KP4]  # Puerto Rico
+admin0 = ["PRI"]
+
+[LA]  # Norway
+admin0 = ["NOW"]
+
+[LU]  # Argentina
+admin0 = ["ARG"]
+
+[LX]  # Luxembourg
+admin0 = ["LUX"]
+
+[LY]  # Lithuania
+admin0 = ["LTU"]
+
+[LZ]  # Bulgaria
+admin0 = ["BGR"]
+
+[OA]  # Peru
+admin0 = ["PER"]
+
+[OD]  # Lebanon
+admin0 = ["LBN"]
+
+[OE]  # Austria
+admin0 = ["AUT"]
+
+[OH]  # Finland
+admin0 = ["FIN"]
+
+[OH0]  # Aland Islands
+admin0 = ["ALD"]
+
+[OK]  # Czech Republic
+admin0 = ["CZE"]
+
+[OM]  # Slovak Republic
+admin0 = ["SVK"]
+
+[ON]  # Belgium
+admin0 = ["BCR", "BFR", "BWR"]
+
+[OX]  # Greenland
+admin0 = ["GRL"]
+
+[OY]  # Faroe Islands
+admin0 = ["FRO"]
+
+[OZ]  # Denmark
+admin0 = ["DNK", "DNB"]
+
+[P2]  # Papua New Guinea
+admin0 = ["PNX", "PNB"]
+
+[P4]  # Aruba
+admin0 = ["ABW"]
+
+[P5]  # DPR of Korea
+admin0 = ["PRK", "KNZ"]
+
+[PA]  # Netherlands
+admin0 = ["NLX"]
+
+[PJ2]  # Curacao
+admin0 = ["CUW"]
+
+[PJ4]  # Bonaire
+admin0 = ["NLY"]
+clip = [-68.5, 12.0, -68.0, 12.4]
+
+[PJ5]  # Saba & St. Eustatius
+admin0 = ["NLY"]
+clip = [-63.3, 17.4, -62.9, 17.7]
+note = "Saba and St. Eustatius"
+
+[PJ7]  # Sint Maarten
+admin0 = ["SXM"]
+
+[PY]  # Brazil
+admin0 = ["BRA"]
+clip = [-75.0, -34.0, -34.5, 5.5]
+note = "without the Atlantic islands (PY0F, PY0S, PY0T)"
+
+[PY0F]  # Fernando de Noronha
+admin0 = ["BRA"]
+clip = [-32.6, -4.0, -32.3, -3.7]
+
+[PY0S]  # St. Peter & St. Paul
+admin0 = ["BRA"]
+clip = [-29.5, 0.8, -29.2, 1.0]
+
+[PY0T]  # Trindade & Martim Vaz
+admin0 = ["BRA"]
+clip = [-29.4, -20.6, -28.7, -20.4]
+
+[PZ]  # Suriname
+admin0 = ["SUR"]
+
+[R1FJ]  # Franz Josef Land
+admin0 = ["RUE", "RUA"]
+clip = [40.0, 79.6, 66.0, 82.0]
+
+[S0]  # Western Sahara
+admin0 = ["SAH"]
+
+[S2]  # Bangladesh
+admin0 = ["BGD"]
+
+[S5]  # Slovenia
+admin0 = ["SVN"]
+
+[S7]  # Seychelles
+admin0 = ["SYC"]
+
+[S9]  # Sao Tome & Principe
+admin0 = ["STS", "STA"]
+
+[SM]  # Sweden
+admin0 = ["SWE"]
+
+[SP]  # Poland
+admin0 = ["POL"]
+
+[ST]  # Sudan
+admin0 = ["SDN"]
+
+[SU]  # Egypt
+admin0 = ["EGY"]
+
+[SV]  # Greece
+admin1_of = ["GRC"]
+exclude_admin1 = ["GR-69", "GR-M"]
+clip = [19.0, 34.5, 29.0, 42.0]
+note = "without Mount Athos and Crete; the Dodecanese stay in the box (same admin-1 as the Cyclades)"
+
+["SV/a"]  # Mount Athos
+admin1 = ["GR-69"]
+
+[SV5]  # Dodecanese
+admin1 = ["GR-L"]
+clip = [26.2, 35.3, 28.3, 37.5]
+note = "Dodecanese: the eastern part of South Aegean"
+
+[SV9]  # Crete
+admin1 = ["GR-M"]
+
+[T2]  # Tuvalu
+admin0 = ["TUV"]
+
+[T30]  # Western Kiribati
+admin0 = ["KIR"]
+clip = [172.0, -3.0, 177.0, 4.0]
+note = "Gilbert Islands"
+
+[T31]  # Central Kiribati
+admin0 = ["KIR"]
+clip = [-175.0, -5.0, -170.0, -2.0]
+note = "Phoenix Islands"
+
+[T32]  # Eastern Kiribati
+admin0 = ["KIR"]
+clip = [-163.0, -12.0, -150.0, 5.0]
+note = "Line Islands"
+
+[T33]  # Banaba Island
+admin0 = ["KIR"]
+clip = [169.3, -1.0, 169.8, -0.6]
+
+[T5]  # Somalia
+admin0 = ["SOX", "SOP", "SOL"]
+note = "Somalia with Puntland and Somaliland"
+
+[T7]  # San Marino
+admin0 = ["SMR"]
+
+[T8]  # Palau
+admin0 = ["PLW"]
+
+[TA]  # Asiatic Turkey
+admin1_of = ["TUR"]
+exclude_admin1 = ["TR-22", "TR-39", "TR-59"]
+note = "Asiatic Turkey; Istanbul is split, so it stays here"
+
+[TA1]  # European Turkey
+admin1 = ["TR-22", "TR-39", "TR-59", "TR-34"]
+note = "European Turkey (Thrace); Istanbul included in full"
+
+[TF]  # Iceland
+admin0 = ["ISL"]
+
+[TG]  # Guatemala
+admin0 = ["GTM"]
+
+[TI]  # Costa Rica
+admin0 = ["CRI"]
+clip = [-86.0, 8.0, -82.0, 11.5]
+
+[TI9]  # Cocos Island
+admin0 = ["CRI"]
+clip = [-87.2, 5.4, -86.9, 5.7]
+
+[TJ]  # Cameroon
+admin0 = ["CMR"]
+
+[TK]  # Corsica
+admin0 = ["FXC"]
+
+[TL]  # Central African Republic
+admin0 = ["CAF"]
+
+[TN]  # Republic of the Congo
+admin0 = ["COG"]
+
+[TR]  # Gabon
+admin0 = ["GAB"]
+
+[TT]  # Chad
+admin0 = ["TCD"]
+
+[TU]  # Cote d'Ivoire
+admin0 = ["CIV"]
+
+[TY]  # Benin
+admin0 = ["BEN"]
+
+[TZ]  # Mali
+admin0 = ["MLI"]
+
+[UA]  # European Russia
+admin0 = ["RUE"]
+clip = [19.0, 40.0, 70.0, 79.5]
+note = "European Russia (NE \"Russia\" west part); Franz Josef Land (R1FJ) separate"
+
+[UA2]  # Kaliningrad
+admin0 = ["RUK"]
+
+[UA9]  # Asiatic Russia
+admin0 = ["RUA"]
+note = "Asiatic Russia"
+
+[UK]  # Uzbekistan
+admin0 = ["UZB"]
+
+[UN]  # Kazakhstan
+admin0 = ["KAZ"]
+
+[UR]  # Ukraine
+admin0 = ["UKR", "RUC"]
+note = "Ukraine including Crimea, as DXCC counts it"
+
+[V2]  # Antigua & Barbuda
+admin0 = ["ACA", "ACB"]
+
+[V3]  # Belize
+admin0 = ["BLZ"]
+
+[V4]  # St. Kitts & Nevis
+admin0 = ["KNA"]
+
+[V5]  # Namibia
+admin0 = ["NAM"]
+
+[V6]  # Micronesia
+admin0 = ["FSM"]
+
+[V7]  # Marshall Islands
+admin0 = ["MHL"]
+
+[V8]  # Brunei Darussalam
+admin0 = ["BRN"]
+
+[VE]  # Canada
+admin0 = ["CAN"]
+
+[VK]  # Australia
+admin0 = ["AUZ", "AUA"]
+clip = [110.0, -45.0, 155.0, -9.0]
+note = "mainland and Tasmania, without Lord Howe (VK9L)"
+
+[VK0H]  # Heard Island
+admin0 = ["HMD"]
+
+[VK0M]  # Macquarie Island
+admin0 = ["AUM"]
+
+[VK9C]  # Cocos (Keeling) Islands
+admin0 = ["CCK"]
+
+[VK9L]  # Lord Howe Island
+admin0 = ["AUZ"]
+clip = [158.9, -31.9, 159.3, -31.3]
+
+[VK9N]  # Norfolk Island
+admin0 = ["NFK"]
+
+[VK9X]  # Christmas Island
+admin0 = ["CXR"]
+
+[VP2E]  # Anguilla
+admin0 = ["AIA"]
+
+[VP2M]  # Montserrat
+admin0 = ["MSR"]
+
+[VP2V]  # British Virgin Islands
+admin0 = ["VGB"]
+
+[VP5]  # Turks & Caicos Islands
+admin0 = ["TCA"]
+
+[VP6]  # Pitcairn Island
+admin0 = ["PCN"]
+clip = [-131.0, -25.5, -127.0, -23.5]
+note = "Pitcairn, Henderson and Oeno"
+
+["VP6/d"]  # Ducie Island
+admin0 = ["PCN"]
+clip = [-125.0, -25.0, -124.5, -24.5]
+
+[VP8]  # Falkland Islands
+admin0 = ["FLK"]
+
+["VP8/g"]  # South Georgia Island
+admin0 = ["SGG"]
+
+["VP8/h"]  # South Shetland Islands
+admin0 = ["ATB"]
+clip = [-63.0, -63.5, -53.0, -60.5]
+note = "the South Shetland part of the Antarctica polygon"
+
+["VP8/o"]  # South Orkney Islands
+admin0 = ["ATS"]
+
+["VP8/s"]  # South Sandwich Islands
+admin0 = ["SGX"]
+
+[VP9]  # Bermuda
+admin0 = ["BMU"]
+
+[VQ9]  # Chagos Islands
+admin0 = ["IOT", "IOD"]
+
+[VR]  # Hong Kong
+admin0 = ["HKG"]
+
+[VU]  # India
+admin0 = ["INX"]
+
+[VU4]  # Andaman & Nicobar Is.
+admin0 = ["INA", "INN"]
+
+[VU7]  # Lakshadweep Islands
+admin0 = ["INL"]
+
+[XE]  # Mexico
+admin0 = ["MEX"]
+
+[XF4]  # Revillagigedo
+admin0 = ["MEX"]
+clip = [-115.0, 18.0, -110.5, 19.5]
+
+[XT]  # Burkina Faso
+admin0 = ["BFA"]
+
+[XU]  # Cambodia
+admin0 = ["KHM"]
+
+[XW]  # Laos
+admin0 = ["LAO"]
+
+[XX9]  # Macao
+admin0 = ["MAC"]
+
+[XZ]  # Myanmar
+admin0 = ["MMR"]
+
+[YA]  # Afghanistan
+admin0 = ["AFG"]
+
+[YB]  # Indonesia
+admin0 = ["IDN"]
+
+[YI]  # Iraq
+admin0 = ["IRR", "IRK"]
+
+[YJ]  # Vanuatu
+admin0 = ["VUT"]
+
+[YK]  # Syria
+admin0 = ["SYX", "SYU"]
+
+[YL]  # Latvia
+admin0 = ["LVA"]
+
+[YN]  # Nicaragua
+admin0 = ["NIC"]
+
+[YO]  # Romania
+admin0 = ["ROU"]
+
+[YS]  # El Salvador
+admin0 = ["SLV"]
+
+[YU]  # Serbia
+admin0 = ["SRS", "SRV"]
+
+[YV]  # Venezuela
+admin0 = ["VEN"]
+
+[YV0]  # Aves Island
+admin0 = ["VEN"]
+clip = [-63.7, 15.6, -63.55, 15.75]
+
+[Z2]  # Zimbabwe
+admin0 = ["ZWE"]
+
+[Z3]  # North Macedonia
+admin0 = ["MKD"]
+
+[Z6]  # Republic of Kosovo
+admin0 = ["KOS"]
+
+[Z8]  # Republic of South Sudan
+admin0 = ["SDS"]
+
+[ZA]  # Albania
+admin0 = ["ALB"]
+
+[ZB]  # Gibraltar
+admin0 = ["GIB"]
+
+[ZC4]  # UK Base Areas on Cyprus
+admin0 = ["ESB", "WSB"]
+
+[ZD7]  # St. Helena
+admin0 = ["SHS"]
+
+[ZD8]  # Ascension Island
+admin0 = ["BAC"]
+
+[ZD9]  # Tristan da Cunha & Gough
+admin0 = ["SHT"]
+
+[ZF]  # Cayman Islands
+admin0 = ["CYM"]
+
+[ZK3]  # Tokelau Islands
+admin0 = ["TKL"]
+
+[ZL]  # New Zealand
+admin0 = ["NZN", "NZS"]
+
+[ZL7]  # Chatham Islands
+admin0 = ["NZC"]
+
+[ZL8]  # Kermadec Islands
+admin0 = ["NZK"]
+
+[ZL9]  # N.Z. Subantarctic Is.
+admin0 = ["NZA"]
+
+[ZP]  # Paraguay
+admin0 = ["PRY"]
+
+[ZS]  # South Africa
+admin0 = ["ZAX"]
+
+[ZS8]  # Pr. Edward & Marion Is.
+admin0 = ["ZAI"]
+
+# Entities Natural Earth cannot represent: auto-zoom frames 500 km around the QTH.
+[unmapped]
+1A = "an order with no territory; its extraterritorial seat is a building in Rome"  # Sov Mil Order of Malta
+4U1I = "a building in Geneva"  # ITU HQ
+4U1U = "a building in New York"  # United Nations HQ
+4U1V = "a building in Vienna"  # Vienna Intl Ctr
+OJ0 = "Market Reef: a rock with a lighthouse, not in Natural Earth at 1:10m"  # Market Reef
+BV9P = "Pratas Island: not in Natural Earth at 1:10m"  # Pratas Island
+CE0X = "San Felix and San Ambrosio: not in Natural Earth at 1:10m"  # San Felix & San Ambrosio
+CE0Z = "Juan Fernandez Islands: not in Natural Earth at 1:10m"  # Juan Fernandez Islands
+CY9 = "St. Paul Island: not in Natural Earth at 1:10m"  # St. Paul Island
+"FK/c" = "Chesterfield Islands: not in Natural Earth at 1:10m"  # Chesterfield Islands
+KP5 = "Desecheo Island: not in Natural Earth at 1:10m"  # Desecheo Island
+VK9M = "Mellish Reef: not in Natural Earth at 1:10m"  # Mellish Reef
+VK9W = "Willis Island: not in Natural Earth at 1:10m"  # Willis Island

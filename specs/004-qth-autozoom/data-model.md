@@ -135,24 +135,31 @@ Nothing here writes `lqm.projection` (FR-018).
 
 ```toml
 [IS]          # Sardinia
-admin1 = ["IT-88"]
+admin0 = ["ITD"]
 
-[I]           # Italy
-admin0 = ["ITA"]
-exclude_admin1 = ["IT-88", "IT-82"]
+[I]           # Italy: Natural Earth splits Sardinia and Sicily into their own subunits
+admin0 = ["ITX"]
 
-[UA]          # European Russia
-admin0 = ["RUS"]
-clip = [-180, -90, 60, 90]
+[TA]          # Asiatic Turkey
+admin1_of = ["TUR"]
+exclude_admin1 = ["TR-22", "TR-39", "TR-59"]
+
+[UA]          # European Russia (Natural Earth's western "Russia" subunit)
+admin0 = ["RUE"]
+clip = [19.0, 40.0, 70.0, 79.5]
 ```
 
 Selector keys:
 
 - `admin0`: a list of `SU_A3` codes;
 - `admin1`: a list of `iso_3166_2` codes;
-- `exclude_admin1`: admin-1 codes to remove;
+- `admin1_of`: every admin-1 unit of these `adm0_a3` countries;
+- `exclude_admin1`: admin-1 codes to remove (with `admin1_of`);
 - `clip`: `[w, s, e, n]`;
 - `note`: free text.
+
+Entities that Natural Earth cannot represent go in an `[unmapped]` table, mapping each prefix to
+a reason. The generator fails when an entity is neither mapped nor listed.
 
 ### `src/web/entity_extents.json` (generated, committed)
 

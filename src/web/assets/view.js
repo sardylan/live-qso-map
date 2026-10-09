@@ -62,3 +62,22 @@ export function nextProjection(projection) {
 export function popupToClose(openKey, diff) {
   return openKey != null && diff.remove.includes(openKey);
 }
+
+const AUTOZOOM_KEY = 'lqm.autozoom';
+
+/** Auto-zoom: on unless the viewer switched it off (FR-007). Never throws. */
+export function loadAutoZoom(storage) {
+  try {
+    return storage?.getItem(AUTOZOOM_KEY) !== 'off';
+  } catch {
+    return true;
+  }
+}
+
+export function saveAutoZoom(storage, enabled) {
+  try {
+    storage?.setItem(AUTOZOOM_KEY, enabled ? 'on' : 'off');
+  } catch {
+    // Storage may be unavailable; the choice then lasts for this page only.
+  }
+}

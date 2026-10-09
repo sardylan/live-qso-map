@@ -105,3 +105,23 @@ test('popupToClose closes only a popup whose marker was removed', () => {
   assert.equal(popupToClose('u', diff), false);
   assert.equal(popupToClose('x', diff), false);
 });
+
+import { loadAutoZoom, saveAutoZoom } from '../src/web/assets/view.js';
+
+
+test('auto-zoom is on by default and its choice round-trips (FR-007)', () => {
+  assert.equal(loadAutoZoom(memoryStorage()), true);
+  assert.equal(loadAutoZoom(null), true);
+  const storage = memoryStorage();
+  saveAutoZoom(storage, false);
+  assert.equal(storage.data['lqm.autozoom'], 'off');
+  assert.equal(loadAutoZoom(storage), false);
+  saveAutoZoom(storage, true);
+  assert.equal(loadAutoZoom(storage), true);
+  assert.equal(loadAutoZoom(memoryStorage({ 'lqm.autozoom': 'maybe' })), true);
+});
+
+test('auto-zoom preference survives a storage that throws', () => {
+  assert.equal(loadAutoZoom(throwingStorage), true);
+  assert.doesNotThrow(() => saveAutoZoom(throwingStorage, false));
+});

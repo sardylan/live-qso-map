@@ -11,6 +11,8 @@ use crate::position::{LookupCandidate, Position, PositionSource, Precision};
 
 #[derive(Debug, Clone, PartialEq)]
 struct Entity {
+    /// Primary prefix, without the `*` that marks WAE entities.
+    prefix: String,
     name: String,
     cq: u8,
     itu: u8,
@@ -115,6 +117,21 @@ impl CountryData {
         self.candidate(entity, overrides)
     }
 
+    /// The entity of `call` as `(primary prefix, name)`, by the same rules as `lookup`.
+    pub fn entity_of(&self, call: &str) -> Option<(&str, &str)> {
+        let call = call.trim().to_ascii_uppercase();
+        if call.is_empty() {
+            return None;
+        }
+        let entity = match self.exact.get(&call) {
+            Some((entity, _)) => *entity,
+            None => self.longest_prefix(&effective_call(&call)?)?.0,
+        };
+        self.entities
+            .get(entity)
+            .map(|e| (e.prefix.as_str(), e.name.as_str()))
+    }
+
     fn longest_prefix(&self, call: &str) -> Option<(usize, &Overrides)> {
         let max = self.max_prefix_len.min(call.len());
         (1..=max)
@@ -157,6 +174,7 @@ fn parse_header(line: &str) -> Option<Entity> {
         return None;
     }
     Some(Entity {
+        prefix: fields[7].trim_start_matches('*').to_string(),
         name: fields[0].to_string(),
         cq: fields[1].parse().ok()?,
         itu: fields[2].parse().ok()?,
@@ -330,6 +348,33 @@ mod tests {
         data()
             .lookup(call)
             .and_then(|c| c.fields.get("COUNTRY").map(str::to_string))
+    }
+
+    #[test]
+    fn entity_of_resolves_prefix_and_name() {
+        let d = data();
+        assert_eq!(d.entity_of("IS0MZK"), Some(("IS", "Sardinia")));
+        assert_eq!(d.entity_of("is0mzk"), Some(("IS", "Sardinia")));
+        // WAE entity: the `*` marker is not part of the prefix.
+        assert_eq!(d.entity_of("IT9ABC"), Some(("IT9", "Sicily")));
+        assert_eq!(d.entity_of("I2XYZ"), Some(("I", "Italy")));
+        assert_eq!(d.entity_of("K1ABC"), Some(("K", "United States")));
+        assert_eq!(d.entity_of("KH6XX"), Some(("KH6", "Hawaii")));
+        assert_eq!(d.entity_of("IS0MZK/P"), Some(("IS", "Sardinia")));
+        assert_eq!(d.entity_of("QQ9QQ"), None);
+        assert_eq!(d.entity_of(""), None);
+    }
+
+    #[test]
+    fn entity_of_matches_lookup() {
+        let d = data();
+        for call in [
+            "IS0MZK", "IT9ABC", "I2XYZ", "K1ABC", "KH6XX", "DL1ABC", "HB9XX",
+        ] {
+            let by_lookup = country(call);
+            let by_entity = d.entity_of(call).map(|(_, name)| name.to_string());
+            assert_eq!(by_entity, by_lookup, "{call}");
+        }
     }
 
     #[test]

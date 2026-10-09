@@ -94,8 +94,14 @@ body {
   text-align: center;
 }
 
-.projection-control button {
+.projection-control button,
+.toggle-control button {
   width: auto;
   padding: 0 8px;
   font: 12px/29px system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.toggle-control button.active {
+  background: #dbe9ff;
+  font-weight: 600;
 }

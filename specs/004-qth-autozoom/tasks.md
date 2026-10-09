@@ -167,7 +167,7 @@ FR-012a).
 
 ### Tests for User Story 2 (write first, confirm they FAIL)
 
-- [ ] T014 [P] [US2] Write Rust unit tests in `src/enrich/cty.rs` for `CountryData::entity_of`,
+- [X] T014 [P] [US2] Write Rust unit tests in `src/enrich/cty.rs` for `CountryData::entity_of`,
   using `tests/fixtures/cty-excerpt.dat`:
   - `IS0MZK` → `("IS", "Sardinia")`;
   - `IT9ABC` → `("IT9", "Sicily")`, with the WAE `*` stripped;
@@ -177,7 +177,7 @@ FR-012a).
   - `KH6XX` → `("KH6", "Hawaii")`;
   - a portable call (`IS0MZK/P`) resolves the same way `lookup` does;
   - an unknown call → `None`.
-- [ ] T015 [P] [US2] Write Rust unit tests in `src/entity_extents.rs`:
+- [X] T015 [P] [US2] Write Rust unit tests in `src/entity_extents.rs`:
   - parse `{"source":"…","extents":{"IS":[8.13,38.86,9.83,41.31],"3D2":[176.8,-19.3,-178.2,-16.0]}}`;
   - `get("IS")` returns its box, and `get("XX")` returns `None`;
   - an antimeridian box (`w > e`) is accepted;
@@ -187,7 +187,7 @@ FR-012a).
     `IS`, `I`, `K` and `VK` (SC-003). Its `IS` box contains Cagliari (39.22, 9.12), its `I` box
     contains Rome (41.9, 12.5) but not Cagliari, `K` contains Kansas City but not Honolulu, and
     `VK` contains Sydney.
-- [ ] T016 [P] [US2] Write `tools/test_entity_extents.py` (unittest, standard library only) for the
+- [X] T016 [P] [US2] Write `tools/test_entity_extents.py` (unittest, standard library only) for the
   generator's pure functions:
   - `min_lon_span([...])` returns `(w, e)` with `w > e` for points on both sides of 180° (Fiji),
     and the ordinary span otherwise;
@@ -197,7 +197,7 @@ FR-012a).
     mapped nor listed under `[unmapped]`.
 
   Use small inline GeoJSON fixtures; no download.
-- [ ] T017 [P] [US2] Write `web/autozoom-geo.test.js` (research R5, R6):
+- [X] T017 [P] [US2] Write `web/autozoom-geo.test.js` (research R5, R6):
   - `framedPoints(qth, markers)` includes the QTH when there is one;
   - `fallbackFrame(qth, entity)`:
     - with an entity, the result is its bounds (unwrapped so `e > w`, e.g. Fiji `[176.8, …,
@@ -215,7 +215,7 @@ FR-012a).
     - a limit selector at the top right pads the top;
     - hidden panels (null rects) are ignored;
     - when the free area is smaller than 240×160, the result is a uniform 12 px.
-- [ ] T018 [P] [US2] Write `web/autozoom.test.js` for the controller, with an injected clock
+- [X] T018 [P] [US2] Write `web/autozoom.test.js` for the controller, with an injected clock
   (data-model "Auto-zoom controller"):
   - **toggle**: on → `fitNow`; off → no fit, and later `change` events produce no fit;
   - **user move**: `userMove` while on → off, plus a `saveOff` action, and 0 fits after it
@@ -228,18 +228,18 @@ FR-012a).
     - `popupClosed` while disabled → none (FR-012a);
   - **page-made moves**: no event is fed for them, so the state is unchanged (document this in the
     test name).
-- [ ] T019 [P] [US2] Extend `web/view.test.js`:
+- [X] T019 [P] [US2] Extend `web/view.test.js`:
   - `loadAutoZoom`/`saveAutoZoom` (`lqm.autozoom`): the default is on; `off` round-trips; an
     unknown value → on; a storage that throws → on, and saving swallows the error.
 
 ### Implementation for User Story 2
 
-- [ ] T020 [US2] Implement `ExtentTable` in `src/entity_extents.rs`: `parse(&str) -> Result<Self>`,
+- [X] T020 [US2] Implement `ExtentTable` in `src/entity_extents.rs`: `parse(&str) -> Result<Self>`,
   `embedded() -> Result<Self>` (`include_str!("web/entity_extents.json")`) and `get(prefix)`.
   T021 loads it once in `start`; a failure is a startup error. Commit a placeholder
   `src/web/entity_extents.json` with only `IS`, `I`, `K` and `VK` so that T015 can pass before
   T023. T015 must pass.
-- [ ] T021 [US2] Implement `Entity.prefix` (the primary prefix column without `*`) and
+- [X] T021 [US2] Implement `Entity.prefix` (the primary prefix column without `*`) and
   `CountryData::entity_of` in `src/enrich/cty.rs`. Then, in `src/pipeline.rs`:
   - `build_sources` also returns the parsed `CountryData`;
   - `start` loads `ExtentTable::embedded()` (T020) once and resolves the entity from the
@@ -248,7 +248,7 @@ FR-012a).
     each logged at debug level.
 
   T014 must pass, and so must the T003 tests.
-- [ ] T022 [US2] Implement `tools/entity_extents.py` (research R2):
+- [X] T022 [US2] Implement `tools/entity_extents.py` (research R2):
   - CLI: `--cty`, `--mapping`, `--out`, `--cache .cache/naturalearth`;
   - download the two Natural Earth v5.1.2 GeoJSON files from
     `raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/` once;
@@ -256,7 +256,7 @@ FR-012a).
   - print the cty.dat entities that have no mapping.
 
   T016 must pass.
-- [ ] T023 [US2] Write `tools/entity_extents.toml`:
+- [X] T023 [US2] Write `tools/entity_extents.toml`:
   - map every entity in the current `cty.dat` that Natural Earth represents (admin-0 subunits,
     admin-1 units, exclusions, clip boxes);
   - add a `note` for each non-obvious choice (for example `UA` European Russia clipped at 60°E,
@@ -269,13 +269,13 @@ FR-012a).
   - spot-check 10 boxes on a map (the IS, I, IT9, K, VK, JA, PY, ZS, UA0 and 3D2 boxes).
 
   T015 must still pass.
-- [ ] T024 [P] [US2] Implement `framedPoints`, `fallbackFrame`, `flatBounds` and `paddingFor` in
+- [X] T024 [P] [US2] Implement `framedPoints`, `fallbackFrame`, `flatBounds` and `paddingFor` in
   `src/web/assets/autozoom-geo.js`. T017 must pass.
-- [ ] T025 [P] [US2] Implement the controller in `src/web/assets/autozoom.js` (`createAutoZoom`,
+- [X] T025 [P] [US2] Implement the controller in `src/web/assets/autozoom.js` (`createAutoZoom`,
   `toggle`, `change`, `userMove`, `popupOpened`, `popupClosed`, `tick`). T018 must pass.
-- [ ] T026 [P] [US2] Implement `loadAutoZoom` and `saveAutoZoom` in `src/web/assets/view.js`.
+- [X] T026 [P] [US2] Implement `loadAutoZoom` and `saveAutoZoom` in `src/web/assets/view.js`.
   T019 must pass.
-- [ ] T027 [US2] Glue in `src/web/assets/app.js` (research R6, R7, R10):
+- [X] T027 [US2] Glue in `src/web/assets/app.js` (research R6, R7, R10):
   - **button**: an `AutoZoomControl` button (`aria-pressed`, `title`, `aria-label`) in the top-left
     group, with its state from `loadAutoZoom`;
   - **change events**: call `change()` after every `render()` that changed data, and on the limit

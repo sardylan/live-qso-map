@@ -1,6 +1,9 @@
 //! Service wiring: history, broadcast (channel 2), listeners and task lifecycle
 //! (plan "Summary", research R2/R4).
 
+use crate::enrich::cty::CountryData;
+use crate::entity_extents::ExtentTable;
+use crate::web::protocol::{EntityView, HelloStation};
 use std::future::Future;
 use std::net::SocketAddr;
 use std::pin::Pin;
@@ -153,8 +156,9 @@ pub fn provider_source(client: Arc<crate::enrich::provider::ProviderClient>) -> 
 }
 
 /// Builds the production sources: every provider with credentials, then the country data
-/// (downloaded or refreshed first, R13).
-async fn build_sources(config: &Config) -> Result<Vec<LookupSource>> {
+/// (downloaded or refreshed first, R13). The country data is also returned, to resolve the
+/// station's entity (feature 004).
+async fn build_sources(config: &Config) -> Result<(Vec<LookupSource>, Option<Arc<CountryData>>)> {
     let http = crate::enrich::provider::http_client(config.lookup.timeout)?;
     let mut sources: Vec<LookupSource> = crate::enrich::provider::clients(&config.lookup, &http)
         .into_iter()
@@ -168,14 +172,49 @@ async fn build_sources(config: &Config) -> Result<Vec<LookupSource>> {
         std::time::SystemTime::now(),
         |url| crate::enrich::cty::fetch_url(http.clone(), url),
     );
+    let mut country = None;
     match tokio::time::timeout(config.lookup.timeout * 4, refresh).await {
-        Ok(Some(data)) => sources.push(cty_source(Arc::new(data))),
+        Ok(Some(data)) => {
+            let data = Arc::new(data);
+            sources.push(cty_source(Arc::clone(&data)));
+            country = Some(data);
+        }
         Ok(None) => {}
         Err(_) => {
             tracing::warn!("country data not ready in time; country-level positions disabled")
         }
     }
-    Ok(sources)
+    Ok((sources, country))
+}
+
+/// The station's entity and its extent for `hello` (feature 004, FR-010, FR-025). `None` when
+/// any piece is missing; each case is logged at debug level.
+pub fn station_entity(
+    station: &crate::config::StationConfig,
+    country: Option<&CountryData>,
+    extents: &ExtentTable,
+) -> Option<EntityView> {
+    let Some(call) = station.callsign.as_deref() else {
+        tracing::debug!("no station callsign: auto-zoom frames a radius around the QTH");
+        return None;
+    };
+    let Some(country) = country else {
+        tracing::debug!("no country data: the station entity is unknown");
+        return None;
+    };
+    let Some((prefix, name)) = country.entity_of(call) else {
+        tracing::debug!(call, "station callsign matches no entity");
+        return None;
+    };
+    let Some(bounds) = extents.get(prefix) else {
+        tracing::debug!(prefix, "no bundled extent for the station entity");
+        return None;
+    };
+    Some(EntityView {
+        prefix: prefix.to_string(),
+        name: name.to_string(),
+        bounds,
+    })
 }
 
 /// The startup line naming the considered bands, in frequency order (feature 003, FR-006).
@@ -189,10 +228,13 @@ pub fn bands_log_line(filter: Option<&crate::band_filter::BandSet>) -> String {
 /// Binds the UDP and HTTP listeners (port 0 is allowed) and spawns every task.
 pub async fn start(config: Config, sources: LookupSources) -> Result<RunningService> {
     crate::install_crypto_provider();
-    let sources = match sources {
-        Some(sources) => sources,
+    let extents = ExtentTable::embedded()?;
+    let (sources, country) = match sources {
+        Some(sources) => (sources, None),
         None => build_sources(&config).await?,
     };
+    let entity = station_entity(&config.station, country.as_deref(), &extents);
+    let hello_station = HelloStation::new(&config.station, entity);
     let lookups = crate::enrich::Lookups::new(sources, &config);
     tracing::info!("{}", bands_log_line(config.band_filter.as_ref()));
     let udp = UdpSocket::bind((config.bind_address, config.udp_port)).await?;
@@ -211,6 +253,7 @@ pub async fn start(config: Config, sources: LookupSources) -> Result<RunningServ
         udp,
         http,
         lookups,
+        hello_station,
     );
 
     tracing::info!(%udp_addr, %http_addr, "live-qso-map started");
@@ -231,6 +274,7 @@ fn spawn_tasks(
     udp: UdpSocket,
     http: TcpListener,
     lookups: crate::enrich::Lookups,
+    hello_station: HelloStation,
 ) {
     let (queue_tx, queue_rx) = async_channel::bounded(config.ingest_queue);
     tasks.spawn(crate::ingest::run(
@@ -251,14 +295,12 @@ fn spawn_tasks(
             shutdown.clone(),
         ));
     }
-    // The entity is resolved from the country data in feature 004 T021.
-    let station = crate::web::protocol::HelloStation::new(&config.station, None);
     tasks.spawn(crate::web::serve(
         http,
         pipeline,
         config.map.clone(),
         config.band_filter.clone(),
-        station,
+        hello_station,
         shutdown,
     ));
 }
@@ -298,6 +340,35 @@ async fn wait_for_signal() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn station_entity_needs_callsign_country_data_and_extent() {
+        let country = crate::enrich::cty::CountryData::parse(include_str!(
+            "../tests/fixtures/cty-excerpt.dat"
+        ));
+        let extents =
+            ExtentTable::parse(r#"{"source":"t","extents":{"IS":[8.13,38.86,9.83,41.31]}}"#)
+                .unwrap();
+        let mut station = crate::config::StationConfig {
+            callsign: Some("is0mzk".into()),
+            ..Default::default()
+        };
+        assert_eq!(
+            station_entity(&station, Some(&country), &extents),
+            Some(EntityView {
+                prefix: "IS".into(),
+                name: "Sardinia".into(),
+                bounds: [8.13, 38.86, 9.83, 41.31],
+            })
+        );
+        assert_eq!(station_entity(&station, None, &extents), None);
+        station.callsign = Some("I2XYZ".into()); // entity known, no extent
+        assert_eq!(station_entity(&station, Some(&country), &extents), None);
+        station.callsign = Some("QQ9QQ".into());
+        assert_eq!(station_entity(&station, Some(&country), &extents), None);
+        station.callsign = None;
+        assert_eq!(station_entity(&station, Some(&country), &extents), None);
+    }
     use crate::adif::AdifRecord;
     use std::net::{IpAddr, Ipv4Addr};
     use std::time::{Duration, Instant};

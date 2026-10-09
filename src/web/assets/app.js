@@ -1,5 +1,5 @@
 // DOM and MapLibre glue only: every decision is made in map-state.js, layers.js, view.js,
-// geodesic.js and connection.js.
+// geodesic.js, connection.js, qth.js, autozoom.js, autozoom-geo.js and recent.js.
 // Popups are built with DOM nodes and textContent, never HTML strings, because QSO data comes
 // from an open UDP port (FR-035). Only the operator-configured attribution is HTML.
 /* global maplibregl */
@@ -16,22 +16,43 @@ import {
   saveProjection,
   nextProjection,
   popupToClose,
+  loadAutoZoom,
+  saveAutoZoom,
 } from './view.js';
+import { createAutoZoom } from './autozoom.js';
+import { framedPoints, fallbackFrame, flatBounds, paddingFor } from './autozoom-geo.js';
 import { createConnection, onOpen, onClose, onHello as handshake, loadLimit, saveLimit } from './connection.js';
 
 const OVERLAYS = ['qso-lines', 'qth', 'qso-markers'];
 const QTH_POPUP = 'qth';
+// Everything auto-zoom must keep clear of (FR-009); hidden ones measure as empty.
+const PANELS = [
+  '#legend',
+  '#recent',
+  '.limit-control',
+  '.maplibregl-ctrl-top-left',
+  '.maplibregl-ctrl-bottom-left',
+  '.maplibregl-ctrl-bottom-right',
+  '#status',
+  '#basemap-error',
+];
+const FIT = { gap: 12, minFree: [240, 160] };
+const MAX_ZOOM = 12;
+const POPUP_IDLE_MS = 30_000;
+const WORLD = { center: [0, 30], zoom: 1.5 };
 
 let map = null;
 let loaded = false;
 let state = null;
 let current = new Map();
 let helloStation = null;
+let entity = null;
 let qth = null;
 let socket = null;
 // The open popup and the key of its marker, so removals and updates reach it (FR-012).
 let openPopup = null;
 let openKey = null;
+let popupTimer = null;
 
 function sessionStore() {
   try {
@@ -51,6 +72,8 @@ function localStore() {
 
 const connection = createConnection(loadLimit(sessionStore()));
 let projection = loadProjection(localStore());
+const autozoom = createAutoZoom({ enabled: loadAutoZoom(localStore()) });
+let autoZoomControl = null;
 
 function element(tag, className, text) {
   const node = document.createElement(tag);
@@ -187,6 +210,62 @@ class ProjectionControl {
   }
 }
 
+/** A map control with one toggle button for auto-zoom (FR-007). */
+class AutoZoomControl {
+  onAdd() {
+    this.container = element('div', 'maplibregl-ctrl maplibregl-ctrl-group toggle-control');
+    this.button = element('button', null, 'Auto-zoom');
+    this.button.type = 'button';
+    this.button.addEventListener('click', () => runActions(autozoom.toggle(Date.now())));
+    this.container.append(this.button);
+    this.update();
+    return this.container;
+  }
+
+  update() {
+    const on = autozoom.state.enabled;
+    this.button.setAttribute('aria-pressed', String(on));
+    this.button.classList.toggle('active', on);
+    const label = on ? 'Auto-zoom is on: click to stop following the QSOs' : 'Auto-zoom is off: click to show every QSO';
+    this.button.title = label;
+    this.button.setAttribute('aria-label', label);
+  }
+
+  onRemove() {
+    this.container.remove();
+  }
+}
+
+function runActions(actions) {
+  for (const action of actions) {
+    if (action.type === 'save') {
+      saveAutoZoom(localStore(), action.enabled);
+      if (autoZoomControl) autoZoomControl.update();
+    } else if (action.type === 'fit') {
+      fitNow();
+    }
+  }
+}
+
+function panelRects() {
+  return PANELS.flatMap((selector) => [...document.querySelectorAll(selector)])
+    .filter((node) => !node.hidden && node.offsetParent !== null)
+    .map((node) => node.getBoundingClientRect());
+}
+
+/** Frames the house and every marker clear of the panels (FR-008–FR-010, FR-013). */
+function fitNow() {
+  if (!loaded) return;
+  const padding = paddingFor(map.getContainer().getBoundingClientRect(), panelRects(), FIT);
+  const bounds = current.size > 0 ? flatBounds(framedPoints(qth, current)) : fallbackFrame(qth, entity);
+  try {
+    if (bounds) map.fitBounds(bounds, { padding, maxZoom: MAX_ZOOM, duration: 800 });
+    else map.easeTo({ ...WORLD, padding, duration: 800 });
+  } catch (error) {
+    console.error('auto-zoom fit failed', error);
+  }
+}
+
 function render() {
   if (!state) return;
   const next = markers(state);
@@ -209,6 +288,16 @@ function render() {
   }
 }
 
+/** While auto-zoom is on, a popup nobody touches closes after 30 s (FR-012a). */
+function armPopupTimer(popup) {
+  clearTimeout(popupTimer);
+  popupTimer = setTimeout(() => {
+    if (openPopup !== popup) return;
+    if (autozoom.state.enabled) popup.remove();
+    else armPopupTimer(popup);
+  }, POPUP_IDLE_MS);
+}
+
 function openTrackedPopup(lngLat, content, key) {
   if (openPopup) openPopup.remove();
   const popup = new maplibregl.Popup({ maxWidth: 'none' }).setLngLat(lngLat).setDOMContent(content).addTo(map);
@@ -216,10 +305,17 @@ function openTrackedPopup(lngLat, content, key) {
     if (openPopup === popup) {
       openPopup = null;
       openKey = null;
+      clearTimeout(popupTimer);
+      runActions(autozoom.popupClosed());
     }
   });
+  for (const kind of ['pointerdown', 'pointermove', 'wheel', 'keydown']) {
+    popup.getElement().addEventListener(kind, () => armPopupTimer(popup));
+  }
   openPopup = popup;
   openKey = key;
+  runActions(autozoom.popupOpened());
+  armPopupTimer(popup);
 }
 
 function createMap(hello) {
@@ -236,6 +332,8 @@ function createMap(hello) {
   );
   map.addControl(new maplibregl.NavigationControl(), 'top-left');
   map.addControl(new ProjectionControl(), 'top-left');
+  autoZoomControl = new AutoZoomControl();
+  map.addControl(autoZoomControl, 'top-left');
   map.on('load', () => {
     map.setProjection({ type: projection });
     addOverlays();
@@ -243,6 +341,12 @@ function createMap(hello) {
     current = new Map();
     qth = null;
     render();
+    autozoom.change();
+  });
+  // Only camera moves the viewer makes carry the browser event; the page's own fits do not.
+  // `movestart` fires for every camera change, including rotation and pitch (FR-011).
+  map.on('movestart', (event) => {
+    if (event.originalEvent) runActions(autozoom.userMove());
   });
   map.on('click', 'qso-markers', (event) => {
     const feature = event.features && event.features[0];
@@ -288,6 +392,7 @@ function onHello(hello) {
   if (!map) createMap(hello);
   showLegend(hello.bands);
   helloStation = hello.station ?? null;
+  entity = hello.entity ?? null;
   state = createState({ bands: hello.bands, fallbackColor: hello.fallback_color, limit: connection.limit });
   for (const message of handshake(connection)) {
     socket.send(JSON.stringify(message));
@@ -311,6 +416,7 @@ function onMessage(message) {
     return;
   }
   render();
+  autozoom.change();
 }
 
 function connect() {
@@ -348,6 +454,8 @@ function setupSelector() {
 if (hasWebGL(() => document.createElement('canvas'))) {
   setupSelector();
   connect();
+  window.addEventListener('resize', () => autozoom.change());
+  setInterval(() => runActions(autozoom.tick(Date.now())), 250);
 } else {
   // FR-012: no renderer can run, so do not connect either.
   show('map', false);
