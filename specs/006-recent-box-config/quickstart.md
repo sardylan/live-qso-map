@@ -30,3 +30,5 @@ cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test && 
    the top.
 4. Close the browser and reopen the page. **Expected**: Map 10, Box 20 and Newest top are kept.
 5. At 1024 px and 1920 px, check that each column lines up on every row (SC-005).
+6. Hide the box, change Box to 3 and Newest to top, then show it again. **Expected**: 3 rows,
+   newest first.
