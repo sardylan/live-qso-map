@@ -140,3 +140,10 @@ test('the last-QSO box is shown by default and its choice round-trips (FR-021)',
   assert.equal(loadRecent(throwingStorage), true);
   assert.doesNotThrow(() => saveRecent(throwingStorage, false));
 });
+
+import { scaleVisible } from '../src/web/assets/view.js';
+
+test('the scale is shown only on the flat map (FR-024)', () => {
+  assert.equal(scaleVisible('mercator'), true);
+  assert.equal(scaleVisible('globe'), false);
+});

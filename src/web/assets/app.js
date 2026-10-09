@@ -20,6 +20,7 @@ import {
   saveAutoZoom,
   loadRecent,
   saveRecent,
+  scaleVisible,
 } from './view.js';
 import { recentQsos, rowView } from './recent.js';
 import { createAutoZoom } from './autozoom.js';
@@ -88,6 +89,7 @@ let projection = loadProjection(localStore());
 // What the map shows: the preference, or flat while auto-zoom has switched it (FR-016).
 let shown = projection;
 let projectionControl = null;
+let scaleControl = null;
 const autozoom = createAutoZoom({ enabled: loadAutoZoom(localStore()) });
 let autoZoomControl = null;
 let recentShown = loadRecent(localStore());
@@ -364,11 +366,27 @@ function panelRects() {
     .map((node) => node.getBoundingClientRect());
 }
 
+/** A metric scale at the bottom, only on the flat map (FR-023, FR-024). */
+function updateScale() {
+  if (!map) return;
+  const wanted = scaleVisible(shown);
+  if (wanted && !scaleControl) {
+    scaleControl = new maplibregl.ScaleControl({ unit: 'metric', maxWidth: 120 });
+    map.addControl(scaleControl, 'bottom-left');
+  } else if (!wanted && scaleControl) {
+    map.removeControl(scaleControl);
+    scaleControl = null;
+  }
+  // The last-QSO box sits above the scale.
+  document.body.classList.toggle('scale-on', wanted);
+}
+
 function showProjection(next) {
   if (next === shown) return;
   shown = next;
   if (loaded) map.setProjection({ type: shown });
   if (projectionControl) projectionControl.update();
+  updateScale();
 }
 
 /** `[lat, lon]` points of what auto-zoom frames: the markers and QTH, or the fallback box corners. */
@@ -483,6 +501,7 @@ function createMap(hello) {
   autoZoomControl = new AutoZoomControl();
   map.addControl(autoZoomControl, 'top-left');
   map.addControl(new RecentControl(), 'top-left');
+  updateScale();
   map.on('load', () => {
     map.setProjection({ type: shown });
     addOverlays();

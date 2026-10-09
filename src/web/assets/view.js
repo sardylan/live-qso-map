@@ -100,3 +100,8 @@ export function saveRecent(storage, shown) {
     // Storage may be unavailable; the choice then lasts for this page only.
   }
 }
+
+/** The distance scale is only correct on the flat map (FR-023, FR-024). */
+export function scaleVisible(projection) {
+  return projection === 'mercator';
+}

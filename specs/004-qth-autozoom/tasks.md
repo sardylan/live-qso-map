@@ -434,12 +434,12 @@ with auto-zoom on, and switch back; never save automatic switches (FR-015–FR-0
 
 ### Tests for User Story 5 (write first, confirm they FAIL)
 
-- [ ] T043 [P] [US5] Extend `web/view.test.js`: `scaleVisible('mercator') === true`,
+- [X] T043 [P] [US5] Extend `web/view.test.js`: `scaleVisible('mercator') === true`,
   `scaleVisible('globe') === false`.
 
 ### Implementation for User Story 5
 
-- [ ] T044 [US5] Implement `scaleVisible` in `src/web/assets/view.js` (T043 must pass). Then glue
+- [X] T044 [US5] Implement `scaleVisible` in `src/web/assets/view.js` (T043 must pass). Then glue
   in `src/web/assets/app.js`:
   - create one `new maplibregl.ScaleControl({unit: 'metric', maxWidth: 120})`;
   - add it at `bottom-left` whenever the effective projection becomes `mercator`, by preference or
