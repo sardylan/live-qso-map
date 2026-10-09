@@ -8,7 +8,7 @@ use crate::band_filter::BandSet;
 use crate::config::MapConfig;
 use crate::errors::Result;
 use crate::history::History;
-use crate::pipeline::{HistoryChange, Pipeline};
+use crate::pipeline::{HistoryChange, Pipeline, ScoreState};
 use crate::web::protocol::{
     ClientMessage, DEFAULT_LIMIT, HelloStation, QsoView, ServerMessage, is_allowed_limit,
 };
@@ -35,17 +35,21 @@ impl Session {
         self.limit
     }
 
+    /// `hello` and the window, then the latest score when one is held (feature 007).
     pub fn on_connect(
         &self,
         history: &History,
+        score: Option<&ScoreState>,
         map: &MapConfig,
         filter: Option<&BandSet>,
         station: &HelloStation,
     ) -> Vec<ServerMessage> {
-        vec![
+        let mut messages = vec![
             ServerMessage::hello(map, filter, station),
             self.snapshot(history),
-        ]
+        ];
+        messages.extend(score.map(ServerMessage::score));
+        messages
     }
 
     pub fn on_change(&self, change: &HistoryChange) -> Vec<ServerMessage> {
@@ -54,6 +58,7 @@ impl Session {
                 qso: QsoView::from(qso.as_ref()),
             }],
             HistoryChange::Remove { id } => vec![ServerMessage::Remove { id: id.clone() }],
+            HistoryChange::Score(state) => vec![ServerMessage::score(state)],
         }
     }
 
@@ -74,9 +79,11 @@ impl Session {
         }
     }
 
-    /// The page missed broadcasts: resend its whole window.
-    pub fn on_lagged(&self, history: &History) -> Vec<ServerMessage> {
-        vec![self.snapshot(history)]
+    /// The page missed broadcasts: resend its whole window and the latest score.
+    pub fn on_lagged(&self, history: &History, score: Option<&ScoreState>) -> Vec<ServerMessage> {
+        let mut messages = vec![self.snapshot(history)];
+        messages.extend(score.map(ServerMessage::score));
+        messages
     }
 
     fn snapshot(&self, history: &History) -> ServerMessage {
@@ -113,8 +120,9 @@ pub async fn drive<S: MessageSink>(
 ) {
     let mut session = Session::new();
     let initial = {
+        let score = pipeline.latest_score();
         let history = pipeline.lock_history();
-        session.on_connect(&history, map, filter, station)
+        session.on_connect(&history, score.as_deref(), map, filter, station)
     };
     if send_all(&mut sink, initial).await.is_err() {
         return;
@@ -142,8 +150,9 @@ pub async fn drive<S: MessageSink>(
             }
             Event::Change(change) => session.on_change(&change),
             Event::Lagged => {
+                let score = pipeline.latest_score();
                 let history = pipeline.lock_history();
-                session.on_lagged(&history)
+                session.on_lagged(&history, score.as_deref())
             }
         };
         if send_all(&mut sink, outgoing).await.is_err() {
@@ -171,6 +180,8 @@ mod tests {
     use crate::adif::AdifRecord;
     use crate::config::Config;
     use crate::history::EnrichedQso;
+    use crate::ingest::score::ContestScore;
+    use crate::pipeline::ScoreState;
     use std::collections::VecDeque;
     use std::sync::Arc;
     use tokio::sync::{Notify, mpsc, watch};
@@ -203,6 +214,7 @@ mod tests {
             ServerMessage::Snapshot { .. } => "snapshot",
             ServerMessage::Upsert { .. } => "upsert",
             ServerMessage::Remove { .. } => "remove",
+            ServerMessage::Score { .. } => "score",
         }
     }
 
@@ -212,6 +224,7 @@ mod tests {
         let session = Session::new();
         let msgs = session.on_connect(
             &p.lock_history(),
+            None,
             &Config::default().map,
             None,
             &HelloStation::default(),
@@ -300,7 +313,8 @@ mod tests {
             ClientMessage::SetLimit { limit: Some(50) },
             &p.lock_history(),
         );
-        let msgs = session.on_lagged(&p.lock_history());
+        let msgs = session.on_lagged(&p.lock_history(), None);
+        assert_eq!(msgs.len(), 1);
         assert_eq!(snapshot_len(&msgs[0]), (Some(50), 50));
     }
 
@@ -388,5 +402,108 @@ mod tests {
     fn removal_change_emits_remove() {
         let msgs = Session::new().on_change(&HistoryChange::Remove { id: "Q0001".into() });
         assert_eq!(msgs, vec![ServerMessage::Remove { id: "Q0001".into() }]);
+    }
+
+    // --- contest score (feature 007, T007) ----------------------------------------------------
+
+    fn held_score() -> ScoreState {
+        ScoreState::now(ContestScore {
+            score: 132,
+            qsos: 7,
+            mults: 11,
+        })
+    }
+
+    #[test]
+    fn connect_sends_the_score_after_the_snapshot_when_one_is_held() {
+        let p = pipeline_with(3, 16);
+        let map = Config::default().map;
+        let station = HelloStation::default();
+        let none = Session::new().on_connect(&p.lock_history(), None, &map, None, &station);
+        assert_eq!(
+            none.iter().map(kind).collect::<Vec<_>>(),
+            ["hello", "snapshot"]
+        );
+        let score = held_score();
+        let some = Session::new().on_connect(&p.lock_history(), Some(&score), &map, None, &station);
+        assert_eq!(
+            some.iter().map(kind).collect::<Vec<_>>(),
+            ["hello", "snapshot", "score"]
+        );
+        assert_eq!(some[2], ServerMessage::score(&score));
+    }
+
+    #[test]
+    fn a_score_change_emits_one_score() {
+        let score = Arc::new(held_score());
+        let msgs = Session::new().on_change(&HistoryChange::Score(Arc::clone(&score)));
+        assert_eq!(msgs.iter().map(kind).collect::<Vec<_>>(), ["score"]);
+    }
+
+    #[test]
+    fn lag_resends_the_score_after_the_snapshot() {
+        let p = pipeline_with(5, 16);
+        let score = held_score();
+        let msgs = Session::new().on_lagged(&p.lock_history(), Some(&score));
+        assert_eq!(
+            msgs.iter().map(kind).collect::<Vec<_>>(),
+            ["snapshot", "score"]
+        );
+    }
+
+    #[tokio::test]
+    async fn driver_forwards_a_score_published_after_connect() {
+        let pipeline = Pipeline::new(0, 16);
+        let gate = Arc::new(Notify::new());
+        let open = Arc::new(std::sync::atomic::AtomicBool::new(true));
+        let (sent_tx, mut sent_rx) = mpsc::unbounded_channel();
+        let sink = GatedSink {
+            gate,
+            open,
+            sent: sent_tx,
+            incoming: VecDeque::new(),
+        };
+        let (_stop_tx, stop_rx) = watch::channel(false);
+        let map = Config::default().map;
+        let rx = pipeline.subscribe();
+        let source = pipeline.clone();
+        let driver = tokio::spawn(async move {
+            drive(
+                sink,
+                rx,
+                &source,
+                &map,
+                None,
+                &HelloStation::default(),
+                stop_rx,
+            )
+            .await;
+        });
+        let mut kinds = Vec::new();
+        for _ in 0..2 {
+            let m = tokio::time::timeout(std::time::Duration::from_secs(1), sent_rx.recv())
+                .await
+                .unwrap()
+                .unwrap();
+            kinds.push(kind(&m));
+        }
+        pipeline.publish_score(ContestScore {
+            score: 90,
+            qsos: 6,
+            mults: 10,
+        });
+        let m = tokio::time::timeout(std::time::Duration::from_secs(1), sent_rx.recv())
+            .await
+            .unwrap()
+            .unwrap();
+        driver.abort();
+        assert_eq!(kinds, ["hello", "snapshot"]);
+        let ServerMessage::Score {
+            score, qsos, mults, ..
+        } = m
+        else {
+            panic!("expected a score, got {}", kind(&m));
+        };
+        assert_eq!((score, qsos, mults), (90, 6, 10));
     }
 }

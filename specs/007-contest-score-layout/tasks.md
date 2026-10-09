@@ -37,7 +37,7 @@ for the frontend (Node via nvm: `~/.nvm/versions/node/v26.11.1/bin/node`).
 
 ## Phase 1: Setup
 
-- [ ] T001 Create the two new modules as stubs, so later tests compile:
+- [X] T001 Create the two new modules as stubs, so later tests compile:
   - **`src/ingest/score.rs`**: the doc comment
     `//! QARTest score messages (dynamicresults): score, QSO total and multiplier total (feature 007, research R1).`;
   - **`src/ingest/mod.rs`**: add `pub mod score;`;
@@ -61,7 +61,7 @@ for the frontend (Node via nvm: `~/.nvm/versions/node/v26.11.1/bin/node`).
 
 ### Tests for User Story 1 (write first, confirm they FAIL)
 
-- [ ] T002 [P] [US1] Write unit tests in `src/ingest/score.rs` for
+- [X] T002 [P] [US1] Write unit tests in `src/ingest/score.rs` for
   `parse(xml: &str) -> Result<ContestScore>` (data-model "ContestScore"):
   - **reference packets**: using `qartest::reference_packets` on the feature-001 capture,
     - packet 4 gives `{ score: 90, qsos: 6, mults: 10 }`;
@@ -79,7 +79,7 @@ for the frontend (Node via nvm: `~/.nvm/versions/node/v26.11.1/bin/node`).
     - a non-numeric multiplier total → `"mult"`;
     - two multiplier totals of `18446744073709551615` (overflow) → `"mult"`;
     - ill-formed XML → an error, never a panic.
-- [ ] T003 [P] [US1] Update the tests in `src/ingest/qartest.rs`:
+- [X] T003 [P] [US1] Update the tests in `src/ingest/qartest.rs`:
   - replace `score_and_delete_messages_give_no_event` with
     `score_messages_give_a_score_and_deletes_nothing`:
     - packet 4 (index 3) gives `Some(QarTestItem::Score(ContestScore { score: 90, qsos: 6, mults: 10 }))`;
@@ -87,14 +87,14 @@ for the frontend (Node via nvm: `~/.nvm/versions/node/v26.11.1/bin/node`).
     - the `contactdelete` sample still gives `None`;
   - adapt `message(i)` to unwrap `QarTestItem::Qso`;
   - `mutated_packets_never_panic` keeps running over every packet.
-- [ ] T004 [P] [US1] Write unit tests in `src/ingest/mod.rs`:
+- [X] T004 [P] [US1] Write unit tests in `src/ingest/mod.rs`:
   - `events_from_datagram` on packet 4 returns `Ingested { events: [], score: Some(90/6/10) }`;
   - on packet 1 it returns one event and `score: None`;
   - on an ADIF datagram it returns `score: None`;
   - a `dynamicresults` with `<score>abc</score>` returns no events and no score. It logs one WARN
     event naming `score`, checked with a `tracing` layer that counts warnings, as
     `tests/qartest_replay.rs` does.
-- [ ] T005 [P] [US1] Write unit tests in `src/pipeline.rs`:
+- [X] T005 [P] [US1] Write unit tests in `src/pipeline.rs`:
   - `latest_score()` is `None` on a new pipeline;
   - after `publish_score(s)`:
     - `latest_score()` holds `s` with a `received_at` that matches `^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$`;
@@ -102,18 +102,18 @@ for the frontend (Node via nvm: `~/.nvm/versions/node/v26.11.1/bin/node`).
   - publishing an identical score twice broadcasts twice and refreshes `received` (R2: no
     deduplication);
   - `history_len()` is unchanged by scores (FR-004).
-- [ ] T006 [P] [US1] Write unit tests in `src/web/protocol.rs`:
+- [X] T006 [P] [US1] Write unit tests in `src/web/protocol.rs`:
   - `ServerMessage::score(&ScoreState)`, built from a state whose `received` is 42 s in the past
     (`Instant::now().checked_sub(...)`), serialises exactly as
     `{"type":"score","score":132,"qsos":7,"mults":11,"received_at":"2026-10-08T15:04:29Z","age_s":42}`;
   - a `received` in the future, or an `Instant` that can't be subtracted, gives `age_s: 0`.
-- [ ] T007 [P] [US1] Write unit tests in `src/web/session.rs`:
+- [X] T007 [P] [US1] Write unit tests in `src/web/session.rs`:
   - `on_connect` with no score gives `hello`, `snapshot` only;
   - `on_connect` with a score gives `hello`, `snapshot`, `score`, in that order;
   - `on_change(HistoryChange::Score(..))` gives one `score`;
   - `on_lagged` with a score gives `snapshot`, then `score`; without one, only `snapshot`;
   - in the driver test with fakes, a score published after connect reaches the sink.
-- [ ] T008 [P] [US1] Write integration tests in `tests/ws_protocol.rs`:
+- [X] T008 [P] [US1] Write integration tests in `tests/ws_protocol.rs`:
   - **live**: a connected page, then a UDP send of reference packet 4. Within 2 s the page gets
     `{"type":"score","score":90,"qsos":6,"mults":10,…}` with `age_s` 0 or 1 (SC-001);
   - **on connect**: a page that connects after the score gets `hello`, `snapshot` and that
@@ -126,10 +126,10 @@ for the frontend (Node via nvm: `~/.nvm/versions/node/v26.11.1/bin/node`).
     `<score>x</score>`, then one QSO. The page gets the QSO's `upsert` and no `score`, and
     `latest_score()` stays `None`;
   - **band filter** (R2): with a band filter that excludes 40m, packet 4 still gives a `score`.
-- [ ] T009 [P] [US1] Update `tests/qartest_replay.rs` `reference_capture_gives_sc_009`: after the
+- [X] T009 [P] [US1] Update `tests/qartest_replay.rs` `reference_capture_gives_sc_009`: after the
   replay, `service.pipeline().latest_score()` holds 132/7/11. The QSO assertions and the
   no-warnings check stay as they are.
-- [ ] T010 [P] [US1] Write `web/score.test.js` for `src/web/assets/score.js` (data-model
+- [X] T010 [P] [US1] Write `web/score.test.js` for `src/web/assets/score.js` (data-model
   "score.js"):
   - **`groupDigits`**: `0` → `"0"`, `999` → `"999"`, `1000` → `"1.000"`,
     `1234567` → `"1.234.567"`, `12345678` → `"12.345.678"`; `-1`, `1.5`, `NaN` and `"12"` →
@@ -145,7 +145,7 @@ for the frontend (Node via nvm: `~/.nvm/versions/node/v26.11.1/bin/node`).
 
 ### Implementation for User Story 1
 
-- [ ] T011 [US1] Implement `ContestScore` and `parse` in `src/ingest/score.rs`, as research R1
+- [X] T011 [US1] Implement `ContestScore` and `parse` in `src/ingest/score.rs`, as research R1
   describes:
   - walk with `quick_xml::Reader`, tracking the element path;
   - read `band`, `mode` and `type` attributes of `<qso>` and `<mult>` inside `<breakdown>`;
@@ -153,14 +153,14 @@ for the frontend (Node via nvm: `~/.nvm/versions/node/v26.11.1/bin/node`).
   - decode entities in text as `xml.rs` does.
 
   T002 must pass.
-- [ ] T012 [US1] In `src/ingest/qartest.rs`:
+- [X] T012 [US1] In `src/ingest/qartest.rs`:
   - add `enum QarTestItem { Qso(QarTestMessage), Score(ContestScore) }`;
   - make `parse` return `Result<Option<QarTestItem>>`, with `dynamicresults` going to
     `score::parse` on the same text;
   - update the module doc (FR-005a now covers deletes only).
 
   T003 must pass.
-- [ ] T013 [US1] In `src/ingest/mod.rs`:
+- [X] T013 [US1] In `src/ingest/mod.rs`:
   - add `pub struct Ingested { pub events: Vec<QsoEvent>, pub score: Option<ContestScore> }` and
     return it from `events_from_datagram`;
   - in `run`, publish `score` with `pipeline.publish_score` before the band split, with no gate;
@@ -168,7 +168,7 @@ for the frontend (Node via nvm: `~/.nvm/versions/node/v26.11.1/bin/node`).
     `tests/` files.
 
   T004 must pass.
-- [ ] T014 [US1] In `src/pipeline.rs`:
+- [X] T014 [US1] In `src/pipeline.rs`:
   - add `ScoreState { score, received: Instant, received_at: String }`, the `score` field,
     `publish_score`, `latest_score`, and `HistoryChange::Score(Arc<ScoreState>)`;
   - `received_at` uses `SystemTime::now().duration_since(UNIX_EPOCH)` seconds and
@@ -178,21 +178,21 @@ for the frontend (Node via nvm: `~/.nvm/versions/node/v26.11.1/bin/node`).
   - recover a poisoned lock as `lock_history` does.
 
   T005 must pass.
-- [ ] T015 [US1] In `src/web/protocol.rs`, add `ServerMessage::Score { score, qsos, mults,
+- [X] T015 [US1] In `src/web/protocol.rs`, add `ServerMessage::Score { score, qsos, mults,
   received_at, age_s }` and `ServerMessage::score(&ScoreState)`, which computes `age_s` from
   `received.elapsed()`. T006 must pass.
-- [ ] T016 [US1] In `src/web/session.rs`:
+- [X] T016 [US1] In `src/web/session.rs`:
   - `on_connect` and `on_lagged` take `score: Option<&ScoreState>` and append a `score` message
     when it is `Some`;
   - `on_change` maps `HistoryChange::Score`;
   - `drive` reads `pipeline.latest_score()` after subscribing.
 
   T007, T008 and T009 must pass.
-- [ ] T017 [US1] Implement `groupDigits`, `scoreText`, `isStale` and `updatedTitle` in
+- [X] T017 [US1] Implement `groupDigits`, `scoreText`, `isStale` and `updatedTitle` in
   `src/web/assets/score.js`. Serve it from `src/web/mod.rs` as `/score.js` (`text/javascript`),
   and add `("/score.js", "text/javascript")` to `static_assets_are_served` in
   `tests/ws_protocol.rs`. T010 must pass.
-- [ ] T018 [US1] Page markup and styles:
+- [X] T018 [US1] Page markup and styles:
   - **`src/web/assets/index.html`**: wrap the box in `<div id="corner-bl" class="corner-bl">`,
     with `<div id="score" class="score" aria-live="polite">Score —</div>` before
     `<div id="recent" …>`;
@@ -205,7 +205,7 @@ for the frontend (Node via nvm: `~/.nvm/versions/node/v26.11.1/bin/node`).
       `max-width`;
     - `.score` has the same panel look, `white-space: nowrap` and `font-weight: 600`;
     - `.score.stale` sets `color: #999; font-weight: normal`.
-- [ ] T019 [US1] Glue in `src/web/assets/app.js`:
+- [X] T019 [US1] Glue in `src/web/assets/app.js`:
   - import from `./score.js`;
   - keep `scoreState`: reset it to `null` in `onHello`; on a `score` message, set it with
     `localReceived = Date.now() - age_s * 1000`;

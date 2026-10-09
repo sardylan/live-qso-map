@@ -107,6 +107,7 @@ async fn static_assets_are_served() {
         ("/autozoom.js", "text/javascript"),
         ("/autozoom-geo.js", "text/javascript"),
         ("/recent.js", "text/javascript"),
+        ("/score.js", "text/javascript"),
     ] {
         let response = reqwest::get(format!("http://{}{path}", service.http_addr))
             .await
@@ -383,5 +384,118 @@ async fn a_page_receives_each_qso_entity() {
         .map(|q| q["entity"].clone())
         .collect();
     assert_eq!(entities, vec![expected, Value::Null]);
+    service.shutdown().await;
+}
+
+// --- contest score (feature 007, T008) --------------------------------------------------------
+
+const REFERENCE: &str =
+    include_str!("../specs/001-live-qso-map/reference/qartest-16.9.1-cqww-ssb.txt");
+
+fn score_packet(i: usize) -> Vec<u8> {
+    live_qso_map::ingest::qartest::reference_packets(REFERENCE)[i].clone()
+}
+
+/// Skips `hello` and `snapshot`.
+async fn handshake(ws: &mut Client) {
+    for kind in ["hello", "snapshot"] {
+        let m = next_json(ws, Duration::from_secs(2)).await.unwrap();
+        assert_eq!(m["type"], kind);
+    }
+}
+
+fn assert_score(m: &Value, (score, qsos, mults): (u64, u64, u64)) {
+    assert_eq!(m["type"], "score", "{m}");
+    assert_eq!(m["score"], score, "{m}");
+    assert_eq!(m["qsos"], qsos, "{m}");
+    assert_eq!(m["mults"], mults, "{m}");
+    let at = m["received_at"].as_str().unwrap();
+    assert!(at.len() == 20 && at.ends_with('Z'), "{at}");
+    assert!(m["age_s"].as_u64().unwrap() <= 1, "{m}");
+}
+
+#[tokio::test]
+async fn a_score_reaches_open_pages_and_pages_opened_later() {
+    let service = start(test_config(), None).await.unwrap();
+    let mut early = connect(service.http_addr).await;
+    handshake(&mut early).await;
+    assert!(
+        next_json(&mut early, Duration::from_millis(500))
+            .await
+            .is_none(),
+        "no score is held yet"
+    );
+
+    // Live, within 2 s (SC-001).
+    send_udp(service.udp_addr, &score_packet(3)).await;
+    let live = next_json(&mut early, Duration::from_secs(2)).await.unwrap();
+    assert_score(&live, (90, 6, 10));
+
+    // On connect, right after the handshake (SC-002).
+    let mut late = connect(service.http_addr).await;
+    handshake(&mut late).await;
+    let held = next_json(&mut late, Duration::from_secs(1)).await.unwrap();
+    assert_score(&held, (90, 6, 10));
+
+    // The latest score wins, whatever its station callsign (spec Edge Cases).
+    let other = String::from_utf8(score_packet(9))
+        .unwrap()
+        .replace("<call>IS0MZK</call>", "<call>IQ0ZZZ</call>");
+    send_udp(service.udp_addr, other.as_bytes()).await;
+    for ws in [&mut early, &mut late] {
+        let m = next_json(ws, Duration::from_secs(2)).await.unwrap();
+        assert_score(&m, (132, 7, 11));
+    }
+    let mut last = connect(service.http_addr).await;
+    handshake(&mut last).await;
+    assert_score(
+        &next_json(&mut last, Duration::from_secs(1)).await.unwrap(),
+        (132, 7, 11),
+    );
+    assert!(
+        next_json(&mut last, Duration::from_millis(300))
+            .await
+            .is_none()
+    );
+    service.shutdown().await;
+}
+
+#[tokio::test]
+async fn malformed_scores_change_nothing() {
+    let service = start(test_config(), None).await.unwrap();
+    let mut ws = connect(service.http_addr).await;
+    handshake(&mut ws).await;
+    let bad = String::from_utf8(score_packet(3))
+        .unwrap()
+        .replace("<score>90</score>", "<score>x</score>");
+    for _ in 0..100 {
+        send_udp(service.udp_addr, bad.as_bytes()).await;
+    }
+    send_udp(
+        service.udp_addr,
+        b"<CALL:5>DL5AB <QSO_DATE:8>20261008 <TIME_ON:6>150404 <BAND:3>40m <MODE:3>SSB <EOR>",
+    )
+    .await;
+    let m = next_json(&mut ws, Duration::from_secs(2)).await.unwrap();
+    assert_eq!(m["type"], "upsert", "{m}");
+    assert!(
+        next_json(&mut ws, Duration::from_millis(300))
+            .await
+            .is_none()
+    );
+    assert!(service.pipeline().latest_score().is_none());
+    service.shutdown().await;
+}
+
+#[tokio::test]
+async fn the_band_filter_does_not_hide_the_score() {
+    let mut config = test_config();
+    config.band_filter = Some(live_qso_map::band_filter::resolve(&["20m"]).unwrap());
+    let service = start(config, None).await.unwrap();
+    let mut ws = connect(service.http_addr).await;
+    handshake(&mut ws).await;
+    send_udp(service.udp_addr, &score_packet(3)).await;
+    let m = next_json(&mut ws, Duration::from_secs(2)).await.unwrap();
+    assert_score(&m, (90, 6, 10));
     service.shutdown().await;
 }

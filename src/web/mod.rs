@@ -37,6 +37,7 @@ const QTH_JS: &str = include_str!("assets/qth.js");
 const AUTOZOOM_JS: &str = include_str!("assets/autozoom.js");
 const AUTOZOOM_GEO_JS: &str = include_str!("assets/autozoom-geo.js");
 const RECENT_JS: &str = include_str!("assets/recent.js");
+const SCORE_JS: &str = include_str!("assets/score.js");
 
 #[derive(Clone)]
 struct AppState {
@@ -95,6 +96,7 @@ pub async fn serve(
             get(|| asset("text/javascript", AUTOZOOM_GEO_JS)),
         )
         .route("/recent.js", get(|| asset("text/javascript", RECENT_JS)))
+        .route("/score.js", get(|| asset("text/javascript", SCORE_JS)))
         .route("/ws", get(ws_handler))
         .route("/healthz", get(healthz))
         .fallback(not_found)

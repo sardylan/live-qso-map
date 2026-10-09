@@ -8,7 +8,7 @@ use std::future::Future;
 use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex, MutexGuard};
-use std::time::Duration;
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use tokio::net::{TcpListener, UdpSocket};
 use tokio::sync::{broadcast, watch};
@@ -16,7 +16,8 @@ use tokio::task::JoinSet;
 
 use crate::config::Config;
 use crate::errors::Result;
-use crate::history::{EnrichedQso, History, Removal, Upsert};
+use crate::history::{EnrichedQso, History, Removal, Upsert, format_rfc3339};
+use crate::ingest::score::ContestScore;
 use crate::position::LookupCandidate;
 
 /// One lookup source: a callsign in, a candidate (or nothing) out. Production builds these from
@@ -31,7 +32,7 @@ pub type LookupSource = Arc<
 #[doc(hidden)]
 pub type LookupSources = Option<Vec<LookupSource>>;
 
-/// A change to the history, fanned out to every page session (channel 2).
+/// A change pages must hear about, fanned out to every page session (channel 2).
 #[derive(Debug, Clone)]
 pub enum HistoryChange {
     Upsert(Arc<EnrichedQso>),
@@ -39,12 +40,42 @@ pub enum HistoryChange {
     Remove {
         id: String,
     },
+    /// A new contest score (feature 007).
+    Score(Arc<ScoreState>),
 }
 
-/// Shared history plus the broadcast sender.
+/// The latest contest score and when the service received it (feature 007, research R3).
+#[derive(Debug, Clone, PartialEq)]
+pub struct ScoreState {
+    pub score: ContestScore,
+    /// Monotonic receive time, for the message's `age_s`.
+    pub received: Instant,
+    /// UTC receive time, `YYYY-MM-DDTHH:MM:SSZ` (HR-1).
+    pub received_at: String,
+}
+
+impl ScoreState {
+    pub fn now(score: ContestScore) -> Self {
+        let seconds = match SystemTime::now().duration_since(UNIX_EPOCH) {
+            Ok(elapsed) => i64::try_from(elapsed.as_secs()).unwrap_or(i64::MAX),
+            Err(_) => {
+                tracing::warn!("the system clock is before 1970; the score time shows as 1970");
+                0
+            }
+        };
+        Self {
+            score,
+            received: Instant::now(),
+            received_at: format_rfc3339(seconds),
+        }
+    }
+}
+
+/// Shared history and latest score, plus the broadcast sender.
 #[derive(Clone)]
 pub struct Pipeline {
     history: Arc<Mutex<History>>,
+    score: Arc<Mutex<Option<Arc<ScoreState>>>>,
     changes: broadcast::Sender<HistoryChange>,
 }
 
@@ -53,8 +84,29 @@ impl Pipeline {
         let (changes, _) = broadcast::channel(broadcast_queue.max(1));
         Self {
             history: Arc::new(Mutex::new(History::new(history_size))),
+            score: Arc::new(Mutex::new(None)),
             changes,
         }
+    }
+
+    fn lock_score(&self) -> MutexGuard<'_, Option<Arc<ScoreState>>> {
+        self.score
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
+    /// Keeps `score` as the latest and broadcasts it while holding the lock, so pages see scores
+    /// in the order they arrived. Identical repeats are kept too: each refreshes the time (R2).
+    pub fn publish_score(&self, score: ContestScore) {
+        let mut held = self.lock_score();
+        let state = Arc::new(ScoreState::now(score));
+        *held = Some(Arc::clone(&state));
+        // An error only means no page is connected.
+        let _ = self.changes.send(HistoryChange::Score(state));
+    }
+
+    pub fn latest_score(&self) -> Option<Arc<ScoreState>> {
+        self.lock_score().clone()
     }
 
     /// Locks the history. A poisoned lock is recovered: the history stays usable.
@@ -350,6 +402,7 @@ async fn wait_for_signal() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ingest::score::ContestScore;
 
     #[test]
     fn station_entity_needs_callsign_country_data_and_extent() {
@@ -471,5 +524,54 @@ mod tests {
         assert_eq!(pipeline.history_len(), 0);
         assert!(!pipeline.publish(qso("A", 2)), "stale revision stays out");
         assert!(rx.try_recv().is_err());
+    }
+
+    // --- contest score (feature 007, T005) ----------------------------------------------------
+
+    fn score(score: u64) -> ContestScore {
+        ContestScore {
+            score,
+            qsos: 7,
+            mults: 11,
+        }
+    }
+
+    #[test]
+    fn a_new_pipeline_holds_no_score() {
+        assert!(Pipeline::new(0, 16).latest_score().is_none());
+    }
+
+    #[test]
+    fn publish_score_stores_and_broadcasts() {
+        let pipeline = Pipeline::new(0, 16);
+        let mut rx = pipeline.subscribe();
+        pipeline.publish_score(score(132));
+        let held = pipeline.latest_score().unwrap();
+        assert_eq!(held.score, score(132));
+        let at = held.received_at.as_bytes();
+        assert_eq!(at.len(), 20, "{}", held.received_at);
+        assert!(
+            held.received_at.ends_with('Z') && at[10] == b'T' && at[4] == b'-',
+            "{}",
+            held.received_at
+        );
+        match rx.try_recv() {
+            Ok(HistoryChange::Score(sent)) => assert_eq!(sent.score, score(132)),
+            other => panic!("expected a score, got {other:?}"),
+        }
+        assert_eq!(pipeline.history_len(), 0, "a score is not a QSO (FR-004)");
+    }
+
+    #[test]
+    fn an_identical_score_is_broadcast_again_and_refreshed() {
+        let pipeline = Pipeline::new(0, 16);
+        let mut rx = pipeline.subscribe();
+        pipeline.publish_score(score(90));
+        let first = pipeline.latest_score().unwrap().received;
+        std::thread::sleep(Duration::from_millis(5));
+        pipeline.publish_score(score(90));
+        assert!(pipeline.latest_score().unwrap().received > first);
+        assert!(matches!(rx.try_recv(), Ok(HistoryChange::Score(_))));
+        assert!(matches!(rx.try_recv(), Ok(HistoryChange::Score(_))));
     }
 }

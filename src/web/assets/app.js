@@ -1,5 +1,5 @@
 // DOM and MapLibre glue only: every decision is made in map-state.js, layers.js, view.js,
-// geodesic.js, connection.js, qth.js, autozoom.js, autozoom-geo.js and recent.js.
+// geodesic.js, connection.js, qth.js, autozoom.js, autozoom-geo.js, recent.js and score.js.
 // Popups are built with DOM nodes and textContent, never HTML strings, because QSO data comes
 // from an open UDP port (FR-035). Only the operator-configured attribution is HTML.
 /* global maplibregl */
@@ -37,6 +37,7 @@ import {
   saveRecentOrder,
 } from './view.js';
 import { recentQsos, headerCells, rowCells, markerKeyOf, entityLabel, onMap } from './recent.js';
+import { scoreText, isStale, updatedTitle } from './score.js';
 import { createAutoZoom } from './autozoom.js';
 import {
   framedPoints,
@@ -55,6 +56,7 @@ const QTH_POPUP = 'qth';
 const PANELS = [
   '#legend',
   '#recent',
+  '#score',
   '.limit-control',
   '.maplibregl-ctrl-top-left',
   '.maplibregl-ctrl-bottom-left',
@@ -105,6 +107,10 @@ let recentShown = loadRecent(localStore());
 let recentSize = loadRecentSize(localStore());
 let recentOrder = loadRecentOrder(localStore());
 const OFF_MAP_TITLE = 'Not on the map (outside its last N)';
+// The latest contest score, with its receive time on this page's clock (feature 007, R4).
+let scoreState = null;
+// How often the stale look is re-checked (SC-003: within 10 s).
+const SCORE_TICK_MS = 5_000;
 // How far inside the free area a marker opened from the box is brought (FR-022a).
 const PAN_INSET_PX = 40;
 
@@ -380,6 +386,32 @@ function renderRecent() {
   box.replaceChildren(table);
 }
 
+/** The score line: plain text only (FR-005, FR-007, FR-008). */
+function renderScore() {
+  const line = document.getElementById('score');
+  const text = scoreText(scoreState);
+  // Only real changes are written, so the live region doesn't repeat itself every tick.
+  if (line.textContent !== text) {
+    line.textContent = text;
+    // Its width may have changed: auto-zoom must keep clear of it (FR-013).
+    autozoom.change();
+  }
+  line.classList.toggle('stale', scoreState !== null && isStale(scoreState.localReceived, Date.now()));
+  line.title = scoreState ? updatedTitle(scoreState.receivedAt) : '';
+}
+
+function onScore(message) {
+  scoreState = {
+    score: message.score,
+    qsos: message.qsos,
+    mults: message.mults,
+    receivedAt: message.received_at,
+    // Staleness is judged on this page's clock, whatever the service's clock says (R4).
+    localReceived: Date.now() - (Number(message.age_s) || 0) * 1000,
+  };
+  renderScore();
+}
+
 function runActions(actions) {
   for (const action of actions) {
     if (action.type === 'save') {
@@ -595,6 +627,9 @@ function onHello(hello) {
   if (hello.recent && Array.isArray(hello.recent.columns)) recentConfig = hello.recent;
   state = createState({ bands: hello.bands, fallbackColor: hello.fallback_color, limit: connection.limit });
   renderRecent();
+  // The service may have restarted and lost its score: show none until it sends one (R7).
+  scoreState = null;
+  renderScore();
   // Ask for at least 20 QSOs, so the box has its rows whatever the map shows (TR-006).
   for (const message of handshake({ limit: serverLimit(connection.limit) })) {
     socket.send(JSON.stringify(message));
@@ -604,6 +639,10 @@ function onHello(hello) {
 function onMessage(message) {
   if (message.type === 'hello') {
     onHello(message);
+    return;
+  }
+  if (message.type === 'score') {
+    onScore(message);
     return;
   }
   if (!state) return;
@@ -683,8 +722,10 @@ if (hasWebGL(() => document.createElement('canvas'))) {
   connect();
   window.addEventListener('resize', () => autozoom.change());
   setInterval(() => runActions(autozoom.tick(Date.now())), 250);
+  setInterval(renderScore, SCORE_TICK_MS);
 } else {
   // FR-012: no renderer can run, so do not connect either.
   show('map', false);
+  show('corner-bl', false);
   show('no-webgl', true);
 }

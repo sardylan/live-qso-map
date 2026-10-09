@@ -120,22 +120,48 @@ body {
   font-weight: 600;
 }
 
-/* Last-QSO box (feature 004, FR-019): bottom left, above the attribution line (which can run under
-   it on narrow windows) and above the scale bar when it is shown. */
-.recent {
+/* Bottom-left column (feature 007, FR-012): the score line above the last-QSO box. It sits above
+   the attribution line (which can run under it on narrow windows) and above the scale bar when it
+   is shown. A hidden box takes no room, so the score line drops to its place. */
+.corner-bl {
   position: absolute;
   left: 10px;
   bottom: 30px;
   z-index: 2;
   max-width: 45%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+/* `display: flex` would otherwise win over the hidden attribute (no-WebGL page). */
+.corner-bl[hidden] {
+  display: none;
+}
+
+body.scale-on .corner-bl {
+  bottom: 56px;
+}
+
+.recent,
+.score {
   background: rgba(255, 255, 255, 0.92);
   padding: 6px 8px;
   border-radius: 4px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
 }
 
-body.scale-on .recent {
-  bottom: 56px;
+/* The contest score: always one line (FR-005, FR-006). */
+.score {
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+/* No score for 5 minutes (FR-007). */
+.score.stale {
+  color: #999;
+  font-weight: normal;
 }
 
 .recent table {

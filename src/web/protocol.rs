@@ -8,6 +8,7 @@ use crate::adif::AdifRecord;
 use crate::band_filter::BandSet;
 use crate::config::{BaseMap, MapConfig, StationConfig};
 use crate::history::{EnrichedQso, QsoEntity, format_rfc3339, qso_timestamp};
+use crate::pipeline::ScoreState;
 use crate::position::Position;
 use crate::recent_columns::Column;
 
@@ -131,9 +132,30 @@ pub enum ServerMessage {
     Remove {
         id: String,
     },
+    /// The latest contest score (feature 007, contracts/websocket-protocol.md).
+    Score {
+        score: u64,
+        qsos: u64,
+        mults: u64,
+        /// UTC, when the service received the score (HR-1).
+        received_at: String,
+        /// Seconds since then, so the page can judge staleness on its own clock (research R4).
+        age_s: u64,
+    },
 }
 
 impl ServerMessage {
+    /// A `score` message, aged at the moment it is built.
+    pub fn score(state: &ScoreState) -> Self {
+        ServerMessage::Score {
+            score: state.score.score,
+            qsos: state.score.qsos,
+            mults: state.score.mults,
+            received_at: state.received_at.clone(),
+            age_s: state.received.elapsed().as_secs(),
+        }
+    }
+
     /// Only bands in `filter` are listed (all when `None`); `protocol` and `basemap` are
     /// unaffected (feature 003, FR-010).
     pub fn hello(map: &MapConfig, filter: Option<&BandSet>, station: &HelloStation) -> Self {
@@ -571,5 +593,49 @@ mod tests {
         })
         .unwrap();
         assert_eq!(v, json!({"type": "remove", "id": "L|IS0MZK|3809734F4"}));
+    }
+
+    // --- contest score (feature 007, T006) ----------------------------------------------------
+
+    fn score_state(received: std::time::Instant) -> crate::pipeline::ScoreState {
+        crate::pipeline::ScoreState {
+            score: crate::ingest::score::ContestScore {
+                score: 132,
+                qsos: 7,
+                mults: 11,
+            },
+            received,
+            received_at: "2026-10-08T15:04:29Z".into(),
+        }
+    }
+
+    #[test]
+    fn score_shape_with_its_age() {
+        let Some(received) =
+            std::time::Instant::now().checked_sub(std::time::Duration::from_secs(42))
+        else {
+            return; // The monotonic clock started less than 42 s ago: nothing to check.
+        };
+        let json = serde_json::to_value(ServerMessage::score(&score_state(received))).unwrap();
+        assert_eq!(
+            json,
+            serde_json::json!({
+                "type": "score",
+                "score": 132,
+                "qsos": 7,
+                "mults": 11,
+                "received_at": "2026-10-08T15:04:29Z",
+                "age_s": 42
+            })
+        );
+    }
+
+    #[test]
+    fn a_receive_time_in_the_future_has_age_zero() {
+        let future = std::time::Instant::now() + std::time::Duration::from_secs(60);
+        let ServerMessage::Score { age_s, .. } = ServerMessage::score(&score_state(future)) else {
+            panic!("expected a score");
+        };
+        assert_eq!(age_s, 0);
     }
 }

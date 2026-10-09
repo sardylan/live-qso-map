@@ -1,10 +1,12 @@
-//! QARTest UDP messages to ADIF (FR-004, FR-004a, FR-005a).
+//! QARTest UDP messages: QSOs to ADIF (FR-004, FR-004a) and scores (feature 007). Deletes are
+//! ignored (FR-005a).
 
 use crate::adif::AdifRecord;
 use crate::band::{band_from_metres, band_from_mhz};
 use crate::errors::{Error, Result};
 use crate::ingest::EventKind;
 use crate::ingest::gate::split_timestamp;
+use crate::ingest::score::{self, ContestScore};
 use crate::mode::map_mode;
 use crate::xml::flatten;
 
@@ -17,6 +19,13 @@ pub struct QarTestMessage {
     pub previous: Option<(String, String)>,
 }
 
+/// What a QARTest datagram carries.
+#[derive(Debug, Clone, PartialEq)]
+pub enum QarTestItem {
+    Qso(QarTestMessage),
+    Score(ContestScore),
+}
+
 /// Fields stored for information only (FR-004a).
 const INFO_FIELDS: &[&str] = &[
     "countryprefix",
@@ -27,15 +36,17 @@ const INFO_FIELDS: &[&str] = &[
     "stationname",
 ];
 
-/// Parses one QARTest datagram. Score (`dynamicresults`) and delete (`contactdelete`) messages
-/// give `None` (FR-005a).
-pub fn parse(data: &[u8]) -> Result<Option<QarTestMessage>> {
-    let flat = flatten(&String::from_utf8_lossy(data))?;
+/// Parses one QARTest datagram. Score messages (`dynamicresults`) give a score (feature 007);
+/// delete messages (`contactdelete`) give `None` (FR-005a).
+pub fn parse(data: &[u8]) -> Result<Option<QarTestItem>> {
+    let text = String::from_utf8_lossy(data);
+    let flat = flatten(&text)?;
     let root = flat.root.as_str();
     let kind = match root {
         "contactinfo" => EventKind::New,
         "contactreplace" => EventKind::Correction,
-        "dynamicresults" | "contactdelete" => {
+        "dynamicresults" => return score::parse(&text).map(|s| Some(QarTestItem::Score(s))),
+        "contactdelete" => {
             tracing::debug!(message = root, "ignoring QARTest message");
             return Ok(None);
         }
@@ -132,12 +143,12 @@ pub fn parse(data: &[u8]) -> Result<Option<QarTestMessage>> {
             .map(|(c, t)| (c.to_string(), t.to_string())),
         EventKind::New => None,
     };
-    Ok(Some(QarTestMessage {
+    Ok(Some(QarTestItem::Qso(QarTestMessage {
         kind,
         record,
         logger_id,
         previous,
-    }))
+    })))
 }
 
 /// Splits a capture written by `tools/udp_capture.py` into its datagrams.
@@ -172,7 +183,17 @@ mod tests {
     }
 
     fn message(i: usize) -> QarTestMessage {
-        parse(&packets()[i]).unwrap().expect("a QSO message")
+        match parse(&packets()[i]).unwrap() {
+            Some(QarTestItem::Qso(message)) => message,
+            other => panic!("expected a QSO message, got {other:?}"),
+        }
+    }
+
+    fn qso(data: &[u8]) -> QarTestMessage {
+        match parse(data).unwrap() {
+            Some(QarTestItem::Qso(message)) => message,
+            other => panic!("expected a QSO message, got {other:?}"),
+        }
     }
 
     #[test]
@@ -227,9 +248,23 @@ mod tests {
     }
 
     #[test]
-    fn score_and_delete_messages_give_no_event() {
-        assert!(parse(&packets()[3]).unwrap().is_none());
-        assert!(parse(&packets()[9]).unwrap().is_none());
+    fn score_messages_give_a_score_and_deletes_nothing() {
+        assert_eq!(
+            parse(&packets()[3]).unwrap(),
+            Some(QarTestItem::Score(ContestScore {
+                score: 90,
+                qsos: 6,
+                mults: 10
+            }))
+        );
+        assert_eq!(
+            parse(&packets()[9]).unwrap(),
+            Some(QarTestItem::Score(ContestScore {
+                score: 132,
+                qsos: 7,
+                mults: 11
+            }))
+        );
         let delete = br#"<?xml version="1.0"?><contactdelete><logger>QARTest 16.9.1</logger><timestamp>2026-10-08 15:04:22</timestamp><call>K6QA</call><id>3809734F4</id></contactdelete>"#;
         assert!(parse(delete).unwrap().is_none());
     }
@@ -247,7 +282,7 @@ mod tests {
     fn band_falls_back_to_the_band_element() {
         for freq in ["<txfreq>0</txfreq>", "<txfreq></txfreq>"] {
             let data = with(&[("<txfreq>700000</txfreq>", freq)]);
-            let m = parse(&data).unwrap().unwrap();
+            let m = qso(&data);
             assert_eq!(m.record.get("BAND"), Some("40m"));
             assert_eq!(m.record.get("FREQ"), None);
         }
@@ -259,10 +294,7 @@ mod tests {
             ("<exch2></exch2>", "<exch2>B</exch2>"),
             ("<exch3></exch3>", "<exch3>C D</exch3>"),
         ]);
-        assert_eq!(
-            parse(&data).unwrap().unwrap().record.get("SRX_STRING"),
-            Some("14 B C D")
-        );
+        assert_eq!(qso(&data).record.get("SRX_STRING"), Some("14 B C D"));
     }
 
     #[test]
@@ -271,7 +303,7 @@ mod tests {
             "<stationname></stationname>",
             "<stationname>Run &amp; Mult</stationname>",
         )]);
-        let m = parse(&data).unwrap().unwrap();
+        let m = qso(&data);
         assert_eq!(
             m.record.get("APP_LIVEQSOMAP_QARTEST_STATIONNAME"),
             Some("Run & Mult")

@@ -43,11 +43,11 @@ fn every_corpus_file_parses_without_panicking() {
     let from: SocketAddr = "127.0.0.1:9".parse().unwrap();
     let station = live_qso_map::config::StationConfig::default();
     for (name, data) in corpus() {
-        let events = events_from_datagram(&data, from, &station);
+        let events = events_from_datagram(&data, from, &station).events;
         assert!(events.is_empty(), "{name} produced a QSO");
         let mut mixed = valid("K1OK");
         mixed.extend_from_slice(&data);
-        let events = events_from_datagram(&mixed, from, &station);
+        let events = events_from_datagram(&mixed, from, &station).events;
         assert_eq!(
             events.len(),
             1,

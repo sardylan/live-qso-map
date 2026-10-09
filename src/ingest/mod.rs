@@ -4,6 +4,7 @@ pub mod detect;
 pub mod gate;
 pub mod identity;
 pub mod qartest;
+pub mod score;
 
 use std::net::SocketAddr;
 use std::time::Instant;
@@ -18,6 +19,8 @@ use crate::config::StationConfig;
 use crate::history::qso_timestamp;
 use crate::ingest::detect::{SourceFormat, detect};
 use crate::ingest::identity::Identity;
+use crate::ingest::qartest::QarTestItem;
+use crate::ingest::score::ContestScore;
 use crate::pipeline::Pipeline;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -64,18 +67,24 @@ impl QsoEvent {
     }
 }
 
-/// Turns one datagram into QSO events. Malformed input is logged and skipped (FR-005).
-pub fn events_from_datagram(
-    data: &[u8],
-    from: SocketAddr,
-    station: &StationConfig,
-) -> Vec<QsoEvent> {
+/// What one datagram carries: QSO events, and a contest score (feature 007, research R2).
+#[derive(Debug, Default)]
+pub struct Ingested {
+    pub events: Vec<QsoEvent>,
+    pub score: Option<ContestScore>,
+}
+
+/// Turns one datagram into QSO events and a score. Malformed input is logged and skipped (FR-005).
+pub fn events_from_datagram(data: &[u8], from: SocketAddr, station: &StationConfig) -> Ingested {
     match detect(data) {
-        SourceFormat::Adif => adif_events(data, from, station),
-        SourceFormat::QarTest => qartest_events(data, from, station),
+        SourceFormat::Adif => Ingested {
+            events: adif_events(data, from, station),
+            score: None,
+        },
+        SourceFormat::QarTest => qartest_items(data, from, station),
         SourceFormat::Unrecognised => {
             tracing::warn!(%from, len = data.len(), "dropping datagram in an unrecognised format");
-            Vec::new()
+            Ingested::default()
         }
     }
 }
@@ -92,20 +101,27 @@ fn adif_events(data: &[u8], from: SocketAddr, station: &StationConfig) -> Vec<Qs
         .collect()
 }
 
-fn qartest_events(data: &[u8], from: SocketAddr, station: &StationConfig) -> Vec<QsoEvent> {
+fn qartest_items(data: &[u8], from: SocketAddr, station: &StationConfig) -> Ingested {
     match qartest::parse(data) {
-        Ok(Some(message)) => normalise(message.record, from, station)
-            .map(|record| {
-                let mut event = QsoEvent::new(message.kind, record, message.logger_id, station);
-                event.previous = message.previous;
-                event
-            })
-            .into_iter()
-            .collect(),
-        Ok(None) => Vec::new(),
+        Ok(Some(QarTestItem::Qso(message))) => Ingested {
+            events: normalise(message.record, from, station)
+                .map(|record| {
+                    let mut event = QsoEvent::new(message.kind, record, message.logger_id, station);
+                    event.previous = message.previous;
+                    event
+                })
+                .into_iter()
+                .collect(),
+            score: None,
+        },
+        Ok(Some(QarTestItem::Score(score))) => Ingested {
+            events: Vec::new(),
+            score: Some(score),
+        },
+        Ok(None) => Ingested::default(),
         Err(e) => {
             tracing::warn!(%from, "skipping malformed QARTest message: {e}");
-            Vec::new()
+            Ingested::default()
         }
     }
 }
@@ -161,7 +177,7 @@ pub fn split_by_band(
         .partition(|e| band_allowed(&e.record, filter))
 }
 
-/// Receives datagrams until shutdown and queues their events on channel 1.
+/// Receives datagrams until shutdown, queues their events on channel 1 and publishes scores.
 pub async fn run(
     socket: UdpSocket,
     station: StationConfig,
@@ -185,10 +201,13 @@ pub async fn run(
                 continue;
             }
         };
-        let (allowed, ignored) = split_by_band(
-            events_from_datagram(&buffer[..len], from, &station),
-            filter.as_ref(),
-        );
+        let ingested = events_from_datagram(&buffer[..len], from, &station);
+        // The logger's own contest total: no band filter, and no resend gate, because each
+        // repeat refreshes the time of the last update (feature 007, research R2).
+        if let Some(score) = ingested.score {
+            pipeline.publish_score(score);
+        }
+        let (allowed, ignored) = split_by_band(ingested.events, filter.as_ref());
         for mut event in ignored {
             // A correction of a QSO the gate knows may be on the map: remove it (FR-008).
             if gate.contains(&event) && gate.check(&mut event) != gate::GateDecision::Drop {
@@ -329,14 +348,97 @@ mod tests {
     fn split_by_band_separates_events() {
         let station = StationConfig::default();
         let data = b"<CALL:4>K1AA <QSO_DATE:8>20261009 <TIME_ON:4>1500 <BAND:3>20m <EOR><CALL:4>K2BB <QSO_DATE:8>20261009 <TIME_ON:4>1501 <BAND:2>2m <EOR>";
-        let events = events_from_datagram(data, from(), &station);
+        let events = events_from_datagram(data, from(), &station).events;
         assert_eq!(events.len(), 2);
         let (allowed, ignored) = split_by_band(events, Some(&contest()));
         assert_eq!(allowed.len(), 1);
         assert_eq!(allowed[0].record.get("CALL"), Some("K1AA"));
         assert_eq!(ignored.len(), 1);
         assert_eq!(ignored[0].record.get("CALL"), Some("K2BB"));
-        let (allowed, ignored) = split_by_band(events_from_datagram(data, from(), &station), None);
+        let (allowed, ignored) =
+            split_by_band(events_from_datagram(data, from(), &station).events, None);
         assert_eq!((allowed.len(), ignored.len()), (2, 0));
+    }
+
+    // --- contest score (feature 007, T004) ----------------------------------------------------
+
+    use std::sync::{Arc, Mutex};
+    use tracing::field::{Field, Visit};
+    use tracing_subscriber::layer::{Context, Layer, SubscriberExt};
+
+    fn reference(i: usize) -> Vec<u8> {
+        qartest::reference_packets(include_str!(
+            "../../specs/001-live-qso-map/reference/qartest-16.9.1-cqww-ssb.txt"
+        ))[i]
+            .clone()
+    }
+
+    /// Records the message of every WARN event.
+    struct Warnings(Arc<Mutex<Vec<String>>>);
+
+    struct Message(String);
+
+    impl Visit for Message {
+        fn record_debug(&mut self, field: &Field, value: &dyn std::fmt::Debug) {
+            if field.name() == "message" {
+                self.0 = format!("{value:?}");
+            }
+        }
+    }
+
+    impl<S: tracing::Subscriber> Layer<S> for Warnings {
+        fn on_event(&self, event: &tracing::Event<'_>, _ctx: Context<'_, S>) {
+            if *event.metadata().level() == tracing::Level::WARN {
+                let mut message = Message(String::new());
+                event.record(&mut message);
+                self.0.lock().unwrap().push(message.0);
+            }
+        }
+    }
+
+    #[test]
+    fn a_score_datagram_gives_a_score_and_no_events() {
+        let ingested = events_from_datagram(&reference(3), from(), &StationConfig::default());
+        assert!(ingested.events.is_empty());
+        assert_eq!(
+            ingested.score,
+            Some(ContestScore {
+                score: 90,
+                qsos: 6,
+                mults: 10
+            })
+        );
+    }
+
+    #[test]
+    fn qso_datagrams_give_no_score() {
+        let station = StationConfig::default();
+        let qartest = events_from_datagram(&reference(0), from(), &station);
+        assert_eq!(qartest.events.len(), 1);
+        assert_eq!(qartest.score, None);
+        let adif = events_from_datagram(
+            b"<CALL:4>K1AA <QSO_DATE:8>20261009 <TIME_ON:4>1500 <EOR>",
+            from(),
+            &station,
+        );
+        assert_eq!(adif.events.len(), 1);
+        assert_eq!(adif.score, None);
+    }
+
+    #[test]
+    fn a_malformed_score_is_skipped_and_logged() {
+        let warnings = Arc::new(Mutex::new(Vec::new()));
+        let subscriber = tracing_subscriber::registry().with(Warnings(warnings.clone()));
+        let data = String::from_utf8(reference(3))
+            .unwrap()
+            .replace("<score>90</score>", "<score>abc</score>");
+        let ingested = tracing::subscriber::with_default(subscriber, || {
+            events_from_datagram(data.as_bytes(), from(), &StationConfig::default())
+        });
+        assert!(ingested.events.is_empty());
+        assert_eq!(ingested.score, None);
+        let warnings = warnings.lock().unwrap();
+        assert_eq!(warnings.len(), 1, "{warnings:?}");
+        assert!(warnings[0].contains("<score>"), "{}", warnings[0]);
     }
 }
