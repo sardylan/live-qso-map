@@ -325,11 +325,14 @@ function renderRecent() {
   const table = element('table');
   for (const row of rows) {
     const tr = element('tr');
+    const entity = element('td', 'entity', row.entity);
+    if (row.entityTitle) entity.title = row.entityTitle;
     tr.append(
       element('td', 'call', row.call),
       element('td', null, row.band),
-      element('td', null, row.mode),
+      element('td', null, row.date),
       element('td', null, row.time),
+      entity,
     );
     if (row.markerKey !== null) {
       tr.className = 'clickable';

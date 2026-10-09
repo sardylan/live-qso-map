@@ -136,6 +136,10 @@ body.scale-on .recent {
   font-weight: 600;
 }
 
+.recent .entity {
+  color: #444;
+}
+
 .recent tr.clickable {
   cursor: pointer;
 }

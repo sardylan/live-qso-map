@@ -111,7 +111,7 @@ read it.
 
 ### Tests for User Story 1 (write first, confirm they FAIL)
 
-- [ ] T008 [P] [US1] Extend `web/recent.test.js` (data-model "Frontend"):
+- [X] T008 [P] [US1] Extend `web/recent.test.js` (data-model "Frontend"):
   - **`shortName`**:
     - `shortName('Japan')` → `'Japan'`;
     - an 18-character name is unchanged;
@@ -130,9 +130,9 @@ read it.
 
 ### Implementation for User Story 1
 
-- [ ] T009 [US1] Implement `shortName`, `entityLabel` and the new `rowView` in
+- [X] T009 [US1] Implement `shortName`, `entityLabel` and the new `rowView` in
   `src/web/assets/recent.js`. T008 must pass.
-- [ ] T010 [US1] Glue the box:
+- [X] T010 [US1] Glue the box:
   - in `renderRecent()` in `src/web/assets/app.js`, the columns are call, band, date, time and
     entity. The entity cell gets the class `entity` and `title = entityTitle`, all through
     `textContent` and `title`;
