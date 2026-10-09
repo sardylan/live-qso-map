@@ -281,7 +281,7 @@ the map controls.
 
 ## Phase 4: Polish & Cross-Cutting Concerns
 
-- [ ] T026 [P] Documentation:
+- [X] T026 [P] Documentation:
   - **`README.md`**: the score line (what it shows, `Score —`, grey after 5 minutes), and the new
     layout (which corner holds what; the Last QSOs checkbox is in the settings panel);
   - **`specs/001-live-qso-map/spec.md`**: a note at FR-005a saying score messages are read since
@@ -290,7 +290,7 @@ the map controls.
     settings panel in feature 007;
   - **`specs/001-live-qso-map/contracts/websocket-protocol.md`**: a note pointing to
     `specs/007-contest-score-layout/contracts/websocket-protocol.md`.
-- [ ] T027 Run the complete gates: `cargo fmt --check`,
+- [X] T027 Run the complete gates: `cargo fmt --check`,
   `cargo clippy --all-targets -- -D warnings`, `cargo test` and `node --test web/`. Complete
   `checklists/verification.md` with the automated results and SC-001 to SC-006:
   - SC-001 from T002, T008 and T020;

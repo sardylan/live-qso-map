@@ -1,5 +1,9 @@
 # Contract: WebSocket Protocol
 
+> **Added by feature 007**: a new server message, `score` (the logger's latest contest score,
+> with `received_at` and `age_s`), sent on connect, on every update and after a lag; the protocol
+> stays 3. See [`../../007-contest-score-layout/contracts/websocket-protocol.md`](../../007-contest-score-layout/contracts/websocket-protocol.md).
+
 > **Added by feature 006**: `hello.recent` (the operator's box columns and header) and
 > `entity.cq_zone`; the page requests `max(map Last N, 20)`; the protocol stays 3. See
 > [`../../006-recent-box-config/contracts/websocket-protocol.md`](../../006-recent-box-config/contracts/websocket-protocol.md).

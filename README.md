@@ -64,7 +64,14 @@ Notes:
 ## The map page
 
 The page renders with [MapLibre GL JS](https://maplibre.org/) 5.24.0, loaded from cdnjs and
-checked with Subresource Integrity.
+checked with Subresource Integrity. It is laid out for windows 1024 px wide or wider:
+
+| Corner | Holds |
+|--------|-------|
+| top left | zoom, **Globe/Flat**, **Auto-zoom** |
+| top right | the viewer's settings: "Map: last N QSOs", the **Last QSOs** checkbox, "Box: last N", "Newest" |
+| bottom right | the band legend |
+| bottom left | the contest score line, with the last-QSO box under it when shown |
 
 - **Globe or flat**: pages open as a globe. The **Flat/Globe** button switches the view, and each
   browser remembers its own choice.
@@ -78,8 +85,8 @@ checked with Subresource Integrity.
   without one, it is the station position of the newest QSO on the page. Every QSO is joined to
   the house by a black great-circle line.
 - **Auto-zoom**: the **Auto-zoom** button, on by default, keeps the house and every QSO in view.
-  - It refits after every change, at most once a second, and keeps clear of the legend, the box
-    and the controls.
+  - It refits after every change, at most once a second, and keeps clear of the legend, the box,
+    the score line and the controls.
   - It pauses while a popup is open; a popup nobody touches closes after 30 s.
   - Any drag, zoom or rotation by hand switches it off.
   - With no QSOs yet, it frames the station's DXCC entity, found from `station.callsign`, or 500 km
@@ -95,8 +102,13 @@ checked with Subresource Integrity.
     (default 5), and "Newest" at the bottom (default) or at the top. They are separate from the
     map's own "Map: last N QSOs" (default 20). The box can list QSOs the map doesn't show; those
     rows are faded and can't be clicked.
-  - Click any other row to open its popup; the **Last QSOs** button hides the box. Popups show
-    each QSO's entity too.
+  - Click any other row to open its popup; the **Last QSOs** checkbox in the settings panel hides
+    the box. Popups show each QSO's entity too.
+- **Contest score**: one line above the box, always shown, from the score QARTest broadcasts
+  every minute, for example `1.234.567 pts · 1.523 QSO · 183 mults`.
+  - "mults" is the sum of every multiplier type the contest has (countries plus zones in CQ WW).
+  - It reads `Score —` until the first score arrives, and again after the service restarts.
+  - With no new score for 5 minutes it turns grey; hovering shows `Last updated HH:MMZ` (UTC).
 - **Scale**: a metric scale bar, shown on the flat map only.
 
 Each browser remembers every viewer choice across restarts: Globe/Flat, Auto-zoom, Last QSOs,

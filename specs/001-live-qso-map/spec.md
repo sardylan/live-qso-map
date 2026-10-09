@@ -234,6 +234,9 @@ messages produce nothing.
 - **FR-005a**: QARTest score messages (`dynamicresults`) and delete messages (`contactdelete`) MUST be
   ignored and logged only at debug level. They are recognised, not malformed. Deleting QSOs is out of
   scope for this feature.
+  > **Changed by feature 007**: score messages are now read and shown as the contest score line;
+  > delete messages are still ignored. See
+  > [`../007-contest-score-layout/spec.md`](../007-contest-score-layout/spec.md).
 - **FR-006**: Every QSO MUST leave the ingestion stage as a valid ADIF record, whatever its source.
 
 **Duplicate and correction handling**

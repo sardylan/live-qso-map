@@ -298,6 +298,9 @@ globe: it disappears.
   changes. With no QSOs, it MUST say that none have been received yet.
 - **FR-021**: A button MUST hide and show the box. The box MUST start shown for a viewer who has
   never used the button, and each viewer's choice MUST be remembered in their browser.
+  > **Changed by feature 007**: the button is now a **Last QSOs** checkbox in the top-right
+  > settings panel, with the same remembered choice. See
+  > [`../007-contest-score-layout/spec.md`](../007-contest-score-layout/spec.md) FR-010.
 - **FR-022**: QSO data in the box MUST be rendered as text only, never as markup.
 - **FR-022a**: Clicking a row of a QSO with a remote position MUST open the popup of that QSO's
   marker.
