@@ -51,6 +51,10 @@ body {
   color: #666;
 }
 
+.qth-popup div {
+  white-space: nowrap;
+}
+
 .banner {
   position: absolute;
   top: 10px;

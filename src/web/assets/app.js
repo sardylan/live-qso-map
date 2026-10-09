@@ -6,6 +6,7 @@
 
 import { createState, applySnapshot, applyUpsert, applyRemove, markers, diffLayers, setLimit } from './map-state.js';
 import { markerFeatures, lineFeatures } from './layers.js';
+import { currentQth, houseFeature, HOUSE_SVG } from './qth.js';
 import {
   buildStyle,
   hasWebGL,
@@ -18,12 +19,15 @@ import {
 } from './view.js';
 import { createConnection, onOpen, onClose, onHello as handshake, loadLimit, saveLimit } from './connection.js';
 
-const OVERLAYS = ['qso-lines', 'qso-markers'];
+const OVERLAYS = ['qso-lines', 'qth', 'qso-markers'];
+const QTH_POPUP = 'qth';
 
 let map = null;
 let loaded = false;
 let state = null;
 let current = new Map();
+let helloStation = null;
+let qth = null;
 let socket = null;
 // The open popup and the key of its marker, so removals and updates reach it (FR-012).
 let openPopup = null;
@@ -78,8 +82,45 @@ function popupContent(marker) {
   return box;
 }
 
+function formatPosition(here) {
+  if (here.locator) return here.locator;
+  return `${here.lat.toFixed(4)}, ${here.lon.toFixed(4)}`;
+}
+
+/** The house popup (FR-006): plain text only. */
+function qthPopupContent(here) {
+  const box = element('div', 'qso-popup qth-popup');
+  box.append(
+    element('div', 'call', here.callsign || 'station'),
+    element('div', null, formatPosition(here)),
+    element('div', 'meta', `${here.source} · ${here.precision}`),
+  );
+  return box;
+}
+
+function qthKey(here) {
+  return here ? `${here.lat},${here.lon},${here.callsign},${here.locator},${here.source}` : null;
+}
+
 function show(id, visible) {
   document.getElementById(id).hidden = !visible;
+}
+
+/** Draws HOUSE_SVG at 2x into an image MapLibre can use as an icon (research R3). */
+function addHouseImage() {
+  const size = 28;
+  const image = new Image(size, size);
+  image.onload = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = size * 2;
+    canvas.height = size * 2;
+    const context = canvas.getContext('2d');
+    context.drawImage(image, 0, 0, size * 2, size * 2);
+    if (!map.hasImage('qth-house')) {
+      map.addImage('qth-house', context.getImageData(0, 0, size * 2, size * 2), { pixelRatio: 2 });
+    }
+  };
+  image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(HOUSE_SVG)}`;
 }
 
 function addOverlays() {
@@ -90,7 +131,17 @@ function addOverlays() {
     type: 'line',
     source: 'qso-lines',
     layout: { 'line-cap': 'round' },
-    paint: { 'line-color': ['get', 'color'], 'line-width': 1.5, 'line-opacity': 0.7 },
+    // Black from the QTH (FR-004); slight transparency keeps overlapping paths apart.
+    paint: { 'line-color': '#000', 'line-width': 1.5, 'line-opacity': 0.6 },
+  });
+  // Order: lines, then the house, then the markers, which stay clickable on top (FR-005).
+  addHouseImage();
+  map.addSource('qth', { type: 'geojson', data: empty });
+  map.addLayer({
+    id: 'qth',
+    type: 'symbol',
+    source: 'qth',
+    layout: { 'icon-image': 'qth-house', 'icon-allow-overlap': true, 'icon-ignore-placement': true },
   });
   map.addSource('qso-markers', { type: 'geojson', data: empty });
   map.addLayer({
@@ -140,15 +191,35 @@ function render() {
   if (!state) return;
   const next = markers(state);
   const diff = diffLayers(current, next);
-  if (!shouldRender(loaded, diff)) return;
+  const nextQth = currentQth(helloStation, state);
+  const qthChanged = qthKey(nextQth) !== qthKey(qth);
+  if (!shouldRender(loaded, diff) && !(loaded && qthChanged)) return;
   map.getSource('qso-markers').setData(markerFeatures(next));
-  map.getSource('qso-lines').setData(lineFeatures(next));
+  map.getSource('qso-lines').setData(lineFeatures(next, nextQth));
+  if (qthChanged) map.getSource('qth').setData(houseFeature(nextQth));
   current = next;
-  if (popupToClose(openKey, diff)) {
+  qth = nextQth;
+  if (openKey === QTH_POPUP) {
+    if (!qth) openPopup.remove();
+    else if (qthChanged) openPopup.setLngLat([qth.lon, qth.lat]).setDOMContent(qthPopupContent(qth));
+  } else if (popupToClose(openKey, diff)) {
     openPopup.remove();
   } else if (openKey !== null && diff.update.some((m) => m.key === openKey)) {
     openPopup.setDOMContent(popupContent(current.get(openKey)));
   }
+}
+
+function openTrackedPopup(lngLat, content, key) {
+  if (openPopup) openPopup.remove();
+  const popup = new maplibregl.Popup({ maxWidth: 'none' }).setLngLat(lngLat).setDOMContent(content).addTo(map);
+  popup.on('close', () => {
+    if (openPopup === popup) {
+      openPopup = null;
+      openKey = null;
+    }
+  });
+  openPopup = popup;
+  openKey = key;
 }
 
 function createMap(hello) {
@@ -170,32 +241,29 @@ function createMap(hello) {
     addOverlays();
     loaded = true;
     current = new Map();
+    qth = null;
     render();
   });
   map.on('click', 'qso-markers', (event) => {
     const feature = event.features && event.features[0];
     const marker = feature && current.get(feature.properties.key);
     if (!marker) return;
-    if (openPopup) openPopup.remove();
-    const popup = new maplibregl.Popup({ maxWidth: 'none' })
-      .setLngLat(feature.geometry.coordinates)
-      .setDOMContent(popupContent(marker))
-      .addTo(map);
-    popup.on('close', () => {
-      if (openPopup === popup) {
-        openPopup = null;
-        openKey = null;
-      }
+    openTrackedPopup(feature.geometry.coordinates, popupContent(marker), feature.properties.key);
+  });
+  map.on('click', 'qth', (event) => {
+    // A QSO marker over the house wins (FR-005).
+    if (map.queryRenderedFeatures(event.point, { layers: ['qso-markers'] }).length > 0) return;
+    if (!qth) return;
+    openTrackedPopup([qth.lon, qth.lat], qthPopupContent(qth), QTH_POPUP);
+  });
+  for (const layer of ['qso-markers', 'qth']) {
+    map.on('mouseenter', layer, () => {
+      map.getCanvas().style.cursor = 'pointer';
     });
-    openPopup = popup;
-    openKey = feature.properties.key;
-  });
-  map.on('mouseenter', 'qso-markers', () => {
-    map.getCanvas().style.cursor = 'pointer';
-  });
-  map.on('mouseleave', 'qso-markers', () => {
-    map.getCanvas().style.cursor = '';
-  });
+    map.on('mouseleave', layer, () => {
+      map.getCanvas().style.cursor = '';
+    });
+  }
   map.on('error', (event) => {
     console.error('map error', event.error ?? event);
     if (isBasemapError(event, OVERLAYS)) show('basemap-error', true);
@@ -219,6 +287,7 @@ function showLegend(bands) {
 function onHello(hello) {
   if (!map) createMap(hello);
   showLegend(hello.bands);
+  helloStation = hello.station ?? null;
   state = createState({ bands: hello.bands, fallbackColor: hello.fallback_color, limit: connection.limit });
   for (const message of handshake(connection)) {
     socket.send(JSON.stringify(message));

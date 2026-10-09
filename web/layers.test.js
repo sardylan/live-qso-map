@@ -46,24 +46,27 @@ test('markerFeatures are ordered by zRank ascending', () => {
   assert.deepEqual(fc.features.map((f) => f.properties.zRank), [0, 1, 2]);
 });
 
-test('lineFeatures follow the great circle from the station', () => {
-  const fc = lineFeatures(markersOf(qso(1)));
+const QTH = { lat: 39.2, lon: 9.2 };
+
+test('every line starts at the QTH, whatever the QSO station', () => {
+  const fc = lineFeatures(markersOf(qso(1, { station: { lat: 45, lon: 7, precision: 'locator4', source: 'logger' } })), QTH);
   assert.equal(fc.features.length, 1);
   const line = fc.features[0];
   assert.equal(line.geometry.type, 'LineString');
   const expected = greatCircle([39.2, 9.2], [51, 11], 64).map(([lat, lon]) => [lon, lat]);
   assert.deepEqual(line.geometry.coordinates, expected);
-  assert.deepEqual(line.properties, { key: '51,11', color: '#d62728', zRank: 0 });
+  assert.deepEqual(line.properties, { key: '51,11', zRank: 0 });
 });
 
-test('no line without a station', () => {
-  const fc = lineFeatures(markersOf(qso(1, { station: null })));
-  assert.equal(fc.features.length, 0);
+test('lines are drawn even for QSOs without a station, but not without a QTH', () => {
+  assert.equal(lineFeatures(markersOf(qso(1, { station: null })), QTH).features.length, 1);
+  assert.equal(lineFeatures(markersOf(qso(1)), null).features.length, 0);
   assert.equal(markerFeatures(markersOf(qso(1, { station: null }))).features.length, 1);
 });
 
 test('antimeridian lines stay continuous', () => {
-  const fc = lineFeatures(markersOf(qso(1, { remote: { lat: 21.3, lon: -157.8, precision: 'locator4', source: 'logger' } })));
+  // From JM49 to Hawaii.
+  const fc = lineFeatures(markersOf(qso(1, { remote: { lat: 21.3, lon: -157.8, precision: 'locator4', source: 'logger' } })), { lat: 39.5, lon: 9 });
   const coords = fc.features[0].geometry.coordinates;
   for (let i = 1; i < coords.length; i++) {
     assert.ok(Math.abs(coords[i][0] - coords[i - 1][0]) < 180, `jump at ${i}`);
@@ -72,5 +75,5 @@ test('antimeridian lines stay continuous', () => {
 
 test('empty markers give empty collections', () => {
   assert.deepEqual(markerFeatures(new Map()), { type: 'FeatureCollection', features: [] });
-  assert.deepEqual(lineFeatures(new Map()), { type: 'FeatureCollection', features: [] });
+  assert.deepEqual(lineFeatures(new Map(), QTH), { type: 'FeatureCollection', features: [] });
 });

@@ -103,7 +103,7 @@ ignores the new fields.
 
 ### Tests for User Story 1 (write first, confirm they FAIL)
 
-- [ ] T007 [P] [US1] Write `web/qth.test.js` for `currentQth(helloStation, state)` and
+- [X] T007 [P] [US1] Write `web/qth.test.js` for `currentQth(helloStation, state)` and
   `houseFeature(qth)`:
   - a configured position wins over QSOs (`origin: 'config'`, with callsign and locator from
     `hello`);
@@ -115,7 +115,7 @@ ignores the new fields.
   - after `applyRemove` of the QSO that supplied the QTH, the next newest one supplies it;
   - `houseFeature(null)` has 0 features; otherwise there is one Point `[lon, lat]`;
   - `HOUSE_SVG` is a constant string that starts with `<svg` and contains no `{` placeholders.
-- [ ] T008 [P] [US1] Update `web/layers.test.js` for `lineFeatures(markers, qth)`:
+- [X] T008 [P] [US1] Update `web/layers.test.js` for `lineFeatures(markers, qth)`:
   - every line starts at the `qth` (great circle from `[qth.lat, qth.lon]`), whatever each QSO's
     `station`;
   - no lines when `qth` is `null`;
@@ -127,12 +127,12 @@ ignores the new fields.
 
 ### Implementation for User Story 1
 
-- [ ] T009 [P] [US1] Implement `src/web/assets/qth.js`: `currentQth`, `houseFeature` and
+- [X] T009 [P] [US1] Implement `src/web/assets/qth.js`: `currentQth`, `houseFeature` and
   `HOUSE_SVG`, a 28×28 house with a dark `#222` outline and a light `#fff8e7` fill (research R3).
   T007 must pass.
-- [ ] T010 [P] [US1] Change `lineFeatures` in `src/web/assets/layers.js` to take `qth` and drop the
+- [X] T010 [P] [US1] Change `lineFeatures` in `src/web/assets/layers.js` to take `qth` and drop the
   `color` property. T008 must pass.
-- [ ] T011 [US1] Glue in `src/web/assets/app.js` (research R3, R4):
+- [X] T011 [US1] Glue in `src/web/assets/app.js` (research R3, R4):
   - load `HOUSE_SVG` into an `Image`, then `map.addImage('qth-house', …)` after `load`;
   - add a `qth` GeoJSON source and a `symbol` layer (`icon-image: 'qth-house'`,
     `icon-allow-overlap`, `icon-ignore-placement`), placed so the order is `qso-lines` → `qth` →
@@ -142,7 +142,7 @@ ignores the new fields.
   - `render()` computes `currentQth` and sets the `qth` and `qso-lines` data.
 
   Feature-001 to 003 behaviour must be unchanged apart from the line colour (FR-026).
-- [ ] T012 [US1] Add the house popup in `src/web/assets/app.js` (FR-006):
+- [X] T012 [US1] Add the house popup in `src/web/assets/app.js` (FR-006):
   - clicking the `qth` layer opens a popup built with `textContent`: the callsign (or "station"),
     the locator or `lat, lon` to 4 decimals, and `source · precision` (HR-7);
   - open it only when no QSO marker is under the click point

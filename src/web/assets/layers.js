@@ -23,19 +23,21 @@ export function markerFeatures(markers) {
   };
 }
 
-/** One great-circle LineString per marker that has a station; longitudes stay unwrapped. */
-export function lineFeatures(markers) {
+/**
+ * One black great-circle LineString from the QTH to every marker (feature 004, FR-004); none when
+ * the QTH is unknown. Longitudes stay unwrapped.
+ */
+export function lineFeatures(markers, qth) {
+  if (!qth) return { type: 'FeatureCollection', features: [] };
   return {
     type: 'FeatureCollection',
-    features: byZRank(markers)
-      .filter((m) => m.station)
-      .map((m) => ({
-        type: 'Feature',
-        geometry: {
-          type: 'LineString',
-          coordinates: greatCircle([m.station.lat, m.station.lon], [m.lat, m.lon], 64).map(([lat, lon]) => [lon, lat]),
-        },
-        properties: props(m),
-      })),
+    features: byZRank(markers).map((m) => ({
+      type: 'Feature',
+      geometry: {
+        type: 'LineString',
+        coordinates: greatCircle([qth.lat, qth.lon], [m.lat, m.lon], 64).map(([lat, lon]) => [lon, lat]),
+      },
+      properties: { key: m.key, zRank: m.zRank },
+    })),
   };
 }
