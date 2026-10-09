@@ -28,6 +28,15 @@ consider all items in the page, like the QSO box (if enabled), legend, etc."
   here? → A: Yes, they are folded into this feature (FR-027).
 - Q: What are the defaults when a page opens? → A: Auto-zoom and the last-QSO box both start on, and
   each viewer's choices are remembered in their browser.
+- Q: What does "most recent" mean in the last-QSO box? → A: By QSO time (UTC), the same order as the
+  limit selector. A late-arriving old QSO does not enter the box.
+- Q: What happens to auto-zoom while a popup is open? → A: Refits pause while a popup is open, and
+  one catch-up refit runs when it closes. A popup with no viewer interaction closes after 30 s.
+- Q: What happens when a row in the last-QSO box is clicked? → A: That QSO's marker popup opens. The
+  map pans only if the marker is off-screen, and auto-zoom pauses as for any popup rather than
+  switching off. Rows without a remote position are not clickable.
+- Q: Where is the globe centred during auto-zoom? → A: On the point that best frames the house and
+  all markers. The map switches to flat only when no centre can show them all.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -83,9 +92,12 @@ the map refits so that every marker and the house are visible and none is covere
    the legend, the last-QSO box (when shown), the controls or the attribution.
 4. **Given** auto-zoom on, **When** the viewer pans, zooms or rotates the map by hand, **Then**
    auto-zoom switches off and the button shows it as off.
-5. **Given** auto-zoom off, **When** the viewer clicks the button, **Then** auto-zoom switches on and
+5. **Given** auto-zoom on and a marker popup open, **When** QSOs arrive, **Then** the map does not
+   move while the popup is open. When it closes, by the viewer or after 30 s without interaction,
+   the map refits once.
+6. **Given** auto-zoom off, **When** the viewer clicks the button, **Then** auto-zoom switches on and
    the map refits at once.
-6. **Given** a viewer who turned auto-zoom off, **When** the page is reloaded in the same browser,
+7. **Given** a viewer who turned auto-zoom off, **When** the page is reloaded in the same browser,
    **Then** auto-zoom is still off.
 
 ---
@@ -142,6 +154,9 @@ button and reload: it stays hidden.
    disappears; clicking again shows it; the choice is remembered in that browser.
 5. **Given** QSO text from the network, **When** the box shows it, **Then** it appears as plain text
    and never as markup.
+6. **Given** a row of a QSO with a remote position, **When** the viewer clicks it, **Then** that
+   marker's popup opens. The map pans only if the marker was hidden. Auto-zoom stays on, paused
+   until the popup closes.
 
 ---
 
@@ -182,7 +197,11 @@ globe: it disappears.
   may cover markers.
 - **Paths crossing the antimeridian** (for example Europe to New Zealand): the lines and the fit both
   follow the short great-circle path, not the long way around the flat map.
+- **Popup open during changes**: refits pause, so the viewer can read it. When the popup's marker is
+  removed, the popup closes (feature 003) and the catch-up refit runs.
 - **A burst of QSOs**: refits are coalesced, so the map does not jump on every message.
+- **Late QSO** (arrives after newer ones, with an older QSO time): it is shown on the map, but it
+  enters the last-QSO box only if it is among the five newest by QSO time.
 - **Reconnection**: auto-zoom, box visibility and the projection preference are kept, and the box
   refills from the snapshot.
 - **The base map fails to load**: the house, lines, box, scale and auto-zoom still work.
@@ -227,6 +246,12 @@ globe: it disappears.
 - **FR-011**: Any manual pan, zoom, rotation or pitch by the viewer MUST switch auto-zoom off and
   show it as off. Changes the page makes itself MUST NOT switch it off.
 - **FR-012**: Switching auto-zoom on MUST refit the map immediately.
+- **FR-012a**: Opening a popup (a marker's or the house's) MUST NOT switch auto-zoom off.
+  - While a popup is open, refits MUST pause. Changes keep updating the markers, lines, box and the
+    popup content.
+  - When the popup closes, one catch-up refit MUST run if auto-zoom is still on.
+  - While auto-zoom is on, a popup with no viewer interaction for 30 s MUST close by itself. With
+    auto-zoom off, popups never close by themselves.
 - **FR-013**: Auto-zoom MUST never zoom in beyond a maximum level (city scale), whatever it frames.
 - **FR-014**: Refits MUST be coalesced so that a burst of changes causes at most one refit
   animation per second.
@@ -238,6 +263,9 @@ globe: it disappears.
 - **FR-016**: With the globe preference and auto-zoom on, when the framed items cannot all be seen
   on the visible side of the globe at once, the page MUST switch to flat. It MUST return to the
   globe as soon as they fit again.
+  - On the globe, auto-zoom MUST centre on the point that best frames the framed items, not
+    necessarily the QTH.
+  - "Cannot all be seen" means no centre exists from which they all lie on the visible side.
 - **FR-017**: The page MUST NOT change the projection by itself when auto-zoom is off, and it MUST
   NOT switch a flat preference to the globe.
 - **FR-018**: Automatic projection switches MUST NOT change the saved preference. The projection
@@ -246,13 +274,22 @@ globe: it disappears.
 **Last-QSO box**
 
 - **FR-019**: When enabled, a box at the bottom left of the map MUST list the five most recent
-  displayed QSOs, newest first. Each row shows the callsign, band, mode (with submode when present)
+  displayed QSOs, newest first. "Most recent" means by QSO time (UTC), the order the limit selector
+  uses. A QSO that arrives late with an older time enters the box only if it is among the five
+  newest; a correction that changes the time moves its row accordingly. Each row shows the callsign, band, mode (with submode when present)
   and UTC time (HR-1). The box MUST NOT cover the attribution.
 - **FR-020**: The box MUST follow every change: new QSOs, corrections, removals, snapshots and limit
   changes. With no QSOs, it MUST say that none have been received yet.
 - **FR-021**: A button MUST hide and show the box. The box MUST start shown for a viewer who has
   never used the button, and each viewer's choice MUST be remembered in their browser.
 - **FR-022**: QSO data in the box MUST be rendered as text only, never as markup.
+- **FR-022a**: Clicking a row of a QSO with a remote position MUST open the popup of that QSO's
+  marker.
+  - The map MUST pan only when the marker is outside the free map area (FR-009), and only enough
+    to show it and its popup.
+  - That pan is made by the page, so it MUST NOT switch auto-zoom off (FR-011). Auto-zoom pauses
+    as for any open popup (FR-012a).
+  - Rows of QSOs without a remote position MUST NOT look or act clickable.
 
 **Scale**
 
@@ -304,7 +341,8 @@ globe: it disappears.
   least half of the free map width or height. Checked for IS0 (Sardinia), I (Italy), W (USA) and
   VK (Australia).
 - **SC-004**: A single manual pan or zoom always switches auto-zoom off: 0 refits follow it until
-  the viewer switches auto-zoom back on.
+  the viewer switches auto-zoom back on. With auto-zoom on, the map moves 0 times while a popup is
+  open, and refits exactly once after it closes.
 - **SC-005**: With 2,000 QSOs displayed, a stream of 10 QSOs per second causes at most one refit
   per second, and the map stays interactive.
 - **SC-006**: Under the globe preference, the projection changes only when auto-zoom is on and the
@@ -326,8 +364,8 @@ globe: it disappears.
   - it is matched to the entity that the existing country data resolves for the station callsign;
   - entities that span the antimeridian are handled;
   - the default fixed radius when the entity is missing is 500 km around the QTH.
-- **"Fits on the globe"**: every framed item lies within the hemisphere visible from a common
-  centre, with the same margins as FR-009.
+- **"Fits on the globe"**: some centre exists from which every framed item lies on the visible side
+  of the globe, with the same margins as FR-009. Auto-zoom uses that centre (FR-016).
 - **What gets framed**:
   - "displayed" means the QSOs shown under the viewer's limit selector and the band filter;
   - QSOs without a remote position are not framed.
