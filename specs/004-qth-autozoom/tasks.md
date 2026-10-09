@@ -374,6 +374,11 @@ with auto-zoom on, and switch back; never save automatic switches (FR-015–FR-0
   (`src/web/assets/app.js`). The new `projectionChosen` in `src/web/assets/autozoom.js` switches
   auto-zoom off when the viewer picks a globe that cannot show the frame, so the globe is not
   taken back. Tests are in `web/autozoom.test.js`; FR-018 is updated.
+- [X] T054 [US3] Owner request after the browser test: every Globe/Flat switch turns auto-zoom
+  off. `projectionChosen()` in `src/web/assets/autozoom.js` now always switches it off, with
+  tests in `web/autozoom.test.js`; FR-018 is updated. Page files are also served with
+  `Cache-Control: no-cache` (`src/web/mod.rs`, test in `tests/ws_protocol.rs`), so browsers do
+  not keep stale modules after a rebuild.
 - [ ] T035 [US3] Manually run quickstart §4 and record SC-006 in `checklists/verification.md`.
 
 ---

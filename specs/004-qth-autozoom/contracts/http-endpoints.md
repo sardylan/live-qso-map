@@ -9,6 +9,9 @@
 | GET | `/autozoom-geo.js` | `200`, `text/javascript` |
 | GET | `/recent.js` | `200`, `text/javascript` |
 
+Every static page file is served with `Cache-Control: no-cache`, so browsers revalidate it and a
+rebuilt service never runs with stale page modules.
+
 Static page files are exempt from the JSON rule (`docs/http-api.md` API-5). Every existing route
 is unchanged.
 

@@ -213,7 +213,7 @@ class ProjectionControl {
       // The button switches the view on screen, whatever auto-zoom chose, and saves the choice.
       projection = nextProjection(shown);
       saveProjection(localStore(), projection);
-      runActions(autozoom.projectionChosen(projection, frameFitsGlobe()));
+      runActions(autozoom.projectionChosen());
       // Before `load` the choice is only stored; the load handler applies it.
       showProjection(projection);
       this.update();
@@ -410,10 +410,6 @@ function currentFrame() {
       ? globeZoomForCap(cap, { width: rect.width, height: rect.height, padding, maxZoom: MAX_ZOOM })
       : null;
   return { padding, bounds, cap, globeZoom, fitsGlobe: !cap || globeZoom !== null };
-}
-
-function frameFitsGlobe() {
-  return !loaded || currentFrame().fitsGlobe;
 }
 
 /** Frames the house and every marker clear of the panels (FR-008–FR-010, FR-013, FR-015–FR-017). */

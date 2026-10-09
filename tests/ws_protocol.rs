@@ -113,6 +113,12 @@ async fn static_assets_are_served() {
             .unwrap()
             .to_string();
         assert!(ct.starts_with(content_type), "{path}: {ct}");
+        // Browsers must revalidate, so a rebuilt binary never runs with stale page modules.
+        assert_eq!(
+            response.headers()["cache-control"].to_str().unwrap(),
+            "no-cache",
+            "{path}"
+        );
     }
     let index = reqwest::get(format!("http://{}/", service.http_addr))
         .await

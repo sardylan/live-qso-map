@@ -113,11 +113,8 @@ The transitions. Each returns a list of actions.
 **Invariant**: `autoFlat` is true only while the preference is the globe and auto-zoom switched the
 view to flat. It is cleared by the projection button, or by a fit that fits the globe.
 
-`projectionChosen(target, fitsGlobe)` handles the projection button:
-- it clears `autoFlat`;
-- when auto-zoom is on and the viewer picks the globe for a frame that does not fit there,
-  auto-zoom switches off (`save` off), so the globe is not taken back;
-- otherwise, with auto-zoom on, it sets `pending` for a refit in the new view.
+`projectionChosen()` handles the projection button. It clears `autoFlat` and, when auto-zoom is
+on, switches it off (`save` off), as a manual move does (FR-018).
 
 The button's label always offers the view that is not on screen.
 Nothing here writes `lqm.projection` (FR-018).

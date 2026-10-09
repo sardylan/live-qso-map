@@ -112,8 +112,17 @@ pub async fn serve(
     }
 }
 
+/// Page files are embedded, so they change only with the binary: `no-cache` makes browsers
+/// revalidate them, and a rebuilt service never runs with stale page modules.
 async fn asset(content_type: &'static str, body: &'static str) -> Response {
-    ([(header::CONTENT_TYPE, content_type)], body).into_response()
+    (
+        [
+            (header::CONTENT_TYPE, content_type),
+            (header::CACHE_CONTROL, "no-cache"),
+        ],
+        body,
+    )
+        .into_response()
 }
 
 async fn healthz(State(state): State<AppState>) -> Response {

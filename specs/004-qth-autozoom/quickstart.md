@@ -59,7 +59,8 @@ cargo run --release -- --station-callsign IS0MZK --station-locator JM49NH
 4. Turn auto-zoom off and add the DX QSOs back. **Expected**: the map stays a globe.
 5. After step 2, the projection button offers "Globe", since flat is on screen, and its tooltip
    says auto-zoom switched to flat. Click it. **Expected**: the globe is shown and stays, and
-   auto-zoom switches off. Reload: the globe preference is kept.
+   auto-zoom switches off. Turn auto-zoom back on and click "Flat" (or "Globe"): auto-zoom
+   switches off again, because every switch does. Reload: the last choice is kept.
 6. Repeat step 2, then drag the map. **Expected**: auto-zoom turns off and the map stays flat
    (FR-017). Turn auto-zoom back on after removing the DX QSOs: the map returns to the globe.
 

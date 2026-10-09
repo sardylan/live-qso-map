@@ -151,31 +151,16 @@ test('a scripted run of 50 changes switches only by the rule (SC-006)', () => {
   }
 });
 
-test('choosing the globe while it cannot show the frame switches auto-zoom off', () => {
-  const az = createAutoZoom({ enabled: true });
-  az.fitted(false, 'globe');
-  assert.deepEqual(az.projectionChosen('globe', false), [{ type: 'save', enabled: false }]);
-  assert.equal(az.state.enabled, false);
-  assert.equal(az.state.autoFlat, false);
-  // Auto-zoom is off, so the globe is not taken back.
-  az.change();
-  assert.deepEqual(az.tick(10_000), []);
-});
-
-test('choosing the globe when the frame fits keeps auto-zoom on and refits', () => {
-  const az = createAutoZoom({ enabled: true });
-  assert.deepEqual(az.projectionChosen('globe', true), []);
-  assert.equal(az.state.enabled, true);
-  assert.deepEqual(kinds(az.tick(10_000)), ['fit']);
-});
-
-test('choosing the flat map keeps auto-zoom on and refits', () => {
-  const az = createAutoZoom({ enabled: true });
-  az.fitted(false, 'globe');
-  assert.deepEqual(az.projectionChosen('mercator', false), []);
-  assert.equal(az.state.enabled, true);
-  assert.equal(az.state.autoFlat, false);
-  assert.deepEqual(kinds(az.tick(10_000)), ['fit']);
+test('any projection choice switches auto-zoom off (owner, 2026-10-09)', () => {
+  for (const [target, fits] of [['globe', false], ['globe', true], ['mercator', false], ['mercator', true]]) {
+    const az = createAutoZoom({ enabled: true });
+    az.fitted(false, 'globe');
+    assert.deepEqual(az.projectionChosen(target, fits), [{ type: 'save', enabled: false }], `${target}`);
+    assert.equal(az.state.enabled, false);
+    assert.equal(az.state.autoFlat, false);
+    az.change();
+    assert.deepEqual(az.tick(10_000), [], 'no refit takes the choice back');
+  }
 });
 
 test('with auto-zoom off, choosing a projection changes nothing else', () => {
