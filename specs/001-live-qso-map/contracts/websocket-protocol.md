@@ -1,5 +1,9 @@
 # Contract: WebSocket Protocol
 
+> **Added by feature 006**: `hello.recent` (the operator's box columns and header) and
+> `entity.cq_zone`; the page requests `max(map Last N, 20)`; the protocol stays 3. See
+> [`../../006-recent-box-config/contracts/websocket-protocol.md`](../../006-recent-box-config/contracts/websocket-protocol.md).
+
 > **Added by feature 005**: each QSO object gains `entity` (`{"prefix","name"}` from cty.dat, or
 > `null`); the protocol stays 3. See [`../../005-recent-box-dxcc/contracts/websocket-protocol.md`](../../005-recent-box-dxcc/contracts/websocket-protocol.md).
 

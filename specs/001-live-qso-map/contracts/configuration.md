@@ -1,5 +1,8 @@
 # Contract: Configuration
 
+> **Added by feature 006**: `map.recent_columns` and `map.recent_header` choose the last-QSO box
+> columns and header. See [`../../006-recent-box-config/contracts/configuration.md`](../../006-recent-box-config/contracts/configuration.md).
+
 > **Changed by feature 002**: `tile_url`/`tile_attribution` no longer have defaults, and the base
 > map defaults to the OpenFreeMap vector style (`style_url`, `style_attribution`). See
 > [`../../002-maplibre/contracts/configuration.md`](../../002-maplibre/contracts/configuration.md).

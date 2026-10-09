@@ -86,13 +86,21 @@ checked with Subresource Integrity.
     around the house when the entity is unknown.
   - On the globe, it switches to the flat map only when the QSOs cannot all fit on one side of the
     Earth, and returns to the globe when they fit again. Your saved choice is never changed.
-- **Last QSOs**: a box at the bottom left lists the five newest QSOs (by QSO time). Each row shows
-  the callsign, band, UTC date and time, and the DXCC entity from cty.dat as `prefix · name`;
-  long names are cut, and hovering shows them in full. Click a row to open its popup; the
-  **Last QSOs** button hides it. Popups show each QSO's entity too.
+- **Last QSOs**: a box at the bottom left lists the newest QSOs (by QSO time).
+  - **Columns** are chosen by the operator (see Configuration). The default is callsign, band,
+    UTC time, CQ zone and the DXCC entity from cty.dat as `prefix · name`. Long names are cut,
+    and hovering shows them in full. A small header row labels the columns, unless the operator
+    turns it off.
+  - **Size and order** are chosen by each viewer in the top-right panel: "Box: last" 3 to 20
+    (default 5), and "Newest" at the bottom (default) or at the top. They are separate from the
+    map's own "Map: last N QSOs" (default 20). The box can list QSOs the map doesn't show; those
+    rows are faded and can't be clicked.
+  - Click any other row to open its popup; the **Last QSOs** button hides the box. Popups show
+    each QSO's entity too.
 - **Scale**: a metric scale bar, shown on the flat map only.
 
-Each browser remembers its own Globe/Flat, Auto-zoom and Last QSOs choices.
+Each browser remembers every viewer choice across restarts: Globe/Flat, Auto-zoom, Last QSOs,
+the map's "Last N", and the box size and order.
 
 ## Configuration
 
@@ -106,8 +114,10 @@ The full list is in
 [`specs/001-live-qso-map/contracts/configuration.md`](specs/001-live-qso-map/contracts/configuration.md),
 with the base-map changes in
 [`specs/002-maplibre/contracts/configuration.md`](specs/002-maplibre/contracts/configuration.md)
-and the band selection in
+the band selection in
 [`specs/003-band-filter/contracts/configuration.md`](specs/003-band-filter/contracts/configuration.md),
+and the last-QSO box in
+[`specs/006-recent-box-config/contracts/configuration.md`](specs/006-recent-box-config/contracts/configuration.md),
 and [`deploy/config.example.toml`](deploy/config.example.toml) is a commented starting point.
 The most common settings:
 
@@ -122,6 +132,8 @@ The most common settings:
 | QRZCQ credentials | `LQM_QRZCQ_USERNAME`, `LQM_QRZCQ_PASSWORD` | none |
 | Bands to consider | `--bands hf-contest,-60m` / `LQM_BANDS` | every band |
 | Band colours | `--band-color 20m=#1f77b4` (repeatable) | built-in palette |
+| Last-QSO box columns, in order (`call`, `band`, `mode`, `date`, `time`, `cqzone`, `country`) | `--recent-columns` / `LQM_RECENT_COLUMNS` | `call,band,time,cqzone,country` |
+| Last-QSO box header row | `--recent-header true\|false` / `LQM_RECENT_HEADER` | `true` |
 | Base map style (MapLibre style JSON) | `--style-url` / `LQM_STYLE_URL`, `--style-attribution` | OpenFreeMap Liberty, with its credit |
 | Raster tiles instead of a style | `--tile-url` / `LQM_TILE_URL`, `--tile-attribution` (required) | none |
 

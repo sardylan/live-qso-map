@@ -61,6 +61,10 @@
 # tile_url = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
 # tile_attribution = "&copy; OpenStreetMap contributors"
 # fallback_color = "#7f7f7f"
+# Last-QSO box columns, in display order (feature 006). Keywords:
+#   call, band, mode, date, time, cqzone, country
+# recent_columns = ["call", "band", "time", "cqzone", "country"]   # default
+# recent_header = true                                            # show the header row
 
 [map.bands]
 # "40m" = "#d62728"

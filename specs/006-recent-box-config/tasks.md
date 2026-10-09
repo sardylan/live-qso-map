@@ -229,7 +229,7 @@ for the frontend (Node via nvm: `~/.nvm/versions/node/v26.11.1/bin/node`).
 
 ## Phase 4: Polish & Cross-Cutting Concerns
 
-- [ ] T025 [P] Documentation:
+- [X] T025 [P] Documentation:
   - **`deploy/config.example.toml`**: commented `recent_columns` and `recent_header` under `[map]`,
     with the keyword list;
   - **`README.md`**: the configuration table rows; the "Last QSOs" text (operator columns, header,
