@@ -1,6 +1,7 @@
 //! In-memory QSO history: revision-checked upserts, stable sort keys, eviction
 //! (FR-021, FR-028, data-model "History").
 
+use serde::Serialize;
 use std::collections::{BTreeSet, HashMap, VecDeque};
 use std::sync::Arc;
 
@@ -17,6 +18,15 @@ pub struct EnrichedQso {
     pub record: AdifRecord,
     pub remote: Option<Position>,
     pub station: Option<Position>,
+    /// DXCC/WAE entity of the remote callsign, from cty.dat (feature 005).
+    pub entity: Option<QsoEntity>,
+}
+
+/// A DXCC/WAE entity: cty.dat primary prefix (without the WAE `*`) and name (HR-6).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct QsoEntity {
+    pub prefix: String,
+    pub name: String,
 }
 
 #[derive(Debug)]
@@ -217,6 +227,7 @@ mod tests {
             record,
             remote: None,
             station: None,
+            entity: None,
         }
     }
 

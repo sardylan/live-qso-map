@@ -33,7 +33,7 @@ the frontend (Node via nvm: `~/.nvm/versions/node/v26.11.1/bin/node`).
 
 ## Phase 1: Setup
 
-- [ ] T001 Add `QsoEntity { prefix: String, name: String }` (with `Debug`, `Clone`, `PartialEq` and
+- [X] T001 Add `QsoEntity { prefix: String, name: String }` (with `Debug`, `Clone`, `PartialEq` and
   `Serialize`) to `src/history.rs`, and the field `entity: Option<QsoEntity>` to `EnrichedQso`.
   Add `entity: None` to every `EnrichedQso { … }` literal in `src/history.rs`,
   `src/pipeline.rs`, `src/web/session.rs`, `src/web/protocol.rs` and `src/enrich/mod.rs`.
@@ -48,7 +48,7 @@ read it.
 
 ### Tests first (write, run, confirm they FAIL)
 
-- [ ] T002 [P] Write unit tests in `src/enrich/mod.rs`. Build `Lookups` with
+- [X] T002 [P] Write unit tests in `src/enrich/mod.rs`. Build `Lookups` with
   `CountryData::parse(include_str!("../../tests/fixtures/cty-excerpt.dat"))` and no sources:
   - `K1ABC` → `Some(QsoEntity { prefix: "K", name: "United States" })`;
   - `is0mzk` → `IS` / `Sardinia` (HR-5);
@@ -67,12 +67,12 @@ read it.
   - **SC-001**: a table-driven test over 30 callsigns from the fixture: ordinary, portable (`/P`,
     `/M`), prefixed, exact-call and WAE. For each, the entity name from `CountryData::entity_of`
     equals the `COUNTRY` that `CountryData::lookup` returns for the same callsign.
-- [ ] T003 [P] Write unit tests in `src/web/protocol.rs`:
+- [X] T003 [P] Write unit tests in `src/web/protocol.rs`:
   - `QsoView::from` of a QSO with an entity serialises
     `"entity": {"prefix": "IS", "name": "Sardinia"}`;
   - without an entity, it serialises `"entity": null` (contracts/websocket-protocol.md);
   - `hello.protocol` is still 3.
-- [ ] T004 [P] Add `a_page_receives_each_qso_entity` to `tests/ws_protocol.rs`:
+- [X] T004 [P] Add `a_page_receives_each_qso_entity` to `tests/ws_protocol.rs`:
   - start the service with `pipeline::start_with_country(test_config(), Some(vec![]),
     Some(Arc::new(CountryData::parse(fixture))))`;
   - send ADIF QSOs for `K1ABC` and `QQ9QQ`;
@@ -83,19 +83,19 @@ read it.
 
 ### Implementation
 
-- [ ] T005 In `src/enrich/mod.rs`:
+- [X] T005 In `src/enrich/mod.rs`:
   - add `country: Option<Arc<CountryData>>` to `Lookups`, with
     `Lookups::new(sources, country, config)`;
   - in `enrich()`, after the record is final, set
     `entity = lookups.country.as_ref().and_then(|c| c.entity_of(call))` as a `QsoEntity`.
 
   T002 must pass.
-- [ ] T006 In `src/pipeline.rs`:
+- [X] T006 In `src/pipeline.rs`:
   - pass the country data from `build_sources` to `Lookups::new`;
   - add `pub async fn start_with_country(config, sources, country)`, and make `start` delegate to
     it with no injected country (research R2);
   - update the existing `Lookups::new` callers, including tests.
-- [ ] T007 Add `entity: Option<QsoEntity>` to `QsoView` in `src/web/protocol.rs`, copied in
+- [X] T007 Add `entity: Option<QsoEntity>` to `QsoView` in `src/web/protocol.rs`, copied in
   `From<&EnrichedQso>`. Keep `PROTOCOL_VERSION = 3` (research R3). T003 and T004 must pass.
 
 **Checkpoint**: pages receive `entity` on every QSO; the existing page ignores it.

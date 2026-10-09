@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::adif::AdifRecord;
 use crate::band_filter::BandSet;
 use crate::config::{BaseMap, MapConfig, StationConfig};
-use crate::history::{EnrichedQso, format_rfc3339, qso_timestamp};
+use crate::history::{EnrichedQso, QsoEntity, format_rfc3339, qso_timestamp};
 use crate::position::Position;
 
 pub const PROTOCOL_VERSION: u32 = 3;
@@ -173,6 +173,8 @@ pub struct QsoView {
     pub station_call: Option<String>,
     pub remote: Option<Position>,
     pub station: Option<Position>,
+    /// The remote station's DXCC/WAE entity from cty.dat, or `null` (feature 005).
+    pub entity: Option<QsoEntity>,
     pub adif: BTreeMap<String, String>,
 }
 
@@ -192,6 +194,7 @@ impl From<&EnrichedQso> for QsoView {
             station_call: field("STATION_CALLSIGN"),
             remote: q.remote,
             station: q.station,
+            entity: q.entity.clone(),
             adif: q.record.as_map().clone(),
         }
     }
@@ -246,6 +249,7 @@ mod tests {
                 Position::new(37.42, -122.08, Precision::Coordinates, PositionSource::Qrz).unwrap(),
             ),
             station: None,
+            entity: None,
         }
     }
 
@@ -504,6 +508,24 @@ mod tests {
         ] {
             assert_eq!(v[key], plain[key], "{key}");
         }
+    }
+
+    #[test]
+    fn qso_view_carries_the_entity_or_null() {
+        let mut q = k6qa();
+        q.entity = Some(crate::history::QsoEntity {
+            prefix: "IS".into(),
+            name: "Sardinia".into(),
+        });
+        let v = serde_json::to_value(QsoView::from(&q)).unwrap();
+        assert_eq!(v["entity"], json!({"prefix": "IS", "name": "Sardinia"}));
+        q.entity = None;
+        let v = serde_json::to_value(QsoView::from(&q)).unwrap();
+        assert_eq!(v["entity"], serde_json::Value::Null);
+        assert_eq!(
+            PROTOCOL_VERSION, 3,
+            "an added field does not bump the protocol"
+        );
     }
 
     #[test]

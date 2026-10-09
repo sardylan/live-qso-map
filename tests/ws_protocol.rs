@@ -334,3 +334,50 @@ async fn a_page_gets_the_station_and_qsos_that_share_it() {
     }
     service.shutdown().await;
 }
+
+#[tokio::test]
+async fn a_page_receives_each_qso_entity() {
+    use live_qso_map::enrich::cty::CountryData;
+    use live_qso_map::pipeline::start_with_country;
+    use std::sync::Arc;
+
+    let country = Arc::new(CountryData::parse(include_str!("fixtures/cty-excerpt.dat")));
+    let service = start_with_country(test_config(), Some(vec![]), Some(country))
+        .await
+        .unwrap();
+    let mut ws = connect(service.http_addr).await;
+    next_json(&mut ws, Duration::from_secs(2)).await.unwrap(); // hello
+    next_json(&mut ws, Duration::from_secs(2)).await.unwrap(); // snapshot
+
+    let mut seen = Vec::new();
+    for (minute, call) in [(1, "K1ABC"), (2, "QQ9QQ")] {
+        let qso = format!(
+            "<CALL:{}>{call} <QSO_DATE:8>20261009 <TIME_ON:4>150{minute} <BAND:3>20m <MODE:2>CW <GRIDSQUARE:4>FN42 <EOR>",
+            call.len()
+        );
+        send_udp(service.udp_addr, qso.as_bytes()).await;
+        // SC-004: within the 2 s a QSO may take to reach the page.
+        let upsert = next_json(&mut ws, Duration::from_secs(2))
+            .await
+            .expect("upsert within 2 s");
+        seen.push((
+            upsert["qso"]["call"].as_str().unwrap().to_string(),
+            upsert["qso"]["entity"].clone(),
+        ));
+    }
+    let expected = serde_json::json!({"prefix": "K", "name": "United States"});
+    assert_eq!(seen[0], ("K1ABC".to_string(), expected.clone()));
+    assert_eq!(seen[1], ("QQ9QQ".to_string(), Value::Null));
+
+    let mut late = connect(service.http_addr).await;
+    next_json(&mut late, Duration::from_secs(2)).await.unwrap(); // hello
+    let snapshot = next_json(&mut late, Duration::from_secs(2)).await.unwrap();
+    let entities: Vec<Value> = snapshot["qsos"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|q| q["entity"].clone())
+        .collect();
+    assert_eq!(entities, vec![expected, Value::Null]);
+    service.shutdown().await;
+}

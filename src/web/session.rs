@@ -185,6 +185,7 @@ mod tests {
             record,
             remote: None,
             station: None,
+            entity: None,
         }
     }
 

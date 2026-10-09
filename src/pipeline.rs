@@ -225,17 +225,28 @@ pub fn bands_log_line(filter: Option<&crate::band_filter::BandSet>) -> String {
     }
 }
 
-/// Binds the UDP and HTTP listeners (port 0 is allowed) and spawns every task.
+/// Binds the UDP and HTTP listeners (port 0 is allowed) and spawns every task. With injected
+/// `sources`, no country data is used; tests that need it call [`start_with_country`].
 pub async fn start(config: Config, sources: LookupSources) -> Result<RunningService> {
+    start_with_country(config, sources, None).await
+}
+
+/// Like [`start`], with country data injected next to the sources (tests, feature 005 R2).
+/// When `sources` is `None`, both are built from the configuration and `country` is ignored.
+pub async fn start_with_country(
+    config: Config,
+    sources: LookupSources,
+    country: Option<Arc<CountryData>>,
+) -> Result<RunningService> {
     crate::install_crypto_provider();
     let extents = ExtentTable::embedded()?;
     let (sources, country) = match sources {
-        Some(sources) => (sources, None),
+        Some(sources) => (sources, country),
         None => build_sources(&config).await?,
     };
     let entity = station_entity(&config.station, country.as_deref(), &extents);
     let hello_station = HelloStation::new(&config.station, entity);
-    let lookups = crate::enrich::Lookups::new(sources, &config);
+    let lookups = crate::enrich::Lookups::new(sources, country, &config);
     tracing::info!("{}", bands_log_line(config.band_filter.as_ref()));
     let udp = UdpSocket::bind((config.bind_address, config.udp_port)).await?;
     let http = TcpListener::bind((config.bind_address, config.http_port)).await?;
@@ -379,6 +390,7 @@ mod tests {
             record: AdifRecord::new(),
             remote: None,
             station: None,
+            entity: None,
         }
     }
 
