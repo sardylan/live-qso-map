@@ -20,11 +20,13 @@ HTTP/WebSocket interface rules (binding): `docs/http-api.md`.
 - browser `localStorage` (`lqm.autozoom`, `lqm.recent`); embedded `src/web/entity_extents.json` generated from Natural Earth (004-qth-autozoom)
 - Rust (edition 2024, stable toolchain; developed on 1.98); browser ES modules + none new (005-recent-box-dxcc)
 - none new; the entity is stored on the enriched QSO in the in-memory history (005-recent-box-dxcc)
+- Rust (edition 2024, stable toolchain; developed on 1.98); browser ES modules + none new (006-recent-box-config)
+- browser `localStorage` for `lqm.limit` (moved from session storage), `lqm.recent.size`, `lqm.recent.order` (006-recent-box-config)
 
 ### Recent Changes
 
+- 006-recent-box-config: Added Rust (edition 2024, stable toolchain; developed on 1.98); browser ES modules + none new
 - 005-recent-box-dxcc: Added Rust (edition 2024, stable toolchain; developed on 1.98); browser ES modules + none new
 - 004-qth-autozoom: Added Rust (edition 2024, stable toolchain; developed on 1.98); browser ES modules; Python 3 stdlib (dev-only generator) + no new crates or frontend libraries
-- 003-band-filter: Added Rust (edition 2024, stable toolchain; developed on 1.98) + none new (existing tokio, axum, serde, clap, toml)
 
 <!-- SPECKIT END -->

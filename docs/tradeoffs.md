@@ -18,6 +18,7 @@ we deliberately gave up. Records the *why*, not just the *what*.
 | TR-003 | proposed | Pin MapLibre 5.24.0 instead of 6.x | 2026-10-08 |
 | TR-004 | proposed | JSON interface rules in docs/http-api.md, referenced by the constitution | 2026-10-09 |
 | TR-005 | proposed | Entity extents generated from Natural Earth by a dev-only script | 2026-10-09 |
+| TR-006 | proposed | The page requests max(map Last N, 20) QSOs to feed both the map and the box | 2026-10-09 |
 
 ## Decisions
 
@@ -234,6 +235,52 @@ effort and a maintainer-only download.
 - Positive: Adding or fixing an entity is one mapping line plus a rerun; no runtime fetch.
 - Negative / debt accepted: The mapping must follow cty.dat changes; tiny entities missing from
   Natural Earth get only the radius.
+
+## TR-006: The page requests max(map Last N, 20) QSOs to feed both the map and the box
+
+- Status: proposed
+- Date: 2026-10-09
+- Phase: plan
+- Deciders: project owner
+- Links: specs/006-recent-box-config/research.md#r1-how-the-page-gets-enough-qsos-for-the-map-and-the-box-fr-009
+
+### Context & problem
+
+Feature 006 makes the last-QSO box independent of the map: the map shows its own "Last N"
+(10–500 or All), and the box its own size (3–20), in either order. A page only holds the QSOs the
+server sends for its requested window, so with the map at 10 and the box at 15 the box would be
+short of rows.
+
+### Decision drivers
+
+- The box always gets its rows (FR-009)
+- No protocol change, and no new message (Principle III)
+- Little extra traffic
+
+### Options considered
+
+| Option | Pros | Cons / what it sacrifices |
+|--------|------|---------------------------|
+| Request max(map, 20) with the existing `set_limit`, split locally (chosen) | no protocol or server change; 20 and every larger map size are already allowed values | up to 10 extra QSOs per page when the map is below 20 |
+| Add 3, 5, 15 to the allowed `set_limit` values and request exactly max(map, box) | sends exactly what is shown | changes the server's allowed set and its tests for a few rows of traffic |
+| A second subscription or message for the box window | the two windows are independent on the server | more protocol and per-session state |
+
+### Decision
+
+The page requests `max(map Last N, 20)` (or All), then the map takes its newest `mapLimit` and
+the box its newest `size`, locally.
+
+### Y-statement
+
+In the context of a box independent of the map window, facing pages that hold only the
+requested window, we decided for always requesting at least 20 QSOs and splitting on the page,
+and neglected new allowed sizes or a second subscription, to achieve no protocol change, accepting
+up to 10 extra QSOs per page.
+
+### Consequences
+
+- Positive: the server and protocol are unchanged; the box and the map choices stay independent.
+- Negative / debt accepted: if the box maximum ever exceeds 20, the floor must follow it.
 
 ## Archive
 
