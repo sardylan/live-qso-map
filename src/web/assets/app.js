@@ -22,7 +22,7 @@ import {
   saveRecent,
   scaleVisible,
 } from './view.js';
-import { recentQsos, rowView } from './recent.js';
+import { recentQsos, rowView, entityLabel } from './recent.js';
 import { createAutoZoom } from './autozoom.js';
 import {
   framedPoints,
@@ -119,6 +119,7 @@ function popupContent(marker) {
       element('td', null, qso.band),
       element('td', null, mode),
       element('td', null, formatTime(qso.datetime)),
+      element('td', 'entity', entityLabel(qso.entity)),
       element('td', 'meta', qso.remote ? `${qso.remote.source} · ${qso.remote.precision}` : ''),
     );
     table.append(row);

@@ -161,7 +161,7 @@ file is needed.
 
 ### Implementation for User Story 2
 
-- [ ] T012 [US2] In `popupContent()` in `src/web/assets/app.js`, add a cell with
+- [X] T012 [US2] In `popupContent()` in `src/web/assets/app.js`, add a cell with
   `entityLabel(qso.entity)`, via `textContent`, to each row, keeping mode, time and source. Add
   styling in `src/web/assets/app.css` if needed.
 - [ ] T013 [US2] Manually run quickstart §3, including correcting a QSO while its popup is open,
