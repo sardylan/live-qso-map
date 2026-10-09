@@ -124,9 +124,22 @@ All of it lives in a new pure module, `autozoom-geo.js`:
     solves the zoom so that the box's corners and edge midpoints fall inside the padded clip
     space.
   - When no zoom satisfies them, it returns `undefined`, with a console warning.
-  - **Decision**: on the globe, the glue builds a box centred on the cap, takes its zoom from
-    `cameraForBounds`, and eases to the cap centre with the same padding. `zoomForCap` covers the
-    `undefined` case.
+  - **First decision** (superseded below): on the globe, build a box centred on the cap, take its
+    zoom from `cameraForBounds`, and ease to the cap centre; `zoomForCap` covers `undefined`.
+  - **Browser finding** (owner, 2026-10-09):
+    - after a manual move and a switch to the globe, re-enabling auto-zoom kept the globe while
+      the QSOs were not on screen;
+    - reproduced in headless Chrome with IS + JA + W6 + DL: the cap fits (about 56°, centred over
+      the Arctic), but for a synthetic box around a polar cap `cameraForBounds` returned a far too
+      high zoom, so the camera showed only the Arctic Ocean.
+  - **Final decision**:
+    - `globeZoomForCap` (pure, tested) computes the globe zoom from MapLibre's own geometry: a
+      camera `0.5 / tan(fov / 2) × height` in front of the surface (fov 36.87°), and a globe
+      radius `512 × 2^zoom / 2π / cos(centre latitude)`;
+    - it keeps the cap edge inside the free area and within 90 % of the horizon angle;
+    - it returns `null` when even zoom −2, MapLibre's minimum, cannot show the cap, which happens
+      near the poles, and auto-zoom then goes flat;
+    - `cameraForBounds` and `zoomForCap` are no longer used.
   - **Test-set correction**: IS + JA + W6 do fit on one side of the globe, seen from over the North
     Pole (cap radius about 56°). The "cannot fit" example is now IS + ZL + PY + JA, which needs more
     than 90°.

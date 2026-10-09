@@ -149,15 +149,58 @@ export function fitsGlobe(cap, marginDeg) {
 
 const TILE_SIZE = 512;
 
+// MapLibre 5.24.0 globe geometry (vertical perspective): the camera sits `cameraToCenterDistance`
+// = 0.5 / tan(fov / 2) * height in front of the globe surface, and the globe radius in pixels is
+// worldSize / (2π) / cos(centre latitude), with worldSize = 512 * 2^zoom (research R5).
+const DEFAULT_FOV_RAD = 0.6435011087932844;
+const MIN_ZOOM = -2;
+const MAX_LAT = 85.051129;
+const LIMB_SHARE = 0.9;
+
+function cameraDistance(height, fovRad) {
+  return (0.5 / Math.tan(fovRad / 2)) * height;
+}
+
+function globeRadiusPx(zoom, lat) {
+  return (TILE_SIZE * 2 ** zoom) / (2 * Math.PI) / Math.cos(Math.min(Math.abs(lat), MAX_LAT) * RAD);
+}
+
 /**
- * A globe zoom that shows the cap inside the viewport (`[width, height]` of the free area), used
- * when the camera cannot compute one itself. Capped at 12 (FR-013).
+ * Screen distance in px from the view centre to the cap's edge on a globe centred on the cap at
+ * `zoom`, or `null` when the edge is behind the limb.
  */
-export function zoomForCap(cap, viewport) {
-  const half = Math.min(viewport[0], viewport[1]) / 2;
-  const reach = Math.sin(Math.min(cap.radiusDeg, 90) * RAD);
-  if (reach < 1e-9) return 12;
-  const radiusPx = half / reach;
-  const zoom = Math.log2((radiusPx * 2 * Math.PI) / TILE_SIZE);
-  return Math.max(0, Math.min(12, zoom));
+export function capScreenRadius(cap, zoom, { height, fovRad = DEFAULT_FOV_RAD }) {
+  const c = cameraDistance(height, fovRad);
+  const r = globeRadiusPx(zoom, cap.center[0]);
+  const θ = cap.radiusDeg * RAD;
+  if (Math.cos(θ) <= r / (c + r)) return null;
+  return (c * r * Math.sin(θ)) / (c + r - r * Math.cos(θ));
+}
+
+/**
+ * The highest globe zoom (at most `maxZoom`) that shows the whole cap, centred, inside the free
+ * area left by `padding`, with the edge clearly in front of the limb and the cap no wider than
+ * `90 - marginDeg`. `null` when no zoom down to the minimum can do it: auto-zoom then shows the
+ * flat map (FR-016).
+ */
+export function globeZoomForCap(
+  cap,
+  { width, height, padding, fovRad = DEFAULT_FOV_RAD, marginDeg = 5, minZoom = MIN_ZOOM, maxZoom = 12 },
+) {
+  const θ = cap.radiusDeg * RAD;
+  if (cap.radiusDeg + marginDeg >= 90) return null;
+  const c = cameraDistance(height, fovRad);
+  const half = Math.min(width - padding.left - padding.right, height - padding.top - padding.bottom) / 2;
+  if (half <= 0) return null;
+  // Largest radius keeping the edge clearly in front of the limb, where points get squashed: the
+  // edge angle stays within LIMB_SHARE of the horizon angle acos(R / (c + R)).
+  const k = Math.cos(Math.min(θ / LIMB_SHARE, Math.PI / 2));
+  let radius = k >= 1 ? Infinity : (c * k) / (1 - k);
+  // Largest radius keeping the edge inside the free area: c R sinθ / (c + R (1 - cosθ)) <= half.
+  const denominator = c * Math.sin(θ) - half * (1 - Math.cos(θ));
+  if (denominator > 0) radius = Math.min(radius, (half * c) / denominator);
+  const zoom = Math.log2((radius * 2 * Math.PI * Math.cos(Math.min(Math.abs(cap.center[0]), MAX_LAT) * RAD)) / TILE_SIZE);
+  if (!Number.isFinite(zoom)) return maxZoom;
+  if (zoom < minZoom) return null;
+  return Math.min(zoom, maxZoom);
 }

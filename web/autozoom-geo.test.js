@@ -77,7 +77,7 @@ test('paddingFor falls back to a uniform gap when too little room is left', () =
   assert.deepEqual(paddingFor(MAP, [huge, tall], OPTIONS), { top: 12, right: 12, bottom: 12, left: 12 });
 });
 
-import { boundingCap, fitsGlobe, zoomForCap } from '../src/web/assets/autozoom-geo.js';
+import { boundingCap, fitsGlobe, globeZoomForCap, capScreenRadius } from '../src/web/assets/autozoom-geo.js';
 
 const IS = [39.2, 9.1];
 const JA = [35.7, 139.7];
@@ -147,10 +147,48 @@ test('fitsGlobe needs the cap plus the margin within a hemisphere', () => {
   assert.equal(fitsGlobe({ center: [0, 0], radiusDeg: 88 }, 5), false);
 });
 
-test('zoomForCap grows as the cap shrinks, and stops at 12', () => {
-  const viewport = [1000, 800];
-  const z = [80, 40, 10, 1, 0.001].map((r) => zoomForCap({ center: [0, 0], radiusDeg: r }, viewport));
-  for (let i = 1; i < z.length; i++) assert.ok(z[i] >= z[i - 1], `${z}`);
-  assert.equal(zoomForCap({ center: [0, 0], radiusDeg: 0 }, viewport), 12);
-  assert.ok(z[0] >= 0);
+const VIEW = { width: 1280, height: 800, padding: { top: 12, right: 150, bottom: 60, left: 100 } };
+const FREE_HALF = Math.min(1280 - 100 - 150, 800 - 12 - 60) / 2;
+
+test('globeZoomForCap: a tiny cap stops at zoom 12', () => {
+  assert.equal(globeZoomForCap({ center: [39, 9], radiusDeg: 0 }, VIEW), 12);
+  assert.equal(globeZoomForCap({ center: [39, 9], radiusDeg: 0.001 }, VIEW), 12);
+});
+
+test('globeZoomForCap: a bigger cap needs a lower zoom', () => {
+  const zooms = [5, 20, 40, 60, 80].map((r) => globeZoomForCap({ center: [20, 0], radiusDeg: r }, VIEW));
+  for (let i = 1; i < zooms.length; i++) assert.ok(zooms[i] < zooms[i - 1], `${zooms}`);
+});
+
+test('globeZoomForCap: the cap edge lands inside the free area and in front of the limb', () => {
+  for (const cap of [
+    { center: [20, 0], radiusDeg: 30 },
+    { center: [-30, 150], radiusDeg: 70 },
+    { center: [60, 20], radiusDeg: 50 },
+  ]) {
+    const zoom = globeZoomForCap(cap, VIEW);
+    assert.notEqual(zoom, null, JSON.stringify(cap));
+    const edge = capScreenRadius(cap, zoom, VIEW);
+    assert.ok(edge !== null && edge <= FREE_HALF + 1e-6, `${JSON.stringify(cap)}: ${edge} > ${FREE_HALF}`);
+  }
+});
+
+test('globeZoomForCap: no zoom when the cap reaches the limb', () => {
+  assert.equal(globeZoomForCap({ center: [0, 0], radiusDeg: 88 }, VIEW), null);
+});
+
+test('globeZoomForCap: IS, JA, W6 and DL fit on a globe seen from the Arctic', () => {
+  // The bug seen in the browser: this set fits, but the camera zoomed into the Arctic. The zoom
+  // must account for the globe growing with 1/cos(latitude) and for the perspective.
+  const cap = boundingCap([IS, JA, W6, [51.5, 13.4]]);
+  const zoom = globeZoomForCap(cap, VIEW);
+  assert.notEqual(zoom, null);
+  assert.ok(zoom < 3, `zoom ${zoom}`);
+  const edge = capScreenRadius(cap, zoom, VIEW);
+  assert.ok(edge !== null && edge <= FREE_HALF + 1e-6, `${edge}`);
+});
+
+test('globeZoomForCap: no zoom when even the minimum zoom shows too little', () => {
+  // Near the pole the globe is drawn bigger, so the minimum zoom (-2) cannot shrink it enough.
+  assert.equal(globeZoomForCap({ center: [85, 0], radiusDeg: 80 }, VIEW), null);
 });

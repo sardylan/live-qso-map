@@ -82,7 +82,8 @@ colour is a fixed paint value.
 | `flatBounds(points)` | `[[w, s], [e, n]]`, the minimal longitude span, with `e` possibly above 180 |
 | `boundingCap(points)` | `{center: [lat, lon], radiusDeg}` |
 | `fitsGlobe(cap, marginDeg)` | `radiusDeg + marginDeg ≤ 90` |
-| `zoomForCap(cap, viewportPx)` | a fallback zoom when `cameraForBounds` is unusable on the globe (R5) |
+| `globeZoomForCap(cap, {width, height, padding})` | the globe zoom that shows the whole cap in the free area, or `null` when none can (R5, browser finding) |
+| `capScreenRadius(cap, zoom, {height})` | px from the centre to the cap edge on the globe, or `null` behind the limb (used by the tests) |
 
 ### Padding (`autozoom-geo.js`)
 

@@ -363,6 +363,12 @@ with auto-zoom on, and switch back; never save automatic switches (FR-015–FR-0
     `autoFlat`;
   - **ProjectionControl label**: it reflects the preference, not the automatic switch. While
     `autoFlat`, its tooltip reads "Auto-zoom switched to flat; click to make it your preference".
+- [X] T052 [US3] Fix found in the owner's browser test: the globe kept a frame it did not show
+  (a polar cap zoomed into the Arctic). Replace the `cameraForBounds`/`zoomForCap` globe camera
+  with `globeZoomForCap` and `capScreenRadius` in `src/web/assets/autozoom-geo.js`, modelling
+  MapLibre's perspective and the 1/cos(latitude) globe scale, with tests in
+  `web/autozoom-geo.test.js`. Auto-zoom keeps the globe only when that zoom exists (research R5,
+  "Browser finding").
 - [ ] T035 [US3] Manually run quickstart §4 and record SC-006 in `checklists/verification.md`.
 
 ---

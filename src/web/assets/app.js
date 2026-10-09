@@ -31,7 +31,7 @@ import {
   paddingFor,
   boundingCap,
   fitsGlobe,
-  zoomForCap,
+  globeZoomForCap,
 } from './autozoom-geo.js';
 import { createConnection, onOpen, onClose, onHello as handshake, loadLimit, saveLimit } from './connection.js';
 
@@ -397,22 +397,6 @@ function framePoints(bounds) {
   return [[s, w], [s, e], [n, w], [n, e], [(s + n) / 2, (w + e) / 2]];
 }
 
-/** A camera on the globe centred on the cap (FR-016), zoomed to show all of it. */
-function globeCamera(cap, padding) {
-  const [lat, lon] = cap.center;
-  const r = Math.max(cap.radiusDeg, 0.01);
-  const dLon = Math.min(r / Math.max(Math.cos((lat * Math.PI) / 180), 0.05), 179);
-  const box = [
-    [lon - dLon, Math.max(lat - r, -85)],
-    [lon + dLon, Math.min(lat + r, 85)],
-  ];
-  const camera = map.cameraForBounds(box, { padding, maxZoom: MAX_ZOOM });
-  const rect = map.getContainer().getBoundingClientRect();
-  const free = [rect.width - padding.left - padding.right, rect.height - padding.top - padding.bottom];
-  const zoom = camera && Number.isFinite(camera.zoom) ? camera.zoom : zoomForCap(cap, free);
-  return { center: [lon, lat], zoom: Math.min(zoom, MAX_ZOOM), padding };
-}
-
 /** Frames the house and every marker clear of the panels (FR-008–FR-010, FR-013, FR-015–FR-017). */
 function fitNow() {
   if (!loaded) return;
@@ -420,12 +404,22 @@ function fitNow() {
   const bounds = current.size > 0 ? flatBounds(framedPoints(qth, current)) : fallbackFrame(qth, entity);
   const points = framePoints(bounds);
   const cap = points.length > 0 ? boundingCap(points) : null;
-  const fits = cap ? fitsGlobe(cap, GLOBE_MARGIN_DEG) : true;
-  showProjection(autozoom.fitted(fits, projection));
+  const rect = map.getContainer().getBoundingClientRect();
+  // The globe keeps the frame only when a zoom exists that really shows all of it (FR-016).
+  const globeZoom =
+    cap && fitsGlobe(cap, GLOBE_MARGIN_DEG)
+      ? globeZoomForCap(cap, { width: rect.width, height: rect.height, padding, maxZoom: MAX_ZOOM })
+      : null;
+  showProjection(autozoom.fitted(!cap || globeZoom !== null, projection));
   try {
-    if (!bounds) map.easeTo({ ...WORLD, padding, duration: 800 });
-    else if (shown === 'globe') map.easeTo({ ...globeCamera(cap, padding), duration: 800 });
-    else map.fitBounds(bounds, { padding, maxZoom: MAX_ZOOM, duration: 800 });
+    if (!bounds) {
+      map.easeTo({ ...WORLD, padding, duration: 800 });
+    } else if (shown === 'globe') {
+      const [lat, lon] = cap.center;
+      map.easeTo({ center: [lon, lat], zoom: globeZoom, padding, duration: 800 });
+    } else {
+      map.fitBounds(bounds, { padding, maxZoom: MAX_ZOOM, duration: 800 });
+    }
   } catch (error) {
     console.error('auto-zoom fit failed', error);
   }

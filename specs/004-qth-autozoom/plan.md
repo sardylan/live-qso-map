@@ -153,7 +153,7 @@ src/
 │       │                 # popup timer, ScaleControl add/remove, row clicks
 │       ├── qth.js        # NEW pure: currentQth, houseFeature, HOUSE_SVG             [node tests]
 │       ├── autozoom-geo.js # NEW pure: framedPoints, fallbackFrame, flatBounds,
-│       │                 # boundingCap, fitsGlobe, zoomForCap, paddingFor            [node tests]
+│       │                 # boundingCap, fitsGlobe, globeZoomForCap, paddingFor       [node tests]
 │       ├── autozoom.js   # NEW pure: controller state machine                         [node tests]
 │       ├── recent.js     # NEW pure: recentQsos, rowView                              [node tests]
 │       ├── layers.js     # lineFeatures(markers, qth): from the QTH, no colour property [node tests]
