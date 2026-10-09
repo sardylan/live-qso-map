@@ -145,7 +145,7 @@ for the frontend (Node via nvm: `~/.nvm/versions/node/v26.11.1/bin/node`).
     grey;
   - the empty-state message replaces the whole table (FR-006a);
   - the feature-004/005 clickable-row behaviour is unchanged.
-- [ ] T015 [US1] Manually run quickstart §2, including the startup errors and the CQ zones
+- [X] T015 [US1] Manually run quickstart §2, including the startup errors and the CQ zones
   (SC-007). Record the results in `specs/006-recent-box-config/checklists/verification.md`
   (create the file).
 
@@ -221,7 +221,7 @@ for the frontend (Node via nvm: `~/.nvm/versions/node/v26.11.1/bin/node`).
     `Not on the map (outside its last N)`, with no click handler, no `tabindex` and no `role`
     (FR-010);
   - **snapshots**: a snapshot no longer changes the map selector's value.
-- [ ] T024 [US2] Manually run quickstart §3, including a browser restart, the 1024/1920 px
+- [X] T024 [US2] Manually run quickstart §3, including a browser restart, the 1024/1920 px
   alignment (SC-005) and step 6 (settings changed while the box is hidden). Record the results
   in `checklists/verification.md`.
 
@@ -238,7 +238,7 @@ for the frontend (Node via nvm: `~/.nvm/versions/node/v26.11.1/bin/node`).
     `specs/006-recent-box-config/contracts/configuration.md`;
   - **`specs/001-live-qso-map/contracts/websocket-protocol.md`**: a note pointing to
     `specs/006-recent-box-config/contracts/websocket-protocol.md`.
-- [ ] T026 Run the complete gates: `cargo fmt --check`,
+- [X] T026 Run the complete gates: `cargo fmt --check`,
   `cargo clippy --all-targets -- -D warnings`, `cargo test` and `node --test web/`. Complete
   `checklists/verification.md` with the automated results and SC-001 to SC-007:
   - SC-001 and SC-002 from T002, T003 and T015;

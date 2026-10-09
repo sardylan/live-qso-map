@@ -25,8 +25,10 @@
 - The panel shows "Map: last 10 QSOs", then "Box: last 20 · Newest: top", visibly separate.
 - The selects were restored from local storage.
 
-## Manual (browser), to be run by the project owner
+## Manual (browser), run by the project owner
 
-- [ ] T015: quickstart §2, operator columns, header, startup errors and CQ zones
-- [ ] T024: quickstart §3, viewer size and order, faded rows, browser restart, alignment at
+Confirmed by the owner in a browser on 2026-10-09.
+
+- [x] T015: quickstart §2, operator columns, header, startup errors and CQ zones
+- [x] T024: quickstart §3, viewer size and order, faded rows, browser restart, alignment at
   1024 px and 1920 px (SC-005), and step 6 (settings changed while the box is hidden)

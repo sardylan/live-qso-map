@@ -2,7 +2,7 @@
 
 **Feature Branch**: `006-recent-box-config`
 **Created**: 2026-10-09
-**Status**: Draft
+**Status**: Complete (2026-10-09). See `checklists/verification.md`.
 **Input**: User description: "Let the 'Last QSO' box be configurable. From the backend it must be
 possible to choose which items to display, in the order given in the config file, from the
 keywords call, band, mode, date, time, country. Keep call in bold and country in grey. The default
