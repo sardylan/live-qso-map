@@ -30,7 +30,7 @@ fn logger_station(record: &AdifRecord) -> Option<Position> {
     locator_position(grid, PositionSource::Logger)
 }
 
-fn config_station(station: &StationConfig) -> Option<Position> {
+pub(crate) fn config_station(station: &StationConfig) -> Option<Position> {
     if let (Some(lat), Some(lon)) = (station.latitude, station.longitude) {
         return Position::new(lat, lon, Precision::Coordinates, PositionSource::Config).ok();
     }

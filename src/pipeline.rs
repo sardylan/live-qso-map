@@ -251,11 +251,14 @@ fn spawn_tasks(
             shutdown.clone(),
         ));
     }
+    // The entity is resolved from the country data in feature 004 T021.
+    let station = crate::web::protocol::HelloStation::new(&config.station, None);
     tasks.spawn(crate::web::serve(
         http,
         pipeline,
         config.map.clone(),
         config.band_filter.clone(),
+        station,
         shutdown,
     ));
 }

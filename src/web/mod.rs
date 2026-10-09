@@ -21,7 +21,7 @@ use crate::band_filter::BandSet;
 use crate::config::MapConfig;
 use crate::errors::{Error, Result};
 use crate::pipeline::Pipeline;
-use crate::web::protocol::{ClientMessage, ServerMessage};
+use crate::web::protocol::{ClientMessage, HelloStation, ServerMessage};
 use crate::web::session::{MessageSink, drive};
 
 const INDEX_HTML: &str = include_str!("assets/index.html");
@@ -32,12 +32,17 @@ const APP_CSS: &str = include_str!("assets/app.css");
 const VIEW_JS: &str = include_str!("assets/view.js");
 const LAYERS_JS: &str = include_str!("assets/layers.js");
 const CONNECTION_JS: &str = include_str!("assets/connection.js");
+const QTH_JS: &str = include_str!("assets/qth.js");
+const AUTOZOOM_JS: &str = include_str!("assets/autozoom.js");
+const AUTOZOOM_GEO_JS: &str = include_str!("assets/autozoom-geo.js");
+const RECENT_JS: &str = include_str!("assets/recent.js");
 
 #[derive(Clone)]
 struct AppState {
     pipeline: Pipeline,
     map: Arc<MapConfig>,
     band_filter: Arc<Option<BandSet>>,
+    station: Arc<HelloStation>,
     sessions: Arc<AtomicUsize>,
     started: Instant,
     shutdown: watch::Receiver<bool>,
@@ -49,12 +54,14 @@ pub async fn serve(
     pipeline: Pipeline,
     map: MapConfig,
     band_filter: Option<BandSet>,
+    station: HelloStation,
     shutdown: watch::Receiver<bool>,
 ) {
     let state = AppState {
         pipeline,
         map: Arc::new(map),
         band_filter: Arc::new(band_filter),
+        station: Arc::new(station),
         sessions: Arc::new(AtomicUsize::new(0)),
         started: Instant::now(),
         shutdown: shutdown.clone(),
@@ -77,6 +84,16 @@ pub async fn serve(
             "/connection.js",
             get(|| asset("text/javascript", CONNECTION_JS)),
         )
+        .route("/qth.js", get(|| asset("text/javascript", QTH_JS)))
+        .route(
+            "/autozoom.js",
+            get(|| asset("text/javascript", AUTOZOOM_JS)),
+        )
+        .route(
+            "/autozoom-geo.js",
+            get(|| asset("text/javascript", AUTOZOOM_GEO_JS)),
+        )
+        .route("/recent.js", get(|| asset("text/javascript", RECENT_JS)))
         .route("/ws", get(ws_handler))
         .route("/healthz", get(healthz))
         .fallback(|| async { StatusCode::NOT_FOUND })
@@ -126,6 +143,7 @@ async fn session_task(socket: WebSocket, state: AppState) {
         &state.pipeline,
         &state.map,
         state.band_filter.as_ref().as_ref(),
+        &state.station,
         state.shutdown.clone(),
     )
     .await;

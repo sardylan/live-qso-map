@@ -10,7 +10,7 @@ use crate::errors::Result;
 use crate::history::History;
 use crate::pipeline::{HistoryChange, Pipeline};
 use crate::web::protocol::{
-    ClientMessage, DEFAULT_LIMIT, QsoView, ServerMessage, is_allowed_limit,
+    ClientMessage, DEFAULT_LIMIT, HelloStation, QsoView, ServerMessage, is_allowed_limit,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -40,8 +40,12 @@ impl Session {
         history: &History,
         map: &MapConfig,
         filter: Option<&BandSet>,
+        station: &HelloStation,
     ) -> Vec<ServerMessage> {
-        vec![ServerMessage::hello(map, filter), self.snapshot(history)]
+        vec![
+            ServerMessage::hello(map, filter, station),
+            self.snapshot(history),
+        ]
     }
 
     pub fn on_change(&self, change: &HistoryChange) -> Vec<ServerMessage> {
@@ -104,12 +108,13 @@ pub async fn drive<S: MessageSink>(
     pipeline: &Pipeline,
     map: &MapConfig,
     filter: Option<&BandSet>,
+    station: &HelloStation,
     mut shutdown: watch::Receiver<bool>,
 ) {
     let mut session = Session::new();
     let initial = {
         let history = pipeline.lock_history();
-        session.on_connect(&history, map, filter)
+        session.on_connect(&history, map, filter, station)
     };
     if send_all(&mut sink, initial).await.is_err() {
         return;
@@ -204,7 +209,12 @@ mod tests {
     fn connect_emits_hello_then_snapshot_of_20() {
         let p = pipeline_with(25, 16);
         let session = Session::new();
-        let msgs = session.on_connect(&p.lock_history(), &Config::default().map, None);
+        let msgs = session.on_connect(
+            &p.lock_history(),
+            &Config::default().map,
+            None,
+            &HelloStation::default(),
+        );
         assert_eq!(
             msgs.iter().map(kind).collect::<Vec<_>>(),
             ["hello", "snapshot"]
@@ -335,7 +345,16 @@ mod tests {
         let rx = pipeline.subscribe();
         let snapshot_source = pipeline.clone();
         let driver = tokio::spawn(async move {
-            drive(sink, rx, &snapshot_source, &map, None, stop_rx).await;
+            drive(
+                sink,
+                rx,
+                &snapshot_source,
+                &map,
+                None,
+                &HelloStation::default(),
+                stop_rx,
+            )
+            .await;
         });
 
         // The driver is blocked sending `hello`; overflow the 4-slot broadcast queue.

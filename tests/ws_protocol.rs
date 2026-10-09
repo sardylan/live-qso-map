@@ -39,7 +39,13 @@ async fn every_page_receives_hello_snapshot_and_live_upserts() {
         let hello = next_json(ws, Duration::from_secs(2)).await.unwrap();
         assert_eq!(hello["type"], "hello");
         assert_eq!(hello["default_limit"], 20);
-        assert_eq!(hello["protocol"], 2);
+        assert_eq!(hello["protocol"], 3);
+        // test_config(): IS0MZK at JM49NH.
+        assert_eq!(hello["station"]["callsign"], "IS0MZK");
+        assert_eq!(hello["station"]["locator"], "JM49NH");
+        assert_eq!(hello["station"]["position"]["precision"], "locator6");
+        assert_eq!(hello["station"]["position"]["source"], "config");
+        assert!(hello.get("entity").is_some());
         assert_eq!(hello["basemap"]["kind"], "style");
         assert_eq!(
             hello["basemap"]["url"],
@@ -93,6 +99,10 @@ async fn static_assets_are_served() {
         ("/connection.js", "text/javascript"),
         ("/view.js", "text/javascript"),
         ("/layers.js", "text/javascript"),
+        ("/qth.js", "text/javascript"),
+        ("/autozoom.js", "text/javascript"),
+        ("/autozoom-geo.js", "text/javascript"),
+        ("/recent.js", "text/javascript"),
     ] {
         let response = reqwest::get(format!("http://{}{path}", service.http_addr))
             .await

@@ -6,11 +6,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::adif::AdifRecord;
 use crate::band_filter::BandSet;
-use crate::config::{BaseMap, MapConfig};
+use crate::config::{BaseMap, MapConfig, StationConfig};
 use crate::history::{EnrichedQso, format_rfc3339, qso_timestamp};
 use crate::position::Position;
 
-pub const PROTOCOL_VERSION: u32 = 2;
+pub const PROTOCOL_VERSION: u32 = 3;
 pub const DEFAULT_LIMIT: usize = 20;
 /// Limits a page may select; `None` means All.
 pub const LIMITS: [Option<usize>; 7] = [
@@ -48,6 +48,55 @@ pub fn bands_in_order(bands: &BTreeMap<String, String>) -> Vec<BandColor> {
     list
 }
 
+/// The configured station, sent once in `hello` (feature 004, FR-025).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct StationView {
+    pub callsign: Option<String>,
+    pub locator: Option<String>,
+    pub position: Option<Position>,
+}
+
+/// The station's DXCC/WAE entity and its approximate extent (feature 004, FR-010, HR-6).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct EntityView {
+    pub prefix: String,
+    pub name: String,
+    /// `[west, south, east, north]`; `west > east` crosses the antimeridian.
+    pub bounds: [f64; 4],
+}
+
+/// The station data every `hello` carries, computed once at startup.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct HelloStation {
+    pub station: Option<StationView>,
+    pub entity: Option<EntityView>,
+}
+
+impl HelloStation {
+    pub fn new(config: &StationConfig, entity: Option<EntityView>) -> Self {
+        let callsign = config
+            .callsign
+            .as_deref()
+            .map(|c| c.trim().to_ascii_uppercase())
+            .filter(|c| !c.is_empty());
+        let locator = config
+            .locator
+            .as_deref()
+            .map(str::trim)
+            .filter(|l| !l.is_empty())
+            .map(str::to_string);
+        let position = crate::enrich::station::config_station(config);
+        let station = (callsign.is_some() || locator.is_some() || position.is_some()).then_some(
+            StationView {
+                callsign,
+                locator,
+                position,
+            },
+        );
+        Self { station, entity }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ServerMessage {
@@ -58,6 +107,8 @@ pub enum ServerMessage {
         bands: Vec<BandColor>,
         fallback_color: String,
         basemap: BaseMap,
+        station: Option<StationView>,
+        entity: Option<EntityView>,
     },
     Snapshot {
         limit: Option<usize>,
@@ -75,7 +126,7 @@ pub enum ServerMessage {
 impl ServerMessage {
     /// Only bands in `filter` are listed (all when `None`); `protocol` and `basemap` are
     /// unaffected (feature 003, FR-010).
-    pub fn hello(map: &MapConfig, filter: Option<&BandSet>) -> Self {
+    pub fn hello(map: &MapConfig, filter: Option<&BandSet>, station: &HelloStation) -> Self {
         ServerMessage::Hello {
             protocol: PROTOCOL_VERSION,
             limits: LIMITS.to_vec(),
@@ -86,6 +137,8 @@ impl ServerMessage {
                 .collect(),
             fallback_color: map.fallback_color.clone(),
             basemap: map.basemap(),
+            station: station.station.clone(),
+            entity: station.entity.clone(),
         }
     }
 }
@@ -198,12 +251,17 @@ mod tests {
 
     #[test]
     fn hello_shape() {
-        let v = serde_json::to_value(ServerMessage::hello(&map_config(), None)).unwrap();
+        let v = serde_json::to_value(ServerMessage::hello(
+            &map_config(),
+            None,
+            &HelloStation::default(),
+        ))
+        .unwrap();
         assert_eq!(
             v,
             json!({
                 "type": "hello",
-                "protocol": 2,
+                "protocol": 3,
                 "limits": [10, 20, 50, 100, 200, 500, null],
                 "default_limit": 20,
                 "bands": [
@@ -212,7 +270,9 @@ mod tests {
                     {"band": "10m", "color": "#393b79"}
                 ],
                 "fallback_color": "#7f7f7f",
-                "basemap": {"kind": "style", "url": "https://style.example/style.json", "attribution": "attr"}
+                "basemap": {"kind": "style", "url": "https://style.example/style.json", "attribution": "attr"},
+                "station": null,
+                "entity": null
             })
         );
     }
@@ -308,7 +368,8 @@ mod tests {
         map.style_attribution = None;
         map.tile_url = Some("https://t/{z}/{x}/{y}.png".into());
         map.tile_attribution = Some("tiles".into());
-        let v = serde_json::to_value(ServerMessage::hello(&map, None)).unwrap();
+        let v = serde_json::to_value(ServerMessage::hello(&map, None, &HelloStation::default()))
+            .unwrap();
         assert_eq!(
             v["basemap"],
             json!({"kind": "raster", "url": "https://t/{z}/{x}/{y}.png", "attribution": "tiles"})
@@ -328,8 +389,14 @@ mod tests {
             map.bands.insert(band.to_string(), color.to_string());
         }
         let contest = crate::band_filter::resolve(&["hf-contest"]).unwrap();
-        let filtered = serde_json::to_value(ServerMessage::hello(&map, Some(&contest))).unwrap();
-        let all = serde_json::to_value(ServerMessage::hello(&map, None)).unwrap();
+        let filtered = serde_json::to_value(ServerMessage::hello(
+            &map,
+            Some(&contest),
+            &HelloStation::default(),
+        ))
+        .unwrap();
+        let all = serde_json::to_value(ServerMessage::hello(&map, None, &HelloStation::default()))
+            .unwrap();
         let bands = |v: &serde_json::Value| -> Vec<String> {
             v["bands"]
                 .as_array()
@@ -341,8 +408,101 @@ mod tests {
         assert_eq!(bands(&filtered), ["160m", "20m"]);
         assert_eq!(bands(&all), ["160m", "60m", "20m", "2m"]);
         for v in [&filtered, &all] {
-            assert_eq!(v["protocol"], 2);
+            assert_eq!(v["protocol"], 3);
             assert_eq!(v["basemap"], serde_json::to_value(map.basemap()).unwrap());
+        }
+    }
+
+    fn station(
+        callsign: Option<&str>,
+        locator: Option<&str>,
+        lat_lon: Option<(f64, f64)>,
+    ) -> crate::config::StationConfig {
+        crate::config::StationConfig {
+            callsign: callsign.map(str::to_string),
+            locator: locator.map(str::to_string),
+            latitude: lat_lon.map(|(lat, _)| lat),
+            longitude: lat_lon.map(|(_, lon)| lon),
+        }
+    }
+
+    fn hello_with(station: &HelloStation) -> serde_json::Value {
+        serde_json::to_value(ServerMessage::hello(&map_config(), None, station)).unwrap()
+    }
+
+    #[test]
+    fn hello_station_from_callsign_and_locator() {
+        let v = hello_with(&HelloStation::new(
+            &station(Some(" is0mzk "), Some("JM49NH"), None),
+            None,
+        ));
+        let (lat, lon) = crate::maidenhead::centre("JM49NH").unwrap();
+        assert_eq!(
+            v["station"],
+            json!({
+                "callsign": "IS0MZK",
+                "locator": "JM49NH",
+                "position": {"lat": lat, "lon": lon, "precision": "locator6", "source": "config"}
+            })
+        );
+        assert_eq!(v["entity"], serde_json::Value::Null);
+    }
+
+    #[test]
+    fn hello_station_coordinates_win_over_locator() {
+        let v = hello_with(&HelloStation::new(
+            &station(Some("IS0MZK"), Some("JM49NH"), Some((39.2, 9.1))),
+            None,
+        ));
+        assert_eq!(
+            v["station"]["position"],
+            json!({"lat": 39.2, "lon": 9.1, "precision": "coordinates", "source": "config"})
+        );
+    }
+
+    #[test]
+    fn hello_station_with_only_a_callsign_has_no_position() {
+        let v = hello_with(&HelloStation::new(
+            &station(Some("IS0MZK"), None, None),
+            None,
+        ));
+        assert_eq!(
+            v["station"],
+            json!({"callsign": "IS0MZK", "locator": null, "position": null})
+        );
+    }
+
+    #[test]
+    fn hello_station_is_null_when_nothing_is_configured() {
+        let v = hello_with(&HelloStation::new(&station(None, None, None), None));
+        assert_eq!(v["station"], serde_json::Value::Null);
+    }
+
+    #[test]
+    fn hello_entity_shape() {
+        let entity = EntityView {
+            prefix: "IS".into(),
+            name: "Sardinia".into(),
+            bounds: [8.13, 38.86, 9.83, 41.31],
+        };
+        let v = hello_with(&HelloStation::new(
+            &station(Some("IS0MZK"), Some("JM49NH"), None),
+            Some(entity),
+        ));
+        assert_eq!(
+            v["entity"],
+            json!({"prefix": "IS", "name": "Sardinia", "bounds": [8.13, 38.86, 9.83, 41.31]})
+        );
+        // The rest of hello is unchanged by the station data.
+        let plain = hello_with(&HelloStation::default());
+        for key in [
+            "bands",
+            "basemap",
+            "limits",
+            "default_limit",
+            "fallback_color",
+        ] {
+            assert_eq!(v[key], plain[key], "{key}");
         }
     }
 

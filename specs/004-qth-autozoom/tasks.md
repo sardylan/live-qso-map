@@ -37,13 +37,13 @@ the frontend (Node via nvm: `~/.nvm/versions/node/v26.11.1/bin/node`). The dev-o
 
 ## Phase 1: Setup
 
-- [ ] T001 Create the module skeletons. `cargo build` and `node --test web/` must still pass.
+- [X] T001 Create the module skeletons. `cargo build` and `node --test web/` must still pass.
   - Add `pub mod entity_extents;` to `src/lib.rs` and create `src/entity_extents.rs` with the doc
     comment `//! Bundled DXCC entity extents (feature 004, research R2).`
   - Create the empty ES modules `src/web/assets/qth.js`, `autozoom-geo.js`, `autozoom.js` and
     `recent.js`, each with a header comment that says it is pure (no DOM, no MapLibre).
   - Add `/.cache/` to `.gitignore`.
-- [ ] T002 Add the routes `/qth.js`, `/autozoom.js`, `/autozoom-geo.js` and `/recent.js` to
+- [X] T002 Add the routes `/qth.js`, `/autozoom.js`, `/autozoom-geo.js` and `/recent.js` to
   `src/web/mod.rs` (`include_str!` constants, `text/javascript`). In `tests/ws_protocol.rs`, extend
   the asset test to fetch all four and assert `200` with `text/javascript`. Write the test first.
 
@@ -55,7 +55,7 @@ the frontend (Node via nvm: `~/.nvm/versions/node/v26.11.1/bin/node`). The dev-o
 
 ### Tests first (write, run, confirm they FAIL)
 
-- [ ] T003 [P] Write unit tests in `src/web/protocol.rs` (contracts/websocket-protocol.md):
+- [X] T003 [P] Write unit tests in `src/web/protocol.rs` (contracts/websocket-protocol.md):
   - **protocol**: `hello` has `protocol: 3`;
   - **station**:
     - built from a `StationConfig` with callsign `" is0mzk "` and locator `JM49NH`, it serialises
@@ -67,13 +67,13 @@ the frontend (Node via nvm: `~/.nvm/versions/node/v26.11.1/bin/node`). The dev-o
     `{"prefix":"IS","name":"Sardinia","bounds":[w,s,e,n]}` when it has one;
   - **unchanged fields**: `bands`, `basemap`, `limits`, `default_limit` and `fallback_color` are
     unchanged (feature-003 filter included).
-- [ ] T004 [P] In `tests/ws_protocol.rs`, assert that the `hello` received over a real WebSocket has
+- [X] T004 [P] In `tests/ws_protocol.rs`, assert that the `hello` received over a real WebSocket has
   `protocol: 3`, a `station` object matching `test_config()`'s station (or `null` when it has none),
   and an `entity` key.
 
 ### Implementation
 
-- [ ] T005 Implement in `src/web/protocol.rs` (data-model "Server side"):
+- [X] T005 Implement in `src/web/protocol.rs` (data-model "Server side"):
   - set `PROTOCOL_VERSION = 3`;
   - add `StationView`, `EntityView`, and `HelloStation { station: Option<StationView>, entity:
     Option<EntityView> }` with `HelloStation::new(&StationConfig, Option<EntityView>)`;
@@ -81,7 +81,7 @@ the frontend (Node via nvm: `~/.nvm/versions/node/v26.11.1/bin/node`). The dev-o
     rather than duplicating it;
   - add `station` and `entity` to `ServerMessage::Hello`, and change the signature to
     `hello(map, filter, &HelloStation)`.
-- [ ] T006 Wire it through:
+- [X] T006 Wire it through:
   - in `src/pipeline.rs`, `start` builds `HelloStation` once (entity `None` for now; T021 fills it)
     and passes it to `web::serve`;
   - `src/web/mod.rs` stores it in `AppState` (`Arc<HelloStation>`);

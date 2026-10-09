@@ -6,6 +6,7 @@ pub mod band;
 pub mod band_filter;
 pub mod config;
 pub mod enrich;
+pub mod entity_extents;
 pub mod errors;
 pub mod history;
 pub mod ingest;
