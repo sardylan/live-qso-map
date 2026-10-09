@@ -7,3 +7,4 @@
 node_modules/
 /cty.dat
 /.cache/
+__pycache__/
