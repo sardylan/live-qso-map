@@ -112,7 +112,21 @@ jobs:
           name: Python tool tests
           command: python3 -m unittest tools/test_entity_extents.py
 
+  # Release gate (FR-002): the tag must be "v" + the Cargo.toml version.
+  check-version:
+    docker:
+      - image: cimg/base:current
+    steps:
+      - checkout
+      - run:
+          name: Test the version gate
+          command: sh scripts/test-check-version.sh
+      - run:
+          name: Tag matches Cargo.toml
+          command: sh scripts/check-version.sh "$CIRCLE_TAG"
+
   # Static musl binaries through cross (Cross.toml). Cross-compiling happens only here.
+  # Raw binaries stay in the workspace under bin/; only release/ is published.
   build-linux:
     executor: linux-machine
     parameters:
@@ -130,12 +144,20 @@ jobs:
           name: Build
           command: |
             cross build --release --locked --target << parameters.target >>
-            mkdir -p dist
-            cp target/<< parameters.target >>/release/live-qso-map dist/live-qso-map-<< parameters.target >>
+      - run:
+          name: Archive with the license
+          command: |
+            version="${CIRCLE_TAG#v}"
+            mkdir -p ws/bin/<< parameters.target >> ws/release stage
+            cp target/<< parameters.target >>/release/live-qso-map ws/bin/<< parameters.target >>/
+            install -m 755 target/<< parameters.target >>/release/live-qso-map stage/live-qso-map
+            cp LICENSE.md stage/
+            tar -czf "ws/release/live-qso-map-${version}-<< parameters.target >>.tar.gz" -C stage live-qso-map LICENSE.md
       - persist_to_workspace:
-          root: dist
+          root: ws
           paths:
-            - live-qso-map-<< parameters.target >>
+            - bin/<< parameters.target >>
+            - release
 
   build-macos:
     executor: macos
@@ -146,12 +168,12 @@ jobs:
           name: Build
           command: |
             cargo build --release --locked
-            mkdir -p dist
-            cp target/release/live-qso-map dist/live-qso-map-aarch64-apple-darwin
+            mkdir -p ws/bin/aarch64-apple-darwin
+            cp target/release/live-qso-map ws/bin/aarch64-apple-darwin/
       - persist_to_workspace:
-          root: dist
+          root: ws
           paths:
-            - live-qso-map-aarch64-apple-darwin
+            - bin/aarch64-apple-darwin
 
   build-windows:
     executor: win/server-2025
@@ -171,30 +193,27 @@ jobs:
           command: |
             export PATH="$USERPROFILE/.cargo/bin:$PATH"
             cargo build --release --locked --target x86_64-pc-windows-msvc
-            mkdir -p dist
-            cp target/x86_64-pc-windows-msvc/release/live-qso-map.exe dist/live-qso-map-x86_64-pc-windows-msvc.exe
+            mkdir -p ws/bin/x86_64-pc-windows-msvc
+            cp target/x86_64-pc-windows-msvc/release/live-qso-map.exe ws/bin/x86_64-pc-windows-msvc/
       - persist_to_workspace:
-          root: dist
+          root: ws
           paths:
-            - live-qso-map-x86_64-pc-windows-msvc.exe
+            - bin/x86_64-pc-windows-msvc
 
-  store-artifacts:
-    docker:
-      - image: cimg/base:current
-    steps:
-      - attach_workspace:
-          at: /tmp/workspace
-      - store_artifacts:
-          path: /tmp/workspace
-
+  # Publishes only ws/release (packages and archives), with SHA256SUMS (FR-003, FR-004).
   publish-github-release:
     executor: github
     steps:
       - attach_workspace:
-          at: ./workspace
+          at: ./ws
+      - run:
+          name: Checksums
+          command: cd ws/release && sha256sum * > SHA256SUMS && cat SHA256SUMS
+      - store_artifacts:
+          path: ws/release
       - run:
           name: Publish the GitHub release
-          command: ghr -t "${GITHUB_TOKEN}" -u "${CIRCLE_PROJECT_USERNAME}" -r "${CIRCLE_PROJECT_REPONAME}" -c "${CIRCLE_SHA1}" -delete "${CIRCLE_TAG}" ./workspace/
+          command: ghr -t "${GITHUB_TOKEN}" -u "${CIRCLE_PROJECT_USERNAME}" -r "${CIRCLE_PROJECT_REPONAME}" -c "${CIRCLE_SHA1}" -delete "${CIRCLE_TAG}" ./ws/release/
 
 workflows:
   test_and_build:
@@ -211,12 +230,14 @@ workflows:
       - test-tools:
           filters: *every-commit
       # Release builds and the release run on release tags only (constitution Principle V).
-      - build-linux:
+      - check-version:
           filters: &release-tags
             tags:
               only: /^v\d+\.\d+\.\d+$/
             branches:
               ignore: /.*/
+      - build-linux:
+          filters: *release-tags
           name: build-linux-<< matrix.target >>
           matrix:
             parameters:
@@ -224,16 +245,13 @@ workflows:
                 - x86_64-unknown-linux-musl
                 - aarch64-unknown-linux-musl
                 - armv7-unknown-linux-musleabihf
-          requires: [lint, test-rust, test-web, test-tools]
+          requires: [check-version, lint, test-rust, test-web, test-tools]
       - build-macos:
           filters: *release-tags
-          requires: [lint, test-rust, test-web, test-tools]
+          requires: [check-version, lint, test-rust, test-web, test-tools]
       - build-windows:
           filters: *release-tags
-          requires: [lint, test-rust, test-web, test-tools]
-      - store-artifacts:
-          filters: *release-tags
-          requires: [build-linux, build-macos, build-windows]
+          requires: [check-version, lint, test-rust, test-web, test-tools]
       - publish-github-release:
           filters: *release-tags
-          requires: [store-artifacts]
+          requires: [build-linux, build-macos, build-windows]

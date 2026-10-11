@@ -30,6 +30,10 @@ pub enum Error {
         lat: f64,
         lon: f64,
     },
+    ConfigWrite {
+        path: std::path::PathBuf,
+        source: std::io::Error,
+    },
 }
 
 impl fmt::Display for Error {
@@ -48,6 +52,13 @@ impl fmt::Display for Error {
             Error::InvalidPosition { lat, lon } => {
                 write!(f, "invalid position: lat {lat}, lon {lon}")
             }
+            Error::ConfigWrite { path, source } => {
+                write!(
+                    f,
+                    "cannot write configuration file {}: {source}",
+                    path.display()
+                )
+            }
         }
     }
 }
@@ -61,6 +72,7 @@ impl std::error::Error for Error {
             Error::Http(e) => Some(e),
             Error::Json(e) => Some(e),
             Error::Task(e) => Some(e),
+            Error::ConfigWrite { source, .. } => Some(source),
             Error::Config { .. }
             | Error::Adif { .. }
             | Error::QarTest { .. }
@@ -176,6 +188,10 @@ mod tests {
                 lat: 91.0,
                 lon: 0.0,
             },
+            Error::ConfigWrite {
+                path: "/x.toml".into(),
+                source: std::io::Error::other("denied"),
+            },
         ]
     }
 
@@ -210,9 +226,26 @@ mod tests {
                     | Error::Http(_)
                     | Error::Json(_)
                     | Error::Task(_)
+                    | Error::ConfigWrite { .. }
             );
             assert_eq!(e.source().is_some(), wraps, "{e:?}");
         }
+    }
+
+    #[test]
+    fn config_write_names_the_path_and_wraps_the_io_error() {
+        let e = Error::ConfigWrite {
+            path: std::path::PathBuf::from("/etc/live-qso-map/config.toml"),
+            source: std::io::Error::other("permission denied"),
+        };
+        assert_eq!(
+            e.to_string(),
+            "cannot write configuration file /etc/live-qso-map/config.toml: permission denied"
+        );
+        assert_eq!(
+            e.source().map(|s| s.to_string()).as_deref(),
+            Some("permission denied")
+        );
     }
 
     #[test]

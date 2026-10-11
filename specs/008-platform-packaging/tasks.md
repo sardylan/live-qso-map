@@ -47,11 +47,11 @@ order.
 
 ## Phase 1: Setup
 
-- [ ] T001 In `Cargo.toml`, set the clap line to
+- [X] T001 In `Cargo.toml`, set the clap line to
   `clap = { version = "4.6", features = ["derive", "wrap_help", "unicode"] }`. This replaces the
   operator's in-progress `["derive", ]` edit. Keep the default features, which include `color`,
   `suggestions` and `error-context`. Run `cargo build` and commit `Cargo.lock`.
-- [ ] T002 [P] Create stub modules so later tests compile, and register both in `src/lib.rs`:
+- [X] T002 [P] Create stub modules so later tests compile, and register both in `src/lib.rs`:
   - `src/config_export.rs`: `pub fn render(config: &Config, version: &str, now_utc: &str) -> String`
     and `pub fn write(path: &Path, text: &str, stdout: &mut dyn Write) -> Result<()>`. The stubs
     return an empty string and `Ok(())`; no `todo!()`;
@@ -62,12 +62,12 @@ order.
 
 ## Phase 2: Foundational (blocking prerequisites)
 
-- [ ] T003 [P] Write failing tests in `src/errors.rs` for `Error::ConfigWrite { path: PathBuf,
+- [X] T003 [P] Write failing tests in `src/errors.rs` for `Error::ConfigWrite { path: PathBuf,
   source: std::io::Error }`:
   - `Display` is `cannot write configuration file <path>: <io error>`;
   - `source()` returns the I/O error.
-- [ ] T004 Add `Error::ConfigWrite` to `src/errors.rs` to make T003 pass.
-- [ ] T005 [P] Write `scripts/test-check-version.sh`, a POSIX `sh` test for
+- [X] T004 Add `Error::ConfigWrite` to `src/errors.rs` to make T003 pass.
+- [X] T005 [P] Write `scripts/test-check-version.sh`, a POSIX `sh` test for
   `scripts/check-version.sh <tag> [Cargo.toml]`. Using a temporary `Cargo.toml` with
   `version = "2.0.0"` under `[package]` (and another `version` under `[dependencies]` to catch a
   naive match), it checks:
@@ -77,7 +77,7 @@ order.
   - an empty tag → exit 1.
 
   It fails until T006 exists. Check it with `sh -n`.
-- [ ] T006 [R:YELLOW] Write `scripts/check-version.sh` (POSIX `sh`, `sed`/`grep` on the
+- [X] T006 [R:YELLOW] Write `scripts/check-version.sh` (POSIX `sh`, `sed`/`grep` on the
   `version` line of the `[package]` table only), so T005 passes. Then, in
   `.circleci/config.yml`, restructure the tag-only part of the workflow
   (contracts/release-artifacts.md):
