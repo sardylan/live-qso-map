@@ -509,11 +509,14 @@ FR-027).
 - [X] T054 [P] Add the three CircleCI variables to `README.md`'s Development section:
   `GITHUB_TOKEN`, `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`
   (contracts/release-artifacts.md).
-- [ ] T055 Close the feature:
+- [X] T055 Close the feature:
   1. set spec `Status: Complete`;
   2. move TR-010 and TR-011 to `accepted` in `docs/tradeoffs.md`;
   3. merge `feature/008-platform-packaging` into `main`;
   4. delete the branch locally and on the remote (constitution 1.6.0, Development Workflow).
+
+  *Closing note*: there is no fork of the repository, so T026, T052 and T053 §4–§8 move to the
+  first release tag (`v2.0.0` on `main`); see `checklists/verification.md`.
 
 ## Dependencies & Execution Order
 

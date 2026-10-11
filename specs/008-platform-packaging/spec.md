@@ -2,7 +2,7 @@
 
 **Feature Branch**: `feature/008-platform-packaging`
 **Created**: 2026-10-11
-**Status**: Draft
+**Status**: Complete
 **Input**: User description: "Add new spec for release in the various platforms. Prepare Cargo.toml
 and other files for packaging in the various platforms. Linux: Ubuntu/Debian DEB package, if
 possible a single package (if it has no OS dependencies and is compatible between libc and musl);

@@ -29,3 +29,11 @@
 | §6 Windows | pending: needs the zip from a release tag (T052) |
 | §7 macOS archive | pending: needs the zip from a release tag (T052) |
 | §8 Release integrity | pending: needs a release tag on a fork (T052) |
+
+## Deferred to the first release tag
+
+The feature was closed on 2026-10-11 without a fork run, because the repository has no fork.
+T026 (generated maintainer scripts), T052 (tag workflow, artifacts, `SHA256SUMS`, mismatching tag)
+and quickstart §4–§8 are checked on the first release tag, `v2.0.0` on `main`. If that tag's build
+fails, nothing is published; the fix lands on `main` and a new tag is cut (constitution,
+Development Workflow).

@@ -22,8 +22,8 @@ we deliberately gave up. Records the *why*, not just the *what*.
 | TR-007 | proposed | Score staleness is judged from a server-supplied age, not the browser clock | 2026-10-09 |
 | TR-008 | proposed | Cross-compile only in the pipeline; gate every main commit, build releases on tags | 2026-10-11 |
 | TR-009 | proposed | Feature branches named feature/NNN-title and deleted after merge | 2026-10-11 |
-| TR-010 | proposed | Purge deletes the service account, guarded by a GECOS marker | 2026-10-11 |
-| TR-011 | proposed | Windows waits for Enter after an error whenever input is interactive | 2026-10-11 |
+| TR-010 | accepted | Purge deletes the service account, guarded by a GECOS marker | 2026-10-11 |
+| TR-011 | accepted | Windows waits for Enter after an error whenever input is interactive | 2026-10-11 |
 
 ## Decisions
 
@@ -407,7 +407,7 @@ Constitution 1.6.0, Development Workflow: features are developed on feature/NNN-
 
 ## TR-010: Purge deletes the service account, guarded by a GECOS marker
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-10-11
 - Phase: plan
 - Deciders: project owner
@@ -428,7 +428,7 @@ The Debian package creates a dedicated unprivileged account live-qso-map for the
 
 | Option | Pros | Cons / what it sacrifices |
 |--------|------|---------------------------|
-| postinst creates the account with GECOS 'live-qso-map service'; postrm purge deletes /etc and /var/lib first, then the account only if the GECOS marker matches, then the group if empty (chosen) | Clean purge as asked; foreign accounts are safe; no orphaned files | Goes against Debian's advice to keep system accounts; relies on the GECOS field not being edited |
+| postinst creates the account with GECOS 'live-qso-map service'; postrm purge deletes /etc and /var/lib first, then the account only if the GECOS marker matches, and with it the group if empty (chosen) | Clean purge as asked; foreign accounts are safe; no orphaned files | Goes against Debian's advice to keep system accounts; relies on the GECOS field not being edited |
 | systemd-sysusers | Declarative, no shell logic | Never removes accounts, so purge leaves the account |
 | systemd DynamicUser (today's unit) | No persistent account at all | No dedicated account, which the operator asked for; file ownership changes between runs |
 
@@ -443,7 +443,7 @@ Purge deletes the service account and group after removing /etc/live-qso-map and
 
 ## TR-011: Windows waits for Enter after an error whenever input is interactive
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-10-11
 - Phase: plan
 - Deciders: project owner
