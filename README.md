@@ -1,5 +1,7 @@
 # live-qso-map
 
+[![CircleCI](https://dl.circleci.com/status-badge/img/gh/sardylan/live-qso-map/tree/main.svg?style=shield)](https://dl.circleci.com/status-badge/redirect/gh/sardylan/live-qso-map/tree/main)
+
 A live map of every QSO an amateur radio station makes during a contest.
 
 Your logger sends each QSO over UDP. live-qso-map converts it to ADIF, works out where the other
@@ -218,6 +220,7 @@ cargo test --release --test load_ws -- --ignored --nocapture  # load test (SC-00
 | Rust conventions | [`docs/rust-guidelines.md`](docs/rust-guidelines.md) |
 | Specification, plan and tasks | [`specs/001-live-qso-map/`](specs/001-live-qso-map/) |
 | Debugging an unknown logger | `tools/udp_capture.py` records raw datagrams |
+| Simulating QARTest QSOs | `scripts/simulate_qartest_qso.py CALL ...` sends one `contactinfo` per callsign |
 | HTTP and WebSocket rules | [`docs/http-api.md`](docs/http-api.md): JSON payloads, JSON error bodies |
 | Entity extents for auto-zoom | `tools/entity_extents.py` (below) |
 

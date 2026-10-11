@@ -5,159 +5,194 @@ orbs:
   win: circleci/windows@5.0.0
 
 executors:
-  linux-x86_64:
+  rust:
     docker:
-      - image: cimg/rust:1.82.0
-  linux-aarch64:
-    resource_class: arm.medium
+      - image: rust:1.98  # same toolchain as the Dockerfile
+  node:
     docker:
-      - image: cimg/rust:1.82.0
+      - image: node:22
+  python:
+    docker:
+      - image: python:3.13
+  linux-machine:
+    machine:
+      image: ubuntu-2404:current
   macos:
     macos:
       xcode: 16.1.0
+    resource_class: macos.m1.medium.gen1
   github:
     docker:
       - image: cibuilds/github:0.10
 
+commands:
+  install-rustup:
+    description: Install the Rust toolchain used by the project
+    steps:
+      - run:
+          name: Install Rust
+          command: |
+            curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain 1.98
+            echo 'source "$HOME/.cargo/env"' >> "$BASH_ENV"
+
 jobs:
-  test:
-    executor: linux-x86_64
+  lint:
+    executor: rust
     steps:
       - checkout
       - run:
-          name: Prepare environment
+          name: Install rustfmt and clippy
+          command: rustup component add rustfmt clippy
+      - run:
+          name: Format
+          command: cargo fmt --check
+      - run:
+          name: Clippy
+          command: cargo clippy --locked --all-targets -- -D warnings
+
+  test-rust:
+    executor: rust
+    steps:
+      - checkout
+      - run:
+          name: Tests
+          command: cargo test --locked
+
+  test-web:
+    executor: node
+    steps:
+      - checkout
+      - run:
+          name: Frontend tests
+          command: node --test web/
+
+  test-tools:
+    executor: python
+    steps:
+      - checkout
+      - run:
+          name: Python tool tests
+          command: python3 -m unittest tools/test_entity_extents.py
+
+  # Static musl binaries through cross, as in Cross.toml and the README.
+  build-linux:
+    executor: linux-machine
+    parameters:
+      target:
+        type: string
+    steps:
+      - checkout
+      - install-rustup
+      - run:
+          name: Install cross
           command: |
-            cargo install cargo2junit
-            mkdir -p test-results
-      - run:
-          name: Executing tests
-          command: RUSTC_BOOTSTRAP="1" cargo test --no-fail-fast -- -Z unstable-options --format json --report-time | cargo2junit > test-results/test-results.xml
-      - store_test_results:
-          path: test-results
-  build-linux-x86_64:
-    executor: linux-x86_64
-    steps:
-      - checkout
+            curl -sSfL https://github.com/cross-rs/cross/releases/download/v0.2.5/cross-x86_64-unknown-linux-musl.tar.gz \
+              | tar -xz -C "$HOME/.cargo/bin"
       - run:
           name: Build
           command: |
-            cargo build --release
-            mv target/release/live-qso-map target/release/live_qso_map-linux-x86_64
+            cross build --release --locked --target << parameters.target >>
+            mkdir -p dist
+            cp target/<< parameters.target >>/release/live-qso-map dist/live-qso-map-<< parameters.target >>
       - persist_to_workspace:
-          root: target/release
+          root: dist
           paths:
-            - live_qso_map-linux-x86_64
-  build-linux-aarch64:
-    executor: linux-aarch64
-    steps:
-      - checkout
-      - run:
-          name: Build
-          command: |
-            cargo build --release
-            mv target/release/live-qso-map target/release/live_qso_map-linux-aarch64
-      - persist_to_workspace:
-          root: target/release
-          paths:
-            - live_qso_map-linux-aarch64
+            - live-qso-map-<< parameters.target >>
+
   build-macos:
     executor: macos
     steps:
       - checkout
-      - run:
-          name: Install Rust
-          command: |
-            curl -o rustup https://sh.rustup.rs
-            bash rustup -y
+      - install-rustup
       - run:
           name: Build
           command: |
-            cargo build --release
-            mv target/release/live-qso-map target/release/live_qso_map-macos
+            cargo build --release --locked
+            mkdir -p dist
+            cp target/release/live-qso-map dist/live-qso-map-aarch64-apple-darwin
       - persist_to_workspace:
-          root: target/release
+          root: dist
           paths:
-            - live_qso_map-macos
-  build-windows-x64:
+            - live-qso-map-aarch64-apple-darwin
+
+  build-windows:
     executor: win/server-2022
     steps:
       - checkout
       - run:
           name: Install Rust
+          shell: bash.exe
           command: |
-            curl -o rustup https://sh.rustup.rs
-            bash rustup -y
-            rustup target add x86_64-pc-windows-msvc
+            curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64
+            ./rustup-init.exe -y --profile minimal --default-toolchain 1.98
       - run:
           name: Build
+          shell: bash.exe
           command: |
-            cargo build --release --target=x86_64-pc-windows-msvc
-            mv target/release/live-qso-map target/release/live_qso_map-windows-x64
+            export PATH="$USERPROFILE/.cargo/bin:$PATH"
+            cargo build --release --locked --target x86_64-pc-windows-msvc
+            mkdir -p dist
+            cp target/x86_64-pc-windows-msvc/release/live-qso-map.exe dist/live-qso-map-x86_64-pc-windows-msvc.exe
       - persist_to_workspace:
-          root: target/release
+          root: dist
           paths:
-            - live_qso_map-windows-x64
+            - live-qso-map-x86_64-pc-windows-msvc.exe
+
   store-artifacts:
-    executor: linux-x86_64
+    executor: rust
     steps:
       - attach_workspace:
           at: /workspace
       - store_artifacts:
           path: /workspace
+
   publish-github-release:
     executor: github
     steps:
       - attach_workspace:
           at: ./workspace
-      - run: ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -delete ${CIRCLE_TAG} ./workspace/
+      - run:
+          name: Publish the GitHub release
+          command: ghr -t "${GITHUB_TOKEN}" -u "${CIRCLE_PROJECT_USERNAME}" -r "${CIRCLE_PROJECT_REPONAME}" -c "${CIRCLE_SHA1}" -delete "${CIRCLE_TAG}" ./workspace/
 
 workflows:
   test_and_build:
     jobs:
-      - test:
-          filters:
+      # Tests run on every branch and on release tags (v2.0.0).
+      - lint:
+          filters: &every-commit
             tags:
               only: /^v\d+\.\d+\.\d+$/
-      - build-linux-x86_64:
-          requires:
-            - test
-          filters:
+      - test-rust:
+          filters: *every-commit
+      - test-web:
+          filters: *every-commit
+      - test-tools:
+          filters: *every-commit
+      # Builds and the release run on release tags only.
+      - build-linux:
+          filters: &release-tags
             tags:
               only: /^v\d+\.\d+\.\d+$/
             branches:
               ignore: /.*/
-      - build-linux-aarch64:
-          requires:
-            - test
-          filters:
-            tags:
-              only: /^v\d+\.\d+\.\d+$/
-            branches:
-              ignore: /.*/
+          name: build-linux-<< matrix.target >>
+          matrix:
+            parameters:
+              target:
+                - x86_64-unknown-linux-musl
+                - aarch64-unknown-linux-musl
+                - armv7-unknown-linux-musleabihf
+          requires: [lint, test-rust, test-web, test-tools]
       - build-macos:
-          requires:
-            - test
-          filters:
-            tags:
-              only: /^v\d+\.\d+\.\d+$/
-            branches:
-              ignore: /.*/
-      - build-windows-x64:
-          requires:
-            - test
-          filters:
-            tags:
-              only: /^v\d+\.\d+\.\d+$/
-            branches:
-              ignore: /.*/
+          filters: *release-tags
+          requires: [lint, test-rust, test-web, test-tools]
+      - build-windows:
+          filters: *release-tags
+          requires: [lint, test-rust, test-web, test-tools]
       - store-artifacts:
-          requires:
-            - build-linux-x86_64
-            - build-linux-aarch64
-            - build-macos
-            - build-windows-x64
-          filters:
-            tags:
-              only: /^v\d+\.\d+\.\d+$/
-            branches:
-              ignore: /.*/
+          filters: *release-tags
+          requires: [build-linux, build-macos, build-windows]
+      - publish-github-release:
+          filters: *release-tags
+          requires: [store-artifacts]
