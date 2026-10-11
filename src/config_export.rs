@@ -34,21 +34,27 @@ pub fn has_credentials(config: &Config) -> bool {
 /// A new file is created owner-only (`0600`) on Unix. A replaced file keeps its mode, and its
 /// owner and group when the writer may set them (FR-022, FR-024).
 pub fn write(path: &Path, text: &str, stdout: &mut dyn Write) -> Result<()> {
-    let fail = |source: std::io::Error| Error::ConfigWrite {
-        path: path.to_path_buf(),
-        source,
-    };
     if path == Path::new("-") {
-        stdout.write_all(text.as_bytes()).map_err(fail)?;
-        return stdout.flush().map_err(fail);
+        stdout
+            .write_all(text.as_bytes())
+            .map_err(write_error(path))?;
+        return stdout.flush().map_err(write_error(path));
     }
     let tmp = temporary_path(path);
-    let result = write_temporary(&tmp, path, text).and_then(|()| fs::rename(&tmp, path));
-    if let Err(e) = result {
+    let result = write_temporary(&tmp, path, text)
+        .and_then(|()| fs::rename(&tmp, path).map_err(write_error(path)));
+    if result.is_err() {
         let _ = fs::remove_file(&tmp);
-        return Err(fail(e));
     }
-    Ok(())
+    result
+}
+
+/// Maps an I/O error to [`Error::ConfigWrite`] naming the destination, never the temporary file.
+fn write_error(path: &Path) -> impl Fn(std::io::Error) -> Error + '_ {
+    move |source| Error::ConfigWrite {
+        path: path.to_path_buf(),
+        source,
+    }
 }
 
 fn temporary_path(path: &Path) -> PathBuf {
@@ -59,7 +65,7 @@ fn temporary_path(path: &Path) -> PathBuf {
     path.with_file_name(format!(".{name}.tmp-{}", std::process::id()))
 }
 
-fn write_temporary(tmp: &Path, target: &Path, text: &str) -> std::io::Result<()> {
+fn write_temporary(tmp: &Path, target: &Path, text: &str) -> Result<()> {
     let mut options = OpenOptions::new();
     options.write(true).create_new(true);
     #[cfg(unix)]
@@ -67,28 +73,29 @@ fn write_temporary(tmp: &Path, target: &Path, text: &str) -> std::io::Result<()>
         use std::os::unix::fs::OpenOptionsExt;
         options.mode(0o600);
     }
-    let mut file = options.open(tmp)?;
-    file.write_all(text.as_bytes())?;
-    file.sync_all()?;
+    let fail = write_error(target);
+    let mut file = options.open(tmp).map_err(&fail)?;
+    file.write_all(text.as_bytes()).map_err(&fail)?;
+    file.sync_all().map_err(&fail)?;
     drop(file);
     keep_existing_permissions(tmp, target)
 }
 
 /// Copies the target's mode, owner and group to the temporary file (Unix only).
 #[cfg(unix)]
-fn keep_existing_permissions(tmp: &Path, target: &Path) -> std::io::Result<()> {
+fn keep_existing_permissions(tmp: &Path, target: &Path) -> Result<()> {
     use std::os::unix::fs::MetadataExt;
     let Ok(meta) = fs::metadata(target) else {
         return Ok(());
     };
     // Only root may give the file away; anyone else keeps their own ownership.
     let _ = std::os::unix::fs::chown(tmp, Some(meta.uid()), Some(meta.gid()));
-    fs::set_permissions(tmp, meta.permissions())
+    fs::set_permissions(tmp, meta.permissions()).map_err(write_error(target))
 }
 
 /// Elsewhere the file takes the folder's default permissions.
 #[cfg(not(unix))]
-fn keep_existing_permissions(_tmp: &Path, _target: &Path) -> std::io::Result<()> {
+fn keep_existing_permissions(_tmp: &Path, _target: &Path) -> Result<()> {
     Ok(())
 }
 
@@ -417,6 +424,19 @@ mod tests {
             other => panic!("expected ConfigWrite, got {other:?}"),
         }
         assert!(entries(&dir).is_empty());
+    }
+
+    #[test]
+    fn failed_rename_names_the_destination_and_leaves_no_temporary() {
+        // The temporary file is written, then renaming it onto a folder fails.
+        let dir = temp_dir("rename");
+        let path = dir.join("c.toml");
+        std::fs::create_dir(&path).unwrap();
+        match write(&path, "a = 1\n", &mut Vec::new()) {
+            Err(crate::errors::Error::ConfigWrite { path: p, .. }) => assert_eq!(p, path),
+            other => panic!("expected ConfigWrite, got {other:?}"),
+        }
+        assert_eq!(entries(&dir), ["c.toml"]);
     }
 
     #[cfg(unix)]

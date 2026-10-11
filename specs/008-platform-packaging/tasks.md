@@ -589,7 +589,7 @@ spec/plan/tasks. Complete with `/speckit-implement`.
 Appended by `/speckit-converge` on review of the current codebase against
 spec/plan/tasks. Complete with `/speckit-implement`.
 
-- [ ] T059 [US2] Constitution (Principle II, `docs/rust-guidelines.md` §1.2): in
+- [X] T059 [US2] Constitution (Principle II, `docs/rust-guidelines.md` §1.2): in
   `src/config_export.rs`, `write_temporary` and both `cfg` variants of `keep_existing_permissions`
   return `std::io::Result<()>`; every fallible crate function must return the crate `Result<T>`.
   Make them return `Result<()>`, mapping I/O errors to `Error::ConfigWrite { path, source }` with
