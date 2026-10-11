@@ -1,17 +1,42 @@
 #![forbid(unsafe_code)]
 
+use std::io::IsTerminal;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use clap::Parser;
-use live_qso_map::config::{Cli, Config, ExportAction, config_path};
-use live_qso_map::config_export;
+use live_qso_map::config::{
+    Cli, Config, ExportAction, config_path, program_folder_base, resolve_data_path,
+};
+use live_qso_map::{config_export, console};
 use tracing_subscriber::EnvFilter;
 
 fn main() -> ExitCode {
+    let code = run();
+    // Feature 008 (FR-019): keep a double-clicked Windows console readable after an error.
+    if console::should_wait(
+        code != ExitCode::SUCCESS,
+        std::io::stdin().is_terminal(),
+        cfg!(windows),
+    ) {
+        console::wait_for_enter();
+    }
+    code
+}
+
+/// The folder holding the running program, if it can be determined.
+fn program_folder() -> Option<PathBuf> {
+    std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(Path::to_path_buf))
+}
+
+fn run() -> ExitCode {
     let cli = Cli::parse();
     let env = |key: &str| std::env::var(key).ok();
+    let exe_dir = program_folder();
 
-    let file_text = match config_path(&cli, &env) {
+    let file_text = match config_path(&cli, &env, exe_dir.as_deref(), &|p| p.is_file()) {
         Some(path) => match std::fs::read_to_string(&path) {
             Ok(text) => Some(text),
             Err(e) => {
@@ -21,7 +46,7 @@ fn main() -> ExitCode {
         },
         None => None,
     };
-    let (config, warnings) = match Config::load(&cli, &env, file_text.as_deref()) {
+    let (mut config, mut warnings) = match Config::load(&cli, &env, file_text.as_deref()) {
         Ok(loaded) => loaded,
         Err(e) => {
             eprintln!("{e}");
@@ -38,6 +63,18 @@ fn main() -> ExitCode {
         if matches!(action, ExportAction::Save(_)) {
             return ExitCode::SUCCESS;
         }
+    }
+
+    // After the export, which keeps relative paths as configured (feature 008, R10).
+    if program_folder_base() {
+        if exe_dir.is_none() {
+            warnings.push(
+                "cannot determine the program's folder; data paths are relative to the current folder"
+                    .to_string(),
+            );
+        }
+        config.country_data.path =
+            resolve_data_path(&config.country_data.path, exe_dir.as_deref(), true);
     }
 
     tracing_subscriber::fmt()

@@ -5,7 +5,7 @@ use crate::recent_columns::{Column, DEFAULT_COLUMNS, parse as parse_columns};
 use std::collections::BTreeMap;
 use std::fmt;
 use std::net::{IpAddr, Ipv4Addr};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::time::Duration;
 
@@ -568,11 +568,44 @@ impl FileConfig {
 /// Looks up an environment variable; injected so tests never touch the process environment.
 pub type EnvLookup<'a> = &'a dyn Fn(&str) -> Option<String>;
 
-/// The configuration file path: `--config`, then `LQM_CONFIG`.
-pub fn config_path(cli: &Cli, env: EnvLookup) -> Option<PathBuf> {
+/// Name of the configuration file looked up next to the program (feature 008, R10).
+pub const PROGRAM_FOLDER_CONFIG: &str = "live-qso-map.toml";
+
+/// The configuration file path: `--config`, then `LQM_CONFIG`, then `live-qso-map.toml` in the
+/// program's folder (`exe_dir`) when `exists` says it is there.
+pub fn config_path(
+    cli: &Cli,
+    env: EnvLookup,
+    exe_dir: Option<&Path>,
+    exists: &dyn Fn(&Path) -> bool,
+) -> Option<PathBuf> {
     cli.config
         .clone()
         .or_else(|| env("LQM_CONFIG").map(PathBuf::from))
+        .or_else(|| {
+            exe_dir
+                .map(|dir| dir.join(PROGRAM_FOLDER_CONFIG))
+                .filter(|path| exists(path))
+        })
+}
+
+/// Whether relative data paths resolve against the program's folder: on Windows and macOS,
+/// where a double-clicked program starts in an unrelated folder (feature 008, R10).
+pub fn program_folder_base() -> bool {
+    cfg!(any(windows, target_os = "macos"))
+}
+
+/// `path` joined to the program's folder when it is relative and `program_folder_base` is set;
+/// otherwise `path` unchanged.
+pub fn resolve_data_path(
+    path: &Path,
+    exe_dir: Option<&Path>,
+    program_folder_base: bool,
+) -> PathBuf {
+    match exe_dir {
+        Some(dir) if program_folder_base && path.is_relative() => dir.join(path),
+        _ => path.to_path_buf(),
+    }
 }
 
 fn config_error(setting: &str, message: impl Into<String>) -> Error {
@@ -1332,17 +1365,73 @@ fallback_color = "#000000"
     }
 
     #[test]
-    fn config_file_path_comes_from_cli_or_env() {
+    fn config_file_path_comes_from_cli_then_env_then_program_folder() {
+        let exe_dir = Path::new("/opt/lqm");
+        let exists = |p: &Path| p == Path::new("/opt/lqm/live-qso-map.toml");
+        let missing = |_: &Path| false;
+        let env = env(&[("LQM_CONFIG", "/b.toml")]);
+        let with_env = |k: &str| env.get(k).cloned();
+
         assert_eq!(
-            config_path(&cli(&["--config", "/a.toml"]), &|_| None),
+            config_path(
+                &cli(&["--config", "/a.toml"]),
+                &with_env,
+                Some(exe_dir),
+                &exists
+            ),
             Some(PathBuf::from("/a.toml"))
         );
-        let env = env(&[("LQM_CONFIG", "/b.toml")]);
         assert_eq!(
-            config_path(&cli(&[]), &|k| env.get(k).cloned()),
+            config_path(&cli(&[]), &with_env, Some(exe_dir), &exists),
             Some(PathBuf::from("/b.toml"))
         );
-        assert_eq!(config_path(&cli(&[]), &|_| None), None);
+        assert_eq!(
+            config_path(&cli(&[]), &|_| None, Some(exe_dir), &exists),
+            Some(PathBuf::from("/opt/lqm/live-qso-map.toml"))
+        );
+        assert_eq!(
+            config_path(&cli(&[]), &|_| None, Some(exe_dir), &missing),
+            None
+        );
+        assert_eq!(config_path(&cli(&[]), &|_| None, None, &exists), None);
+    }
+
+    // --- feature 008: data paths next to the program (T029) ---
+
+    #[test]
+    fn relative_data_path_joins_the_program_folder_when_enabled() {
+        let exe_dir = Path::new("/opt/lqm");
+        assert_eq!(
+            resolve_data_path(Path::new("./cty.dat"), Some(exe_dir), true),
+            PathBuf::from("/opt/lqm/./cty.dat")
+        );
+        assert_eq!(
+            resolve_data_path(Path::new("data/cty.dat"), Some(exe_dir), true),
+            PathBuf::from("/opt/lqm/data/cty.dat")
+        );
+        assert_eq!(
+            resolve_data_path(Path::new("cty.dat"), None, true),
+            PathBuf::from("cty.dat")
+        );
+    }
+
+    #[test]
+    fn absolute_or_disabled_paths_are_unchanged() {
+        let exe_dir = Path::new("/opt/lqm");
+        let absolute = std::env::temp_dir().join("cty.dat");
+        assert_eq!(resolve_data_path(&absolute, Some(exe_dir), true), absolute);
+        assert_eq!(
+            resolve_data_path(Path::new("./cty.dat"), Some(exe_dir), false),
+            PathBuf::from("./cty.dat")
+        );
+    }
+
+    #[test]
+    fn program_folder_base_only_on_windows_and_macos() {
+        assert_eq!(
+            program_folder_base(),
+            cfg!(windows) || cfg!(target_os = "macos")
+        );
     }
 
     // --- base map (feature 002, T017) ---------------------------------------------------------

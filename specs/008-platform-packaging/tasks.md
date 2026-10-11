@@ -334,25 +334,25 @@ quickstart §4 on a real machine.
 
 ### Tests for User Story 3 (write first, confirm they FAIL)
 
-- [ ] T028 [P] [US3] Unit tests in `src/config.rs` for
+- [X] T028 [P] [US3] Unit tests in `src/config.rs` for
   `config_path(cli, env, exe_dir: Option<&Path>, exists: &dyn Fn(&Path) -> bool)`
   (contracts/configuration.md "Configuration file lookup"):
   - `--config` wins over `LQM_CONFIG`, which wins over the file next to the program;
   - `exe_dir/live-qso-map.toml` is used only when `exists` says so;
   - `exe_dir = None` gives `None`.
-- [ ] T029 [P] [US3] Unit tests in `src/config.rs` for
+- [X] T029 [P] [US3] Unit tests in `src/config.rs` for
   `resolve_data_path(path: &Path, exe_dir: Option<&Path>, program_folder_base: bool) -> PathBuf`:
   - with the base on, a relative path joins `exe_dir`, an absolute path is unchanged, and
     `exe_dir = None` leaves it unchanged;
   - with the base off, it is always unchanged;
   - a `cfg` test asserts that `program_folder_base()` is true exactly on Windows and macOS.
-- [ ] T030 [P] [US3] Unit tests in `src/console.rs` for
+- [X] T030 [P] [US3] Unit tests in `src/console.rs` for
   `should_wait(failed, interactive, windows)`. Only `(true, true, true)` waits; the other seven
   combinations do not (data-model.md "Windows error pause").
 
 ### Implementation for User Story 3
 
-- [ ] T031 [US3] In `src/config.rs`:
+- [X] T031 [US3] In `src/config.rs`:
   - change `config_path` to the T028 signature;
   - add `resolve_data_path` and `pub fn program_folder_base() -> bool`
     (`cfg!(any(windows, target_os = "macos"))`).
@@ -360,22 +360,22 @@ quickstart §4 on a real machine.
   Update the existing `config_path` tests and the caller in `src/main.rs`, which passes
   `std::env::current_exe()` parent and `Path::is_file`. When `current_exe` fails, log a warning
   and pass `None`.
-- [ ] T032 [US3] In `src/main.rs`, after the export step (T016), so the export keeps relative
+- [X] T032 [US3] In `src/main.rs`, after the export step (T016), so the export keeps relative
   paths, set `config.country_data.path = resolve_data_path(..)`.
-- [ ] T033 [US3] Implement `should_wait` in `src/console.rs` and use it in `src/main.rs`:
+- [X] T033 [US3] Implement `should_wait` in `src/console.rs` and use it in `src/main.rs`:
   - on every failure exit path, compute
     `should_wait(true, std::io::stdin().is_terminal(), cfg!(windows))`;
   - when true, print `Press Enter to close this window.` to stderr and read one line from stdin,
     ignoring read errors.
-- [ ] T034 [P] [US3] Write `deploy/windows/README.txt` (CRLF line endings) and
+- [X] T034 [P] [US3] Write `deploy/windows/README.txt` (CRLF line endings) and
   `deploy/macos/README.txt` (LF) with the five points of contracts/release-artifacts.md "Read-me
   files in the zips". The macOS file adds the Open Anyway step.
-- [ ] T035 [US3] [R:YELLOW] In `.circleci/config.yml`, add a tag-only `package-archives` job
+- [X] T035 [US3] [R:YELLOW] In `.circleci/config.yml`, add a tag-only `package-archives` job
   (requires `build-windows`, `build-macos`). It zips each binary with `LICENSE.md` and its
   `README.txt` into `live-qso-map-<X.Y.Z>-windows-x64.zip` (binary named `live-qso-map.exe`) and
   `live-qso-map-<X.Y.Z>-macos-arm64.zip` (binary named `live-qso-map`, `chmod 755` before
   zipping), then persists them. `publish-github-release` requires it.
-- [ ] T036 [P] [US3] In `README.md`, add "Windows" and "macOS" install sections: download,
+- [X] T036 [P] [US3] In `README.md`, add "Windows" and "macOS" install sections: download,
   extract, double-click, `live-qso-map.toml` next to the program, and the macOS Open Anyway
   step.
 

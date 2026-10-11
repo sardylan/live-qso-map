@@ -244,6 +244,21 @@ sudo systemctl enable --now live-qso-map
 - **Remove versus purge**: `sudo apt remove live-qso-map` keeps the configuration, the data and
   the account; `sudo apt purge live-qso-map` deletes all three.
 
+**Windows** (x64) **and macOS** (Apple silicon): download
+`live-qso-map-2.0.0-windows-x64.zip` or `live-qso-map-2.0.0-macos-arm64.zip` from the GitHub
+release and extract it to a folder of your choice. Then double-click the program: a terminal
+window opens and the map starts at `http://localhost:8080/`. No installer and no administrator
+rights are needed.
+
+- **One folder**: everything stays in the program's folder. It reads `live-qso-map.toml` from
+  there, and downloads `cty.dat` there, whatever folder the terminal starts in. Create the file
+  with `--save-config live-qso-map.toml` from a terminal in that folder (`.\live-qso-map.exe` on
+  Windows, `./live-qso-map` on macOS).
+- **Windows errors**: if the program stops with an error, the message stays visible until you
+  press Enter. This also happens when started from a terminal.
+- **macOS first start**: the program isn't signed by an Apple developer, so the first time open
+  System Settings → Privacy & Security and click **Open Anyway**.
+
 **Health check**: `GET /healthz` returns `{"status":"ok","history":…,"sessions":…,"uptime_s":…}`.
 
 ## Development

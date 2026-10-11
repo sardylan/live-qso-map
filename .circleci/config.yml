@@ -261,6 +261,34 @@ jobs:
           name: Package life cycle
           command: sh scripts/test-deb.sh ws/release/live-qso-map_*_amd64.deb
 
+  # Windows and macOS zips: program, license, read-me (contracts/release-artifacts.md).
+  package-archives:
+    docker:
+      - image: cimg/base:current
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ./ws
+      - run:
+          name: Install zip
+          command: sudo apt-get update && sudo apt-get install -y --no-install-recommends zip
+      - run:
+          name: Zip
+          command: |
+            version="${CIRCLE_TAG#v}"
+            mkdir -p ws/release win mac
+            cp ws/bin/x86_64-pc-windows-msvc/live-qso-map.exe win/live-qso-map.exe
+            cp LICENSE.md deploy/windows/README.txt win/
+            install -m 755 ws/bin/aarch64-apple-darwin/live-qso-map mac/live-qso-map
+            cp LICENSE.md deploy/macos/README.txt mac/
+            (cd win && zip -X "../ws/release/live-qso-map-${version}-windows-x64.zip" live-qso-map.exe LICENSE.md README.txt)
+            (cd mac && zip -X "../ws/release/live-qso-map-${version}-macos-arm64.zip" live-qso-map LICENSE.md README.txt)
+            unzip -Z ws/release/live-qso-map-${version}-macos-arm64.zip | grep -- '-rwx' | grep -q ' live-qso-map$'
+      - persist_to_workspace:
+          root: ws
+          paths:
+            - release/*.zip
+
   # Publishes only ws/release (packages and archives), with SHA256SUMS (FR-003, FR-004).
   publish-github-release:
     executor: github
@@ -343,9 +371,13 @@ workflows:
           name: test-deb-ubuntu-24-04
           image: ubuntu:24.04
           requires: [package-deb-x86_64-unknown-linux-musl]
+      - package-archives:
+          filters: *release-tags
+          requires: [build-macos, build-windows]
       - publish-github-release:
           filters: *release-tags
           requires:
+            - package-archives
             - build-linux
             - build-macos
             - build-windows
