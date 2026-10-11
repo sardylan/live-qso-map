@@ -441,4 +441,87 @@ mod tests {
             assert_eq!((after.uid(), after.gid()), (before.uid(), before.gid()));
         }
     }
+
+    // --- shipped configuration, deploy/config.example.toml (T019, FR-010) ---
+
+    const EXAMPLE: &str = include_str!("../deploy/config.example.toml");
+
+    /// The example with every `# key = value` line uncommented.
+    fn uncommented_example() -> String {
+        EXAMPLE
+            .lines()
+            .map(|line| {
+                let rest = line.trim_start().strip_prefix("# ").unwrap_or("");
+                let is_setting = rest.split_once(" = ").is_some_and(|(key, _)| {
+                    let key = key.trim_matches('"');
+                    !key.is_empty()
+                        && key
+                            .chars()
+                            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '.')
+                });
+                if is_setting {
+                    rest.to_string()
+                } else {
+                    line.to_string()
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    /// `section.key` names from a TOML document, sub-tables included.
+    fn keys(table: &toml::Table, prefix: &str, out: &mut Vec<String>) {
+        for (key, value) in table {
+            let name = if prefix.is_empty() {
+                key.clone()
+            } else {
+                format!("{prefix}.{key}")
+            };
+            match value.as_table() {
+                Some(sub) if !prefix.ends_with("bands") && key != "bands" => keys(sub, &name, out),
+                _ => out.push(name),
+            }
+        }
+    }
+
+    #[test]
+    fn example_lists_every_exported_setting() {
+        let mut config = Config::default();
+        config.station.callsign = Some("IS0MZK".into());
+        config.station.locator = Some("JM49NH".into());
+        config.station.latitude = Some(39.0);
+        config.station.longitude = Some(9.0);
+        let exported: toml::Table = toml::from_str(&rendered(&config)).unwrap();
+        let example: toml::Table = toml::from_str(&uncommented_example()).unwrap();
+        let (mut want, mut have) = (Vec::new(), Vec::new());
+        keys(&exported, "", &mut want);
+        keys(&example, "", &mut have);
+        for key in want {
+            assert!(
+                have.contains(&key),
+                "deploy/config.example.toml lacks {key}"
+            );
+        }
+    }
+
+    #[test]
+    fn uncommented_example_loads() {
+        // The example shows a style and raster tiles as alternatives; keep the style only.
+        let text = uncommented_example()
+            .lines()
+            .filter(|l| !l.starts_with("tile_url") && !l.starts_with("tile_attribution"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let cli = Cli::try_parse_from(["live-qso-map"]).unwrap();
+        Config::load(&cli, &|_| None, Some(&text)).unwrap();
+    }
+
+    #[test]
+    fn example_sets_the_packaged_data_path() {
+        let example: toml::Table = toml::from_str(EXAMPLE).unwrap();
+        assert_eq!(
+            example["country_data"]["path"].as_str(),
+            Some("/var/lib/live-qso-map/cty.dat")
+        );
+    }
 }

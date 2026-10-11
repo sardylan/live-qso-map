@@ -11,6 +11,25 @@ license = "GPL-3.0-or-later"
 keywords = ["ham-radio", "amateur-radio", "qso", "contest", "map"]
 categories = ["command-line-utilities", "visualization"]
 
+# Debian package (feature 008, contracts/debian-package.md). Built only by the pipeline, with
+# `cargo deb --target <triple> --no-build` on the binary that `cross` produced (Principle V).
+[package.metadata.deb]
+section = "hamradio"
+priority = "optional"
+depends = "adduser"
+extended-description = """\
+Your logger sends each QSO over UDP. live-qso-map converts it to ADIF, works out where the \
+other station is, and shows it live on a world map in the browser. The service runs as the \
+unprivileged live-qso-map account; it is installed disabled until configured."""
+maintainer-scripts = "deploy/debian/"
+systemd-units = { unit-scripts = "deploy/debian/", enable = false, start = false, restart-after-upgrade = true }
+assets = [
+    ["target/release/live-qso-map", "usr/bin/", "755"],
+    ["deploy/config.example.toml", "etc/live-qso-map/config.toml", "640"],
+    ["README.md", "usr/share/doc/live-qso-map/README.md", "644"],
+    ["LICENSE.md", "usr/share/doc/live-qso-map/copyright", "644"],
+]
+
 [dependencies]
 async-channel = "2.5"
 axum = { version = "0.8", default-features = false, features = ["http1", "ws", "tokio", "json"] }

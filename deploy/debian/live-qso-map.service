@@ -1,15 +1,15 @@
 [Unit]
 Description=Live QSO map
+Documentation=https://github.com/sardylan/live-qso-map
 After=network-online.target
 Wants=network-online.target
 
 [Service]
-ExecStart=/usr/local/bin/live-qso-map --config /etc/live-qso-map/config.toml
-Environment=LQM_CTY_PATH=/var/lib/live-qso-map/cty.dat
-# Secrets: put LQM_QRZ_PASSWORD=... etc. in this file (mode 600).
-EnvironmentFile=-/etc/live-qso-map/env
-DynamicUser=yes
+User=live-qso-map
+Group=live-qso-map
+ExecStart=/usr/bin/live-qso-map --config /etc/live-qso-map/config.toml
 StateDirectory=live-qso-map
+StateDirectoryMode=0750
 Restart=on-failure
 RestartSec=5
 

@@ -1,0 +1,23 @@
+#!/bin/sh
+# live-qso-map postrm (feature 008, contracts/debian-package.md "Maintainer scripts").
+set -e
+
+ACCOUNT=live-qso-map
+MARKER="live-qso-map service"
+
+#DEBHELPER#
+
+if [ "$1" = "purge" ]; then
+    # Data first, so nothing is left owned by the account's UID.
+    rm -rf /etc/live-qso-map /var/lib/live-qso-map
+
+    # Delete only an account this package created (GECOS marker).
+    if [ "$(getent passwd "$ACCOUNT" | cut -d: -f5)" = "$MARKER" ]; then
+        deluser --system --quiet "$ACCOUNT" || true
+    fi
+    if getent group "$ACCOUNT" >/dev/null; then
+        delgroup --system --only-if-empty --quiet "$ACCOUNT" || true
+    fi
+fi
+
+exit 0

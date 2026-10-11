@@ -1,0 +1,52 @@
+#!/bin/sh
+# live-qso-map postinst (feature 008, contracts/debian-package.md "Maintainer scripts").
+set -e
+
+ACCOUNT=live-qso-map
+MARKER="live-qso-map service"
+CONFIG=/etc/live-qso-map/config.toml
+DATA=/var/lib/live-qso-map
+
+if [ "$1" = "configure" ]; then
+    # Dedicated unprivileged account; an existing one is reused unchanged. The comment is set
+    # with usermod because adduser's --gecos/--comment differ between releases.
+    if ! getent passwd "$ACCOUNT" >/dev/null; then
+        adduser --system --group --home "$DATA" --no-create-home \
+            --shell /usr/sbin/nologin --quiet "$ACCOUNT"
+        usermod -c "$MARKER" "$ACCOUNT"
+    fi
+
+    if [ ! -d "$DATA" ]; then
+        mkdir -p "$DATA"
+        chown "$ACCOUNT:$ACCOUNT" "$DATA"
+        chmod 0750 "$DATA"
+    fi
+
+    # The configuration may hold provider passwords: root and the service only.
+    if ! dpkg-statoverride --list "$CONFIG" >/dev/null 2>&1; then
+        chown "root:$ACCOUNT" "$CONFIG"
+        chmod 0640 "$CONFIG"
+    fi
+fi
+
+#DEBHELPER#
+
+if [ "$1" = "configure" ]; then
+    if [ -n "$2" ]; then
+        # Upgrade: restart only a running service; never enable or start a stopped one.
+        if [ -d /run/systemd/system ]; then
+            deb-systemd-invoke try-restart live-qso-map.service >/dev/null || true
+        fi
+    else
+        cat <<'MSG'
+live-qso-map is installed but not started: its UDP port has no authentication.
+  1. Edit /etc/live-qso-map/config.toml (station callsign, locator, providers…), or write it with
+     sudo live-qso-map --config /etc/live-qso-map/config.toml --station-callsign <CALL> \
+       --save-config /etc/live-qso-map/config.toml
+  2. sudo systemctl enable --now live-qso-map
+  3. Open http://<this host>:8080/
+MSG
+    fi
+fi
+
+exit 0

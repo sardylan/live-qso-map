@@ -1,6 +1,16 @@
 # live-qso-map configuration (contracts/configuration.md).
 # Precedence: command line > LQM_* environment variables > this file > built-in defaults.
-# Prefer environment variables for passwords, e.g. LQM_QRZ_PASSWORD.
+#
+# Installed by the Debian package as /etc/live-qso-map/config.toml (root:live-qso-map, 0640);
+# the service runs as the unprivileged live-qso-map account and reads it with --config.
+# Every setting is listed with its default, commented out. To write a complete file from
+# options instead, for example:
+#   sudo live-qso-map --config /etc/live-qso-map/config.toml --station-callsign IS0MZK \
+#     --save-config /etc/live-qso-map/config.toml
+# then: sudo systemctl enable --now live-qso-map
+#
+# Passwords set here are readable by root and the service only. Environment variables
+# (e.g. LQM_QRZ_PASSWORD) are an alternative.
 
 # bind_address = "0.0.0.0"     # UDP and HTTP listeners
 # udp_port = 12060             # QSO messages (ADIF, QARTest)
@@ -49,7 +59,7 @@
 # password = ""
 
 [country_data]
-# path = "/var/lib/live-qso-map/cty.dat"
+path = "/var/lib/live-qso-map/cty.dat"   # downloaded and refreshed here
 # url = "https://www.country-files.com/cty/cty.dat"
 # max_age_days = 30            # 0 = never re-download an existing file
 

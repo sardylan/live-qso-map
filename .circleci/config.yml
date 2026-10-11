@@ -200,6 +200,67 @@ jobs:
           paths:
             - bin/x86_64-pc-windows-msvc
 
+  # Debian package per Linux target from the cross-built binary (contracts/debian-package.md).
+  package-deb:
+    executor: rust
+    parameters:
+      target:
+        type: string
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ./ws
+      - run:
+          name: Install cargo-deb
+          command: cargo install cargo-deb --version 3.8.0 --locked
+      - run:
+          name: Package
+          command: |
+            mkdir -p target/<< parameters.target >>/release
+            cp ws/bin/<< parameters.target >>/live-qso-map target/<< parameters.target >>/release/
+            cargo deb --target << parameters.target >> --no-build --no-strip --output ws/release/
+      - run:
+          name: Check architecture and contents
+          command: |
+            case << parameters.target >> in
+              x86_64-*) want=amd64 ;;
+              aarch64-*) want=arm64 ;;
+              armv7-*) want=armhf ;;
+            esac
+            deb=$(ls ws/release/live-qso-map_*_"$want".deb)
+            got=$(dpkg-deb --field "$deb" Architecture)
+            [ "$got" = "$want" ] || { echo "Architecture $got, wanted $want"; exit 1; }
+            contents=$(dpkg-deb --contents "$deb")
+            for path in ./usr/bin/live-qso-map ./etc/live-qso-map/config.toml live-qso-map.service; do
+              echo "$contents" | grep -q "$path" || { echo "missing $path"; exit 1; }
+            done
+            dpkg-deb --info "$deb"
+      - persist_to_workspace:
+          root: ws
+          paths:
+            - release/*.deb
+
+  # Install, upgrade, save, remove, purge in a real distribution (scripts/test-deb.sh).
+  test-deb:
+    parameters:
+      image:
+        type: string
+    docker:
+      - image: << parameters.image >>
+    steps:
+      - run:
+          name: Install test dependencies
+          command: |
+            apt-get update
+            DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+              adduser systemd git openssh-client ca-certificates
+      - checkout
+      - attach_workspace:
+          at: ./ws
+      - run:
+          name: Package life cycle
+          command: sh scripts/test-deb.sh ws/release/live-qso-map_*_amd64.deb
+
   # Publishes only ws/release (packages and archives), with SHA256SUMS (FR-003, FR-004).
   publish-github-release:
     executor: github
@@ -252,6 +313,44 @@ workflows:
       - build-windows:
           filters: *release-tags
           requires: [check-version, lint, test-rust, test-web, test-tools]
+      - package-deb:
+          filters: *release-tags
+          name: package-deb-<< matrix.target >>
+          matrix:
+            parameters:
+              target:
+                - x86_64-unknown-linux-musl
+                - aarch64-unknown-linux-musl
+                - armv7-unknown-linux-musleabihf
+          requires: [build-linux-<< matrix.target >>]
+      - test-deb:
+          filters: *release-tags
+          name: test-deb-debian-12
+          image: debian:12
+          requires: [package-deb-x86_64-unknown-linux-musl]
+      - test-deb:
+          filters: *release-tags
+          name: test-deb-debian-13
+          image: debian:13
+          requires: [package-deb-x86_64-unknown-linux-musl]
+      - test-deb:
+          filters: *release-tags
+          name: test-deb-ubuntu-22-04
+          image: ubuntu:22.04
+          requires: [package-deb-x86_64-unknown-linux-musl]
+      - test-deb:
+          filters: *release-tags
+          name: test-deb-ubuntu-24-04
+          image: ubuntu:24.04
+          requires: [package-deb-x86_64-unknown-linux-musl]
       - publish-github-release:
           filters: *release-tags
-          requires: [build-linux, build-macos, build-windows]
+          requires:
+            - build-linux
+            - build-macos
+            - build-windows
+            - package-deb
+            - test-deb-debian-12
+            - test-deb-debian-13
+            - test-deb-ubuntu-22-04
+            - test-deb-ubuntu-24-04

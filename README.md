@@ -221,8 +221,28 @@ machine:
 cargo build --release
 ```
 
-**systemd** (Raspberry Pi or mini PC): see `deploy/live-qso-map.service`. Secrets go in
-`/etc/live-qso-map/env`.
+**Debian and Ubuntu** (Debian 12 and 13, Ubuntu 22.04 and later; PC, Raspberry Pi, server):
+download the `.deb` for your architecture (`amd64`, `arm64`, or `armhf` for a 32-bit Raspberry
+Pi OS) from the GitHub release, then:
+
+```bash
+sudo apt install ./live-qso-map_2.0.0-1_amd64.deb
+# edit /etc/live-qso-map/config.toml, or write it from options:
+sudo live-qso-map --config /etc/live-qso-map/config.toml --station-callsign IS0MZK \
+  --station-locator JM49NH --save-config /etc/live-qso-map/config.toml
+sudo systemctl enable --now live-qso-map
+```
+
+- **Layout**: the program is `/usr/bin/live-qso-map`, the configuration is
+  `/etc/live-qso-map/config.toml`, and downloaded data (`cty.dat`) goes to
+  `/var/lib/live-qso-map/`.
+- **Account**: the service runs as the unprivileged `live-qso-map` account, created at install.
+  The configuration file is readable only by root and that account, because it may hold
+  provider passwords. `--save-config` over it keeps its owner and permissions.
+- **Not started at install**: the UDP port has no authentication, so the service starts only
+  after you enable it. Upgrades keep your configuration and restart a running service.
+- **Remove versus purge**: `sudo apt remove live-qso-map` keeps the configuration, the data and
+  the account; `sudo apt purge live-qso-map` deletes all three.
 
 **Health check**: `GET /healthz` returns `{"status":"ok","history":…,"sessions":…,"uptime_s":…}`.
 

@@ -215,7 +215,7 @@ quickstart §4 on a real machine.
 
 ### Tests for User Story 1 (write first, confirm they FAIL)
 
-- [ ] T018 [P] [US1] [R:YELLOW] Write `scripts/test-deb.sh <path-to-deb>`, a POSIX `sh` script run
+- [X] T018 [P] [US1] [R:YELLOW] Write `scripts/test-deb.sh <path-to-deb>`, a POSIX `sh` script run
   as root inside a container. It follows contracts/debian-package.md "Life-cycle test":
   - **After install**:
     - mode, owner and group of `/usr/bin/live-qso-map`, `/etc/live-qso-map/config.toml` (0640
@@ -239,7 +239,7 @@ quickstart §4 on a real machine.
 
   Each failure prints the step and the check, then exits 1. Check the script with `sh -n`, and
   with `shellcheck` when it is available.
-- [ ] T019 [P] [US1] Unit tests in `src/config_export.rs` for the shipped configuration
+- [X] T019 [P] [US1] Unit tests in `src/config_export.rs` for the shipped configuration
   (`include_str!("../deploy/config.example.toml")`) (R5, FR-010):
   - every key that `render(&Config::default())` writes appears in the example, commented
     (`# key =`) or not, under the same section;
@@ -249,19 +249,19 @@ quickstart §4 on a real machine.
 
 ### Implementation for User Story 1
 
-- [ ] T020 [US1] Update `deploy/config.example.toml`, so T019 passes:
+- [X] T020 [US1] Update `deploy/config.example.toml`, so T019 passes:
   - a header saying it is `/etc/live-qso-map/config.toml`, the service runs as `live-qso-map`,
     and how to regenerate it with `--save-config`;
   - `path = "/var/lib/live-qso-map/cty.dat"` uncommented under `[country_data]`;
   - every setting the export writes is present.
-- [ ] T021 [US1] [R:YELLOW] Run `git mv deploy/live-qso-map.service
+- [X] T021 [US1] [R:YELLOW] Run `git mv deploy/live-qso-map.service
   deploy/debian/live-qso-map.service` and rewrite it per contracts/debian-package.md "Service
   unit":
   - `User`/`Group=live-qso-map`, `/usr/bin`, `--config /etc/live-qso-map/config.toml`;
   - `StateDirectory=live-qso-map` with `StateDirectoryMode=0750`;
   - drop `DynamicUser` and the `EnvironmentFile`/`LQM_CTY_PATH` lines; keep every hardening
     line.
-- [ ] T022 [US1] [R:RED] Write `deploy/debian/postinst` (`#!/bin/sh`, `set -e`) per
+- [X] T022 [US1] [R:RED] Write `deploy/debian/postinst` (`#!/bin/sh`, `set -e`) per
   contracts/debian-package.md "Maintainer scripts". On `configure`:
   1. if `getent passwd live-qso-map` fails, run `adduser --system --group --home
      /var/lib/live-qso-map --no-create-home --shell /usr/sbin/nologin live-qso-map`, then
@@ -275,7 +275,7 @@ quickstart §4 on a real machine.
      `systemctl enable --now live-qso-map`).
 
   It must be idempotent. Make the file executable.
-- [ ] T023 [US1] [R:RED] Write `deploy/debian/postrm` (`#!/bin/sh`, `set -e`), with `#DEBHELPER#`
+- [X] T023 [US1] [R:RED] Write `deploy/debian/postrm` (`#!/bin/sh`, `set -e`), with `#DEBHELPER#`
   first. On `purge`:
   1. `rm -rf /etc/live-qso-map /var/lib/live-qso-map`;
   2. if `getent passwd live-qso-map | cut -d: -f5` is exactly `live-qso-map service`, run
@@ -283,7 +283,7 @@ quickstart §4 on a real machine.
   3. if the group exists, run `delgroup --system --only-if-empty --quiet live-qso-map || true`.
 
   `remove` does nothing beyond `#DEBHELPER#`. Make the file executable.
-- [ ] T024 [US1] In `Cargo.toml`, add `[package.metadata.deb]` (contracts/debian-package.md
+- [X] T024 [US1] In `Cargo.toml`, add `[package.metadata.deb]` (contracts/debian-package.md
   "Control fields"):
   - `section = "hamradio"`, `priority = "optional"`, `depends = "adduser"`;
   - `extended-description-file` (the README's first paragraph, or inline text);
@@ -296,7 +296,7 @@ quickstart §4 on a real machine.
     - `deploy/config.example.toml` to `etc/live-qso-map/config.toml`, mode 640;
     - `README.md` to `usr/share/doc/live-qso-map/`, mode 644;
     - `LICENSE.md` to `usr/share/doc/live-qso-map/copyright`, mode 644.
-- [ ] T025 [US1] [R:YELLOW] In `.circleci/config.yml`, add two tag-only jobs:
+- [X] T025 [US1] [R:YELLOW] In `.circleci/config.yml`, add two tag-only jobs:
   - `package-deb`, parameterised by target (requires `build-linux-<target>`): install cargo-deb
     3.8.0 (`cargo install cargo-deb --version 3.8.0 --locked`), put the workspace binary at
     `target/<target>/release/live-qso-map`, run
@@ -314,7 +314,7 @@ quickstart §4 on a real machine.
   `amd64` `.deb`, and check
   `dpkg-deb -e live-qso-map_*_amd64.deb /tmp/ctl && cat /tmp/ctl/postinst /tmp/ctl/postrm`. The
   systemd fragments must not enable or start the unit (R4). Fix the metadata if they do.
-- [ ] T027 [P] [US1] In `README.md`, add a "Debian and Ubuntu" install section:
+- [X] T027 [P] [US1] In `README.md`, add a "Debian and Ubuntu" install section:
   - download the `.deb` for your architecture, `sudo apt install ./live-qso-map_…deb`;
   - edit `/etc/live-qso-map/config.toml`, or generate it with `sudo live-qso-map … --save-config
     /etc/live-qso-map/config.toml` (the file keeps its owner and mode);
