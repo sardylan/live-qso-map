@@ -1,35 +1,33 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 1.4.0 → 1.5.0
-Bump rationale: MINOR, because a new principle is added (V. Portable Development, Pipeline-Built
-Releases). No principle is removed or redefined.
+Version change: 1.5.0 → 1.6.0
+Bump rationale: MINOR, because the Development Workflow gains two mandatory rules (feature branch
+naming, branch deletion after completion). No principle is removed or redefined.
 
-Modified principles: none (I–IV unchanged)
-Added principles: V. Portable Development, Pipeline-Built Releases
+Modified principles: none (I–V unchanged)
+Added principles: none
 
 Modified sections:
-  - Technical Constraints / Distribution: one binary per configured target, built by the pipeline.
-  - Development Workflow: a failed release build is fixed on main and re-tagged.
-  - Governance / Compliance review: covers Principles I–V.
+  - Development Workflow: feature branches are named feature/NNN-title and are deleted, locally
+    and on the remote, once the feature is merged into main.
 
 Added sections: none
 Removed sections: none
 
 Templates and runtime files:
-  - .specify/templates/plan-template.md   ✅ updated (Target Platform; Constitution Check gains V)
-  - .specify/templates/spec-template.md   ✅ no change needed
-  - .specify/templates/tasks-template.md  ✅ updated (Polish: cfg-gated platform code)
-  - .specify/templates/commands/*.md      ⚠ not present
-  - .circleci/config.yml                  ✅ checked (gates on every commit, release builds on tags)
-  - README.md, Cross.toml                 ✅ updated (cross-compiling is the pipeline's job)
-  - CLAUDE.md                             ✅ no change needed (points to the constitution)
+  - .specify/templates/spec-template.md          ✅ updated (Feature Branch: feature/[###-feature-name])
+  - .specify/templates/plan-template.md          ✅ updated (Branch: feature/[###-feature-name])
+  - .specify/templates/tasks-template.md         ✅ no change needed (refers to specs/, not branches)
+  - .specify/templates/commands/*.md             ⚠ not present
+  - .specify/scripts/bash/create-new-feature.sh  ✅ updated (creates feature/NNN-short-name)
+  - .specify/scripts/bash/common.sh              ✅ updated (validates feature/NNN-; maps branch to specs/NNN-*)
+  - .specify/scripts/bash/update-agent-context.sh ✅ updated (labels CLAUDE.md by feature id NNN-title)
+  - CLAUDE.md, README.md                         ✅ no change needed
 
 Follow-up TODOs:
-  - A target can stop building on main without anyone noticing until the next release tag, since
-    target builds run only on tags. Principle V's cfg and dependency rules are the guard.
-  - scripts/send_burst.sh needs Bash and nc, so it does not run on a stock Windows host. It is an
-    optional helper (Principle V allows that); a Python equivalent would make it portable.
+  - The spec-kit plugin's own /speckit-specify instructions still describe NNN-short-name
+    branches; the repository script is authoritative and now creates feature/NNN-short-name.
 -->
 
 # live-qso-map Constitution
@@ -146,6 +144,11 @@ multi-platform builds run only when a release is cut.
 
 - Features follow the spec-driven flow: specification → plan (with Constitution
   Check) → tasks → implementation.
+- Every feature MUST be developed on a git branch named `feature/NNN-title`, where `NNN` is the
+  three-digit feature number and `title` is the feature's short kebab-case title, the same as its
+  `specs/NNN-title/` directory (for example `feature/008-platform-packaging`).
+- When a feature's work is complete, that is merged into the main branch, its feature branch
+  MUST be deleted, both locally and on the remote.
 - Each plan MUST pass the Constitution Check before research and again after design.
   Any violation MUST be justified in Complexity Tracking or the design MUST change.
 - Before a merge, the following MUST all succeed: `cargo fmt --check`,
@@ -173,4 +176,4 @@ multi-platform builds run only when a release is cut.
   interface rules in `docs/http-api.md`.
   Unjustified violations block the merge.
 
-**Version**: 1.5.0 | **Ratified**: 2026-10-08 | **Last Amended**: 2026-10-11
+**Version**: 1.6.0 | **Ratified**: 2026-10-08 | **Last Amended**: 2026-10-11

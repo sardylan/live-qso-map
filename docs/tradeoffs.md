@@ -21,6 +21,7 @@ we deliberately gave up. Records the *why*, not just the *what*.
 | TR-006 | proposed | The page requests max(map Last N, 20) QSOs to feed both the map and the box | 2026-10-09 |
 | TR-007 | proposed | Score staleness is judged from a server-supplied age, not the browser clock | 2026-10-09 |
 | TR-008 | proposed | Cross-compile only in the pipeline; gate every main commit, build releases on tags | 2026-10-11 |
+| TR-009 | proposed | Feature branches named feature/NNN-title and deleted after merge | 2026-10-11 |
 
 ## Decisions
 
@@ -365,6 +366,42 @@ Constitution 1.5.0, Principle V: development is portable and host-only; cross-co
 
 - Positive: Any developer host works with cargo, node and python3; releases are reproducible; CI stays cheap for normal commits.
 - Negative / debt accepted: Target breakage surfaces at release time; cfg gating and the per-target dependency rule are the only guard on main.
+
+## TR-009: Feature branches named feature/NNN-title and deleted after merge
+
+- Status: proposed
+- Date: 2026-10-11
+- Phase: plan
+- Deciders: project owner
+- Links: .specify/memory/constitution.md (v1.6.0, Development Workflow); .specify/scripts/bash/common.sh; .specify/scripts/bash/create-new-feature.sh
+<!-- key: ff2b30d7914e -->
+
+### Context & problem
+
+spec-kit created feature branches named NNN-short-name, mixed with every other branch, and finished branches were kept or removed by hand.
+
+### Decision drivers
+
+- Tell feature branches apart from main and future release or fix branches
+- Keep the branch list showing only work in progress
+- Keep the spec-kit scripts working
+
+### Options considered
+
+| Option | Pros | Cons / what it sacrifices |
+|--------|------|---------------------------|
+| feature/NNN-title branches, deleted locally and on the remote after merge (chosen) | Feature branches group together in git tools; main and other branch types stay distinct; the branch list shows only open work | The scripts strip the prefix to find specs/NNN-title; after deletion, the merged commits and the spec folder are the only record of the feature |
+| spec-kit default NNN-title branches | No script changes | Mixed with every other branch |
+| Keep finished branches | Easy to look up a past feature's work | The branch list grows with every feature |
+
+### Decision
+
+Constitution 1.6.0, Development Workflow: features are developed on feature/NNN-title, matching specs/NNN-title/, and the branch is deleted locally and on the remote once merged into main.
+
+### Consequences
+
+- Positive: Feature branches are recognisable at a glance and the branch list stays short.
+- Negative / debt accepted: The spec-kit scripts depend on a prefix-stripping helper; the plugin's own instructions still describe NNN-title branches.
 
 ## Archive
 

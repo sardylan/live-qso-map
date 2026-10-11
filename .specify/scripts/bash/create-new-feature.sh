@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Create a new feature: numbered branch + specs/NNN-short-name/spec.md.
+# Create a new feature: branch feature/NNN-short-name + specs/NNN-short-name/spec.md.
 #
 # Usage: create-new-feature.sh [--json] [--short-name <name>] [--number N] <feature description>
 #
@@ -127,14 +127,14 @@ if [ -z "$BRANCH_NUMBER" ]; then
     BRANCH_NUMBER=$(( $(highest_feature_number) + 1 ))
 fi
 FEATURE_NUM="$(printf '%03d' "$((10#$BRANCH_NUMBER))")"
-BRANCH_NAME="$FEATURE_NUM-$BRANCH_SUFFIX"
+BRANCH_NAME="feature/$FEATURE_NUM-$BRANCH_SUFFIX"
 
 # GitHub limits branch names to 244 bytes.
 MAX_BRANCH_LENGTH=244
 if [ ${#BRANCH_NAME} -gt $MAX_BRANCH_LENGTH ]; then
     ORIGINAL_BRANCH_NAME="$BRANCH_NAME"
-    BRANCH_SUFFIX="$(echo "$BRANCH_SUFFIX" | cut -c1-$((MAX_BRANCH_LENGTH - 4)) | sed 's/-$//')"
-    BRANCH_NAME="$FEATURE_NUM-$BRANCH_SUFFIX"
+    BRANCH_SUFFIX="$(echo "$BRANCH_SUFFIX" | cut -c1-$((MAX_BRANCH_LENGTH - 12)) | sed 's/-$//')"
+    BRANCH_NAME="feature/$FEATURE_NUM-$BRANCH_SUFFIX"
     echo "[specify] Warning: branch name truncated to $MAX_BRANCH_LENGTH bytes" >&2
     echo "[specify] Original: $ORIGINAL_BRANCH_NAME" >&2
 fi
@@ -145,7 +145,7 @@ else
     echo "[specify] Warning: git repository not detected; skipped branch creation for $BRANCH_NAME" >&2
 fi
 
-FEATURE_DIR="$SPECS_DIR/$BRANCH_NAME"
+FEATURE_DIR="$SPECS_DIR/$FEATURE_NUM-$BRANCH_SUFFIX"
 mkdir -p "$FEATURE_DIR"
 
 TEMPLATE="$REPO_ROOT/.specify/templates/spec-template.md"

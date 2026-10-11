@@ -58,10 +58,10 @@ TECH=""
 [ -n "$LANG_VER" ] && TECH="$LANG_VER"
 [ -n "$DEPS" ] && TECH="${TECH:+$TECH + }$DEPS"
 NEW_TECH_LINES=()
-[ -n "$TECH" ] && NEW_TECH_LINES+=("- $TECH ($CURRENT_BRANCH)")
-[ -n "$STORAGE" ] && NEW_TECH_LINES+=("- $STORAGE ($CURRENT_BRANCH)")
+[ -n "$TECH" ] && NEW_TECH_LINES+=("- $TECH ($FEATURE_ID)")
+[ -n "$STORAGE" ] && NEW_TECH_LINES+=("- $STORAGE ($FEATURE_ID)")
 
-CHANGE_LINE="- $CURRENT_BRANCH: Added ${TECH:-plan}"
+CHANGE_LINE="- $FEATURE_ID: Added ${TECH:-plan}"
 
 # Extract existing lines of a "### Section" inside the managed block.
 existing_section() {
@@ -80,14 +80,14 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 # Active technologies: other branches' entries + this branch's current ones,
 # de-duplicated, order preserved.
 {
-    existing_section "Active Technologies" | grep -vF " ($CURRENT_BRANCH)" || true
+    existing_section "Active Technologies" | grep -vF " ($FEATURE_ID)" || true
     for l in ${NEW_TECH_LINES[@]+"${NEW_TECH_LINES[@]}"}; do echo "$l"; done
 } | awk '!seen[$0]++' > "$TMP_DIR/tech"
 
 # Recent changes: newest first, this branch replaced, capped.
 {
     echo "$CHANGE_LINE"
-    existing_section "Recent Changes" | grep -v "^- $CURRENT_BRANCH:" || true
+    existing_section "Recent Changes" | grep -v "^- $FEATURE_ID:" || true
 } | head -n "$MAX_RECENT" > "$TMP_DIR/changes"
 
 {

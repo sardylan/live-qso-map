@@ -73,7 +73,13 @@ get_current_branch() {
     fi
 }
 
-# Feature branches must look like NNN-short-name. Without git, only warn.
+# Feature id (NNN-short-name) of a branch: feature/NNN-short-name loses its prefix.
+feature_id() {
+    echo "${1#feature/}"
+}
+
+# Feature branches must look like feature/NNN-short-name (constitution, Development
+# Workflow). SPECIFY_FEATURE may also name the bare id. Without git, only warn.
 check_feature_branch() {
     local branch="$1"
     local has_git_repo="$2"
@@ -83,19 +89,22 @@ check_feature_branch() {
         return 0
     fi
 
-    if ! echo "$branch" | grep -Eq '^[0-9]{3}-'; then
+    local pattern='^feature/[0-9]{3}-'
+    [ -n "${SPECIFY_FEATURE:-}" ] && pattern='^(feature/)?[0-9]{3}-'
+    if ! echo "$branch" | grep -Eq "$pattern"; then
         echo "ERROR: Not on a feature branch. Current branch: $branch" >&2
-        echo "Feature branches should be named like: 001-feature-name" >&2
+        echo "Feature branches must be named like: feature/001-feature-name" >&2
         return 1
     fi
     return 0
 }
 
 # Resolve the spec directory by numeric prefix, so several branches
-# (e.g. 004-fix-a, 004-fix-b) can work on the same specs/004-* directory.
+# (e.g. feature/004-fix-a, feature/004-fix-b) can work on the same specs/004-* directory.
 find_feature_dir_by_prefix() {
     local repo_root="$1"
-    local branch="$2"
+    local branch
+    branch="$(feature_id "$2")"
     local specs_dir="$repo_root/specs"
 
     if ! echo "$branch" | grep -Eq '^[0-9]{3}-'; then
@@ -132,6 +141,7 @@ get_feature_paths() {
 
     printf "REPO_ROOT=%q\n" "$repo_root"
     printf "CURRENT_BRANCH=%q\n" "$current_branch"
+    printf "FEATURE_ID=%q\n" "$(feature_id "$current_branch")"
     printf "HAS_GIT=%q\n" "$has_git_repo"
     printf "FEATURE_DIR=%q\n" "$feature_dir"
     printf "FEATURE_SPEC=%q\n" "$feature_dir/spec.md"
