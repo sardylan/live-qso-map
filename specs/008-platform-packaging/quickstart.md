@@ -57,9 +57,8 @@ sudo apt remove live-qso-map           # config, data and account remain
 sudo apt purge live-qso-map            # /etc/live-qso-map, /var/lib/live-qso-map and the account gone
 ```
 
-Running `--save-config` as root rewrites the file as root-owned `0600`. Restore the packaged
-ownership with `sudo chown root:live-qso-map /etc/live-qso-map/config.toml && sudo chmod 0640 …`.
-The read-me and the `postinst` message say so.
+After `--save-config` as root, `ls -l /etc/live-qso-map/config.toml` still shows
+`-rw-r----- root live-qso-map`: replacing a file keeps its owner, group and mode.
 
 ## 5. Container image
 
@@ -68,6 +67,8 @@ docker run --rm -p 12060:12060/udp -p 8080:8080 -v lqm-data:/var/lib/live-qso-ma
   -v "$PWD/config.toml:/etc/live-qso-map/config.toml:ro" sardylan/live-qso-map:2.0.0
 docker run --rm sardylan/live-qso-map:2.0.0 --version
 docker run --rm --entrypoint id sardylan/live-qso-map:2.0.0    # uid=10001
+docker run --rm -v "$PWD/config.toml:/etc/live-qso-map/config.toml:ro" sardylan/live-qso-map:2.0.0 \
+  --save-config - | grep '^path'     # the mounted file's country_data.path, not overridden
 ```
 
 Repeat on an ARM64 host (a Raspberry Pi 4/5 or Apple silicon with Docker).

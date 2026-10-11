@@ -71,8 +71,11 @@ recent_header = true
   - an existing file is replaced;
   - a missing folder is an error, and folders are not created.
 - **Permissions**:
-  - on Linux and macOS, the file has mode `0600` (owner read and write) from creation;
-  - on Windows, it gets the folder's default permissions.
+  - on Linux and macOS, a new file has mode `0600` (owner read and write) from creation;
+  - on Linux and macOS, a replaced file keeps its mode, owner and group: they are copied to the
+    temporary file before the rename. Ownership is copied only when the writer may set it (root);
+    otherwise the writer's ownership stays;
+  - on Windows, the file gets the folder's default permissions.
 - **Failure**: no partial file is left at the path; the temporary file is removed.
 
 ## Configuration file lookup
@@ -98,5 +101,5 @@ Absolute paths are used as given on every platform.
 | Platform | Configuration file | Data |
 |----------|--------------------|------|
 | Debian package | `/etc/live-qso-map/config.toml` (the service passes `--config`) | `/var/lib/live-qso-map/cty.dat` (set in the shipped file) |
-| Container | `/etc/live-qso-map/config.toml` (passed by the entry point when present) | `/var/lib/live-qso-map/cty.dat` (`LQM_CTY_PATH`) |
+| Container | `/etc/live-qso-map/config.toml` (passed by the entry point when present) | `/var/lib/live-qso-map/cty.dat` (from the mounted file, or `--cty-path` passed by the entry point when no file is mounted) |
 | Windows, macOS | `live-qso-map.toml` next to the program | `cty.dat` next to the program |

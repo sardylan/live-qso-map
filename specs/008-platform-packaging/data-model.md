@@ -50,8 +50,8 @@ and no environment input (SC-004).
 
 | Field | Values |
 |-------|--------|
-| kind | `deb`, `image`, `zip`, `binary`, `checksums` |
-| target | `amd64`, `arm64`, `armhf` (deb, binary); `linux/amd64`, `linux/arm64` (image); `windows-x64`, `macos-arm64` (zip) |
+| kind | `deb`, `image`, `zip`, `tar.gz`, `checksums` |
+| target | `amd64`, `arm64`, `armhf` (deb); the three Linux target triples (tar.gz); `linux/amd64`, `linux/arm64` (image); `windows-x64`, `macos-arm64` (zip) |
 | version | the release tag without `v`; equals `Cargo.toml` `version` (FR-002) |
 | name | per `contracts/release-artifacts.md` |
 | checksum | SHA-256, listed in `SHA256SUMS` (not for the image, which is addressed by digest) |
@@ -64,7 +64,7 @@ and no environment input (SC-004).
 | kind | system account (UID and GID in the system range) |
 | home | `/var/lib/live-qso-map` (not created by `adduser`; created by the package) |
 | shell | `/usr/sbin/nologin` |
-| GECOS | `live-qso-map service`: the marker of an account this package created |
+| GECOS | `live-qso-map service`, set with `usermod -c` right after `adduser`: the marker of an account this package created |
 
 ## Package life cycle (Debian)
 

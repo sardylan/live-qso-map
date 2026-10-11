@@ -55,7 +55,7 @@ systemd fragments for `enable = false`, `start = false`.
 
 | Script | Argument | Actions |
 |--------|----------|---------|
-| `postinst` | `configure` | 1. Create the group and account if missing (data-model.md "Service account"). 2. Create `/var/lib/live-qso-map` (0750, account-owned) if missing. 3. Unless `dpkg-statoverride --list /etc/live-qso-map/config.toml` matches, set it to root:live-qso-map 0640. 4. `#DEBHELPER#`. 5. On upgrade (`$2` not empty): `deb-systemd-invoke try-restart live-qso-map.service` (restarts only if running). 6. On first install (`$2` empty): print the next steps (edit the file, `systemctl enable --now live-qso-map`). |
+| `postinst` | `configure` | 1. If `getent passwd live-qso-map` fails: `adduser --system --group --home /var/lib/live-qso-map --no-create-home --shell /usr/sbin/nologin live-qso-map`, then `usermod -c "live-qso-map service" live-qso-map` (data-model.md "Service account"). 2. Create `/var/lib/live-qso-map` (0750, account-owned) if missing. 3. Unless `dpkg-statoverride --list /etc/live-qso-map/config.toml` matches, set it to root:live-qso-map 0640. 4. `#DEBHELPER#`. 5. On upgrade (`$2` not empty): `deb-systemd-invoke try-restart live-qso-map.service` (restarts only if running). 6. On first install (`$2` empty): print the next steps (edit the file, `systemctl enable --now live-qso-map`). |
 | `postrm` | `remove` | `#DEBHELPER#` (stop and disable, daemon-reload); nothing else |
 | `postrm` | `purge` | 1. `#DEBHELPER#`. 2. Delete `/etc/live-qso-map/` and `/var/lib/live-qso-map/`. 3. If the account exists and its GECOS is `live-qso-map service`: `deluser --system --quiet live-qso-map`. 4. `delgroup --system --only-if-empty --quiet live-qso-map` when the group exists. |
 | `prerm`, `preinst` | | only `#DEBHELPER#` (generated) |
@@ -73,7 +73,8 @@ offline queries (`is-enabled`), and the start check is skipped.
 | Step | Checks |
 |------|--------|
 | install | data-model.md "Package life cycle", first-install row: files, owners, modes; account shell and GECOS; unit not enabled |
-| edit config, install again (upgrade path) | the edited file is unchanged; the account is unchanged |
-| remove | the binary is gone; `/etc/live-qso-map`, `/var/lib/live-qso-map` and the account remain |
+| edit config, install again (upgrade path) | the edited file is unchanged; the account is unchanged; the unit is still not enabled |
+| `--save-config /etc/live-qso-map/config.toml` as root | the file is still root:live-qso-map 0640 |
+| remove | the binary is gone; `/etc/live-qso-map`, `/var/lib/live-qso-map` and the account remain; the unit is not enabled |
 | install, then purge | no `/etc/live-qso-map`, no `/var/lib/live-qso-map`, no account, no group |
 | pre-created account with another GECOS, install, purge | the account survives purge |

@@ -46,8 +46,11 @@ Versions checked on 2026-10-11:
 - **Decision**:
   - **Install** (`postinst configure`): create the system account and group `live-qso-map` when
     they are missing, with
-    `adduser --system --group --home /var/lib/live-qso-map --no-create-home --shell /usr/sbin/nologin --gecos "live-qso-map service"`.
-    An existing account is reused unchanged.
+    `adduser --system --group --home /var/lib/live-qso-map --no-create-home --shell /usr/sbin/nologin live-qso-map`,
+    then set the marker with `usermod -c "live-qso-map service" live-qso-map`. The comment is set
+    separately because newer `adduser` releases may prefer `--comment` while older ones only accept
+    `--gecos`; `usermod -c` works on every supported release. An existing account is reused
+    unchanged.
   - **Purge** (`postrm purge`), in this order:
     1. delete `/etc/live-qso-map/` and `/var/lib/live-qso-map/`;
     2. delete the account with `deluser --system`, but only if its GECOS field is still
@@ -94,8 +97,8 @@ Versions checked on 2026-10-11:
   - **Permissions**: `postinst` sets the file to `root:live-qso-map`, mode `0640`, unless an
     operator has registered a `dpkg-statoverride` for it.
   - **Sync test**: a unit test checks that every key of the exported configuration (R9) appears
-    in the example. It also checks that the example, with comments removed, loads as the default
-    configuration.
+    in the example. It also checks that the example, with its settings uncommented, loads without
+    error.
 - **Rationale**: the hand-written comments explain each setting, which an export can't do. The
   test keeps the example from drifting away from the code (FR-010).
 - **Alternatives**:
@@ -113,11 +116,16 @@ Versions checked on 2026-10-11:
       `/var/lib/live-qso-map`; the final stage copies them in;
     - the process runs as the numeric unprivileged user `10001:10001`, which needs no passwd
       entry;
-    - `VOLUME /var/lib/live-qso-map`, with `LQM_CTY_PATH` pointing into it;
+    - `VOLUME /var/lib/live-qso-map`;
     - exposes ports `12060/udp` and `8080/tcp`;
-    - the entry point reads `/etc/live-qso-map/config.toml` when present.
-  - **Publishing**: `linux/amd64` and `linux/arm64`, tagged `sardylan/live-qso-map:<version>` and
-    `:latest` on Docker Hub (clarification Q2).
+    - the entry point (`deploy/docker/entrypoint.sh`) passes `--config
+      /etc/live-qso-map/config.toml` when that file exists, and `--cty-path
+      /var/lib/live-qso-map/cty.dat` otherwise. No `LQM_CTY_PATH` is set in the image, because an
+      environment variable would silently override `country_data.path` from a mounted file; the
+      shipped example already points at `/var/lib/live-qso-map/cty.dat`.
+  - **Publishing**: `linux/amd64` and `linux/arm64` on Docker Hub (clarification Q2). The image is
+    first pushed as `sardylan/live-qso-map:<version>-rc`, and re-tagged to `<version>` and `latest`
+    only after the GitHub release is published (R7).
   - **Local builds**: the repository `Dockerfile` stays, for building from source on any host. Its
     build stage moves to `rust:<pinned>-trixie`, with the same runtime base.
 - **Rationale**:
@@ -133,27 +141,31 @@ Versions checked on 2026-10-11:
 ## R7. Release pipeline (CircleCI, tags only)
 
 - **Decision**: on `vX.Y.Z` tags, after the existing quality gates:
-  1. `check-version`: the tag must equal `v` plus the `Cargo.toml` version, otherwise the
-     workflow stops (FR-002).
+  1. `check-version`: `scripts/check-version.sh` (POSIX `sh`, tested by
+     `scripts/test-check-version.sh`) checks that the tag equals `v` plus the `Cargo.toml` version,
+     otherwise the workflow stops (FR-002).
   2. **Builds**: unchanged (`cross` for the three Linux targets, macOS, Windows).
   3. `package-deb`: cargo-deb on the three Linux binaries.
   4. `test-deb`: runs `scripts/test-deb.sh` in `debian:12`, `debian:13`, `ubuntu:22.04` and
      `ubuntu:24.04` containers (amd64). The script installs, upgrades (to the same package),
      removes, reinstalls and purges, and checks files, owners, modes and the account after each
      step.
-  5. `package-archives`: the Windows and macOS zips.
-  6. `docker-image`: `docker buildx build --platform linux/amd64,linux/arm64 --push`.
+  5. `package-archives`: the Windows and macOS zips, and a `.tar.gz` per Linux target with the
+     binary and `LICENSE.md` (R13).
+  6. `docker-image`: build, smoke-test (`scripts/test-image.sh`), then
+     `docker buildx build --platform linux/amd64,linux/arm64 --push` as `<version>-rc` only.
   7. `publish-github-release`: every file plus `SHA256SUMS` (FR-003). It runs only after every job
-     above has succeeded (SC-008).
+     above has succeeded.
+  8. `docker-promote`: after the release is published, `docker buildx imagetools create` re-tags
+     `<version>-rc` to `<version>` and `latest`, with no rebuild.
+
+  A failure before step 7 publishes nothing: at most an internal `-rc` image tag exists
+  (SC-008).
 
   New CircleCI project variables: `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` (a Docker Hub access
   token), next to `GITHUB_TOKEN`.
 - **Rationale**: one job per artifact keeps failures easy to read, and publishing only after every
   job succeeds makes the release all-or-nothing.
-- **Accepted risk**: the image is pushed before the GitHub release is published, so a later
-  failure could leave an image without a release. Running `docker-image` in parallel saves time,
-  because it is the slowest job. If this ever happens, the image push moves to the end.
-
 ## R8. Command-line help (clap)
 
 - **Decision**:
@@ -197,8 +209,12 @@ Versions checked on 2026-10-11:
     - the band filter as the explicit list of considered bands, in frequency order (HR-2);
     - the full colour table under `[map.bands]`.
   - **Atomic write**: write to a temporary file in the same folder, then rename it over the
-    target. On Unix the temporary file is created with mode `0600` before any byte is written. On
-    Windows, `std::fs::rename` replaces an existing file.
+    target. On Unix the temporary file is created with mode `0600` before any byte is written.
+    When the target already exists, its mode is copied to the temporary file
+    (`fs::set_permissions`), and its owner and group too (`std::os::unix::fs::chown`); a failed
+    `chown` is ignored, since a writer that isn't root keeps its own ownership. So
+    `sudo live-qso-map --save-config /etc/live-qso-map/config.toml` keeps the packaged
+    `root:live-qso-map 0640`. On Windows, `std::fs::rename` replaces an existing file.
   - **Round-trip test**: for a set of combinations (command line, environment, file),
     `load(export(load(x))) == load(x)` (SC-004).
 - **Rationale**: reusing the file format guarantees that the export is a valid configuration
@@ -272,7 +288,9 @@ Versions checked on 2026-10-11:
 ## R13. Other release files
 
 - **Decision**: the GitHub release also carries:
-  - the three static Linux binaries, as today;
+  - one `live-qso-map-<version>-<target>.tar.gz` per Linux target, holding the static binary
+    (mode 755) and `LICENSE.md`;
   - a `SHA256SUMS` file covering every downloadable file (FR-003).
-- **Rationale**: the static binaries cost nothing extra and serve distributions other than
-  Debian.
+- **Rationale**: the static binaries serve distributions other than Debian at no extra cost. The
+  GPL needs the license text with each binary (FR-004), so they ship as archives, not bare
+  files.

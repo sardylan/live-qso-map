@@ -16,10 +16,11 @@
   - **Tests**: a CI script installs, upgrades, removes and purges the package in Debian 12/13 and
     Ubuntu 22.04/24.04 containers (R7).
 - **Container image**: `debian:trixie-slim` with the pipeline binaries, for `linux/amd64` and
-  `linux/arm64`, pushed to Docker Hub as `sardylan/live-qso-map` (R6).
+  `linux/arm64`, pushed to Docker Hub as `sardylan/live-qso-map`. It is tagged `<version>-rc` first
+  and re-tagged to `<version>` and `latest` only after the GitHub release is published (R6, R7).
 - **Windows and macOS**: one zip each, with the program, the license and a read-me (R12).
-- **Every release**: a version check against the tag (R7), the static Linux binaries and a
-  `SHA256SUMS` file (R13).
+- **Every release**: a version check against the tag (R7), the static Linux binaries as
+  `.tar.gz` archives with the license, and a `SHA256SUMS` file (R13).
 
 **Program changes**:
 - **Configuration export**: `--save-config <PATH>` and `--dump-config <PATH>` write the
@@ -51,11 +52,12 @@ packages.
 - the UDP port stays closed until the operator enables the service (FR-011);
 - conffiles are kept across upgrades (FR-009);
 - purge leaves nothing behind (SC-002);
-- exported files are owner-only and can contain passwords (FR-022);
+- new exported files are owner-only, replaced files keep their owner and mode, and the files can
+  contain passwords (FR-022);
 - the release is all-or-nothing (SC-008).
 
 **Scale/Scope**:
-- **Release artifacts**: 3 Debian packages, 1 multi-architecture image, 2 zips, 3 raw binaries
+- **Release artifacts**: 3 Debian packages, 1 multi-architecture image, 2 zips, 3 Linux `.tar.gz`
   and 1 checksum file.
 - **Command line**: about 35 options.
 
@@ -144,8 +146,9 @@ src/
 │                        # relative path base on Windows/macOS                       [tests]
 ├── config_export.rs     # NEW: render(&Config) -> String; write(path, text) atomic, 0600 [tests]
 ├── errors.rs            # Error::ConfigWrite                                          [tests]
-├── lib.rs               # pub mod config_export
-└── main.rs              # save/dump flow; Windows pause decision + call site
+├── console.rs           # NEW: should_wait(failed, interactive, windows) decision      [tests]
+├── lib.rs               # pub mod config_export, console
+└── main.rs              # save/dump flow; data-path resolution; Windows pause call site
 deploy/
 ├── config.example.toml  # conffile source; data path /var/lib/live-qso-map/cty.dat
 ├── debian/
@@ -157,12 +160,15 @@ deploy/
 └── macos/README.txt
 Dockerfile               # local build from source: rust:<pinned>-trixie → trixie-slim
 scripts/test-deb.sh      # CI-only package life-cycle test
+scripts/check-version.sh # tag vs Cargo.toml version gate (POSIX sh), used by CI
+scripts/test-check-version.sh  # its test
+scripts/test-image.sh    # CI-only container smoke test
 .circleci/config.yml     # check-version, package-deb, test-deb, package-archives, docker-image,
                          # SHA256SUMS in publish
 README.md                # installation per platform; save/dump; Docker Hub image
 tests/
 ├── cli_help.rs          # width, short/long help, suggestion
-└── config_export.rs     # round trip through the binary's library API, example sync
+└── config_export.rs     # binary-level save/dump behaviour (exit codes, files, messages)
 ```
 
 **Structure Decision**: single crate, as today. Packaging inputs live under `deploy/` per platform.

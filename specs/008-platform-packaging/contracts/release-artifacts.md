@@ -13,25 +13,27 @@ MUST equal the `version` in `Cargo.toml`, otherwise the workflow stops before bu
 | `live-qso-map_X.Y.Z-1_armhf.deb` | Debian package, 32-bit ARM |
 | `live-qso-map-X.Y.Z-windows-x64.zip` | `live-qso-map.exe`, `LICENSE.md`, `README.txt` |
 | `live-qso-map-X.Y.Z-macos-arm64.zip` | `live-qso-map` (executable bit set), `LICENSE.md`, `README.txt` |
-| `live-qso-map-X.Y.Z-x86_64-unknown-linux-musl` | static binary |
-| `live-qso-map-X.Y.Z-aarch64-unknown-linux-musl` | static binary |
-| `live-qso-map-X.Y.Z-armv7-unknown-linux-musleabihf` | static binary |
+| `live-qso-map-X.Y.Z-x86_64-unknown-linux-musl.tar.gz` | `live-qso-map` (static binary, mode 755), `LICENSE.md` |
+| `live-qso-map-X.Y.Z-aarch64-unknown-linux-musl.tar.gz` | `live-qso-map` (static binary, mode 755), `LICENSE.md` |
+| `live-qso-map-X.Y.Z-armv7-unknown-linux-musleabihf.tar.gz` | `live-qso-map` (static binary, mode 755), `LICENSE.md` |
 | `SHA256SUMS` | `sha256sum` output for every file above, one line each |
 
 The release is created only after every build, package and test job has succeeded. With any
-failure, no file is attached (SC-008).
+failure, no file is attached, and the image keeps only its internal `-rc` tag (SC-008).
+No bare binary is published: every program file ships inside a package or an archive with
+`LICENSE.md` (FR-004).
 
 ## Container image (Docker Hub)
 
 | Item | Value |
 |------|-------|
 | Repository | `sardylan/live-qso-map` |
-| Tags | `X.Y.Z` and `latest` (`latest` moves only with a release tag) |
+| Tags | `X.Y.Z-rc` while the release is built (internal); `X.Y.Z` and `latest` only after the GitHub release is published, by re-tagging the same manifest (no rebuild) |
 | Platforms | `linux/amd64`, `linux/arm64` (one multi-platform manifest) |
 | Base | `debian:trixie-slim` |
 | User | `10001:10001` (not root) |
-| Entry point | `/usr/bin/live-qso-map`, plus `--config /etc/live-qso-map/config.toml` when that file exists |
-| Environment | `LQM_CTY_PATH=/var/lib/live-qso-map/cty.dat` |
+| Entry point | `deploy/docker/entrypoint.sh`: `/usr/bin/live-qso-map --config /etc/live-qso-map/config.toml "$@"` when that file exists, otherwise `/usr/bin/live-qso-map --cty-path /var/lib/live-qso-map/cty.dat "$@"` |
+| Environment | none set by the image, so a mounted file's `country_data.path` is honoured |
 | Volume | `/var/lib/live-qso-map` |
 | Ports | `12060/udp`, `8080/tcp` |
 | Labels | `org.opencontainers.image.source`, `.version`, `.licenses=GPL-3.0-only`, `.title` |

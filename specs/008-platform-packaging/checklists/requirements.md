@@ -37,3 +37,6 @@
   expressed as user-visible help behaviour (FR-026, FR-027).
 - Resolved in Clarifications, session 2026-10-11: FR-011 service installed disabled, FR-015 Docker
   Hub, FR-022 passwords always included (owner-only file). All items pass; ready for `/speckit-plan`.
+- `/speckit-analyze` (2026-10-11) remediation applied: FR-004 (no bare binaries), FR-022
+  (replaced files keep owner and mode), SC-008 (image promoted after the release), container data
+  path, `adduser` portability, and test coverage for SC-007, FR-012/FR-014 and the ARM packages.

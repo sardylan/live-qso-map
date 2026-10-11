@@ -209,8 +209,9 @@ colour, and mistype an option.
 - Installing the package on an architecture it was not built for: the package tools refuse it.
 - Saving the configuration to the same file it was loaded from: the file is replaced only after the
   new content is complete, so an interruption never leaves a half-written file.
-- Saving a configuration that holds provider passwords: the written file must not be readable by
-  other users of the machine (see FR-022).
+- Saving a configuration that holds provider passwords over the packaged
+  `/etc/live-qso-map/config.toml`: the file keeps its owner, group and mode, so the service can
+  still read it and other users cannot (FR-022).
 - On Windows or macOS, the program's folder is read-only (for example extracted into a protected
   location): the country data download fails with a message naming the folder, as today for an
   unwritable path.
@@ -226,10 +227,12 @@ colour, and mistype an option.
   Debian package for each Linux architecture (x86-64, ARM64, 32-bit ARM), a container image, an
   archive for Windows (x64) and an archive for macOS (Apple silicon).
 - **FR-002**: Every artifact MUST carry the program's version, which MUST equal the release tag's
-  version (tag `v2.0.0` → version `2.0.0`). A mismatch MUST stop the release with nothing published.
+  version (tag `v2.0.0` → version `2.0.0`; Debian packages add their revision, `2.0.0-1`). A
+  mismatch MUST stop the release with nothing published.
 - **FR-003**: Each release MUST publish a SHA-256 checksum for every downloadable artifact.
 - **FR-004**: Every artifact MUST include the license text, as the GPL requires for binary
-  distribution.
+  distribution. Downloadable programs are therefore always inside a package or an archive, never
+  a bare binary.
 
 **Debian package**
 
@@ -291,9 +294,10 @@ colour, and mistype an option.
   file format, and loading it back MUST give an identical effective configuration.
 - **FR-022**: The written file MUST include the provider usernames and passwords, whatever their
   source (command line, environment or file), so it is a complete, working configuration. On Linux
-  and macOS, a written file MUST be readable and writable by its owner only; the program MUST print
-  a note that the file contains passwords when it holds any. Writing to the standard output (`-`)
-  prints them too.
+  and macOS, a new file MUST be readable and writable by its owner only; when an existing file is
+  replaced, its owner, group and mode MUST be kept, as far as the writer is allowed to set them.
+  The program MUST print a note that the file contains passwords when it holds any. Writing to the
+  standard output (`-`) prints them too.
 - **FR-023**: The configuration MUST be fully validated before anything is written; on an invalid
   configuration nothing is written and the error is the same as at start-up.
 - **FR-024**: Writing MUST be atomic: an existing file at the path is replaced only once the new
