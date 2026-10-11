@@ -1,4 +1,7 @@
+# Build context for Dockerfile (source build) and deploy/docker/Dockerfile.release (CI, which
+# adds dist/linux/<arch>/ binaries). Everything else stays out.
 target/
+ws/
 .git/
 .idea/
 specs/
@@ -8,6 +11,7 @@ web/
 tools/
 scripts/
 deploy/
+!deploy/docker/
 node_modules/
 *.log
 .env*

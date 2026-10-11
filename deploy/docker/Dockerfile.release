@@ -1,0 +1,32 @@
+# Release image (feature 008, research R6): the pipeline-built static binaries on Debian 13 slim.
+# Built by CI only (constitution Principle V), from a context holding dist/linux/<arch>/:
+#   docker buildx build --platform linux/amd64,linux/arm64 -f deploy/docker/Dockerfile.release .
+# Nothing runs on the target platform, so no emulation is needed.
+
+# Native stage: CA certificates (the TLS stack reads the system store) and the folders.
+FROM --platform=$BUILDPLATFORM debian:trixie-slim AS prep
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /out/etc/live-qso-map /out/var/lib/live-qso-map \
+    && chown 10001:10001 /out/var/lib/live-qso-map \
+    && chmod 0750 /out/var/lib/live-qso-map
+
+FROM debian:trixie-slim
+ARG TARGETARCH
+ARG VERSION=dev
+LABEL org.opencontainers.image.title="live-qso-map" \
+      org.opencontainers.image.description="Live map of the QSOs an amateur radio station logs during a contest" \
+      org.opencontainers.image.source="https://github.com/sardylan/live-qso-map" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.licenses="GPL-3.0-only"
+COPY --from=prep /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --from=prep /out/etc/live-qso-map /etc/live-qso-map
+COPY --from=prep --chown=10001:10001 /out/var/lib/live-qso-map /var/lib/live-qso-map
+COPY LICENSE.md /usr/share/doc/live-qso-map/LICENSE.md
+COPY --chmod=755 deploy/docker/entrypoint.sh /usr/local/bin/live-qso-map-entrypoint
+COPY --chmod=755 dist/linux/${TARGETARCH}/live-qso-map /usr/bin/live-qso-map
+USER 10001:10001
+VOLUME /var/lib/live-qso-map
+EXPOSE 12060/udp 8080/tcp
+ENTRYPOINT ["/usr/local/bin/live-qso-map-entrypoint"]

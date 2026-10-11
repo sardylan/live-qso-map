@@ -391,7 +391,7 @@ fork tag.
 
 ### Tests for User Story 4 (write first, confirm they FAIL)
 
-- [ ] T037 [P] [US4] Write `scripts/test-image.sh <image>`, a POSIX `sh` script that runs:
+- [X] T037 [P] [US4] Write `scripts/test-image.sh <image>`, a POSIX `sh` script that runs:
   - `docker run --rm <image> --version`, which prints the version;
   - `docker run --rm --entrypoint id <image> -u`, which prints `10001`;
   - a detached run with `-v` of a temporary `config.toml` setting `http_port = 18080` and
@@ -406,10 +406,10 @@ fork tag.
 
 ### Implementation for User Story 4
 
-- [ ] T038 [US4] Write `deploy/docker/entrypoint.sh`. If `/etc/live-qso-map/config.toml` exists,
+- [X] T038 [US4] Write `deploy/docker/entrypoint.sh`. If `/etc/live-qso-map/config.toml` exists,
   it runs `exec /usr/bin/live-qso-map --config /etc/live-qso-map/config.toml "$@"`; otherwise
   `exec /usr/bin/live-qso-map --cty-path /var/lib/live-qso-map/cty.dat "$@"`.
-- [ ] T039 [US4] [R:YELLOW] Write `deploy/docker/Dockerfile.release` per research R6 and
+- [X] T039 [US4] [R:YELLOW] Write `deploy/docker/Dockerfile.release` per research R6 and
   contracts/release-artifacts.md "Container image":
   - a `FROM --platform=$BUILDPLATFORM debian:trixie-slim AS prep` stage installs
     `ca-certificates` and creates `/etc/live-qso-map` and `/var/lib/live-qso-map` (owner
@@ -421,13 +421,13 @@ fork tag.
     OCI labels. No `ENV LQM_CTY_PATH` (it would override a mounted file's path).
 
   No `RUN` in the final stage.
-- [ ] T040 [US4] Update the local `Dockerfile` (build from source on any host):
+- [X] T040 [US4] Update the local `Dockerfile` (build from source on any host):
   - build stage `rust:${RUST_VERSION}-trixie`, keeping the `RUST_VERSION` pin in step with CI;
   - runtime stage the same as T039's final stage, but copying the binary built in the image;
   - remove distroless.
 
   Keep the `RUST_VERSION` comment referring to `docs/rust-guidelines.md` §2.2.
-- [ ] T041 [US4] [R:YELLOW] In `.circleci/config.yml`, add a tag-only `docker-image` job on the
+- [X] T041 [US4] [R:YELLOW] In `.circleci/config.yml`, add a tag-only `docker-image` job on the
   `linux-machine` executor (requires `build-linux-x86_64-unknown-linux-musl` and
   `build-linux-aarch64-unknown-linux-musl`):
   1. lay out `dist/linux/amd64` and `dist/linux/arm64`;
@@ -439,12 +439,12 @@ fork tag.
      -t sardylan/live-qso-map:<X.Y.Z>-rc --push .` (only the internal `-rc` tag).
 
   `publish-github-release` requires it. Validate the config with the CircleCI API.
-- [ ] T042 [US4] [R:YELLOW] In `.circleci/config.yml`, add a tag-only `docker-promote` job that
+- [X] T042 [US4] [R:YELLOW] In `.circleci/config.yml`, add a tag-only `docker-promote` job that
   requires `publish-github-release`. It logs in to Docker Hub and runs
   `docker buildx imagetools create -t sardylan/live-qso-map:<X.Y.Z> -t sardylan/live-qso-map:latest
   sardylan/live-qso-map:<X.Y.Z>-rc` (re-tag, no rebuild), so the public tags appear only after
   the release is published (SC-008).
-- [ ] T043 [P] [US4] In `README.md`, rewrite the Container section around
+- [X] T043 [P] [US4] In `README.md`, rewrite the Container section around
   `sardylan/live-qso-map:<version>`: ports, the config mount at
   `/etc/live-qso-map/config.toml`, the `lqm-data` volume at `/var/lib/live-qso-map`, and the
   non-root user. Mention the local `docker build .`.

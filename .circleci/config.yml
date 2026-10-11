@@ -289,6 +289,54 @@ jobs:
           paths:
             - release/*.zip
 
+  # Container image (research R6): built from the pipeline binaries, smoke-tested, then pushed
+  # as the internal <version>-rc tag only. docker-promote publishes it after the release.
+  docker-image:
+    executor: linux-machine
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ./ws
+      - run:
+          name: Lay out the binaries
+          command: |
+            mkdir -p dist/linux/amd64 dist/linux/arm64
+            cp ws/bin/x86_64-unknown-linux-musl/live-qso-map dist/linux/amd64/
+            cp ws/bin/aarch64-unknown-linux-musl/live-qso-map dist/linux/arm64/
+      - run:
+          name: Log in to Docker Hub
+          command: echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+      - run:
+          name: Build and smoke-test (amd64)
+          command: |
+            docker buildx create --use --name lqm
+            docker buildx build --platform linux/amd64 --load \
+              --build-arg VERSION="${CIRCLE_TAG#v}" \
+              -f deploy/docker/Dockerfile.release -t lqm-test .
+            sh scripts/test-image.sh lqm-test
+      - run:
+          name: Push the release candidate (amd64 + arm64)
+          command: |
+            docker buildx build --platform linux/amd64,linux/arm64 --push \
+              --build-arg VERSION="${CIRCLE_TAG#v}" \
+              -f deploy/docker/Dockerfile.release \
+              -t "sardylan/live-qso-map:${CIRCLE_TAG#v}-rc" .
+
+  # After the GitHub release: re-tag the tested -rc manifest, no rebuild (SC-008).
+  docker-promote:
+    executor: linux-machine
+    steps:
+      - run:
+          name: Log in to Docker Hub
+          command: echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+      - run:
+          name: Publish <version> and latest
+          command: |
+            version="${CIRCLE_TAG#v}"
+            docker buildx imagetools create \
+              -t "sardylan/live-qso-map:${version}" -t sardylan/live-qso-map:latest \
+              "sardylan/live-qso-map:${version}-rc"
+
   # Publishes only ws/release (packages and archives), with SHA256SUMS (FR-003, FR-004).
   publish-github-release:
     executor: github
@@ -374,10 +422,16 @@ workflows:
       - package-archives:
           filters: *release-tags
           requires: [build-macos, build-windows]
+      - docker-image:
+          filters: *release-tags
+          requires:
+            - build-linux-x86_64-unknown-linux-musl
+            - build-linux-aarch64-unknown-linux-musl
       - publish-github-release:
           filters: *release-tags
           requires:
             - package-archives
+            - docker-image
             - build-linux
             - build-macos
             - build-windows
@@ -386,3 +440,6 @@ workflows:
             - test-deb-debian-13
             - test-deb-ubuntu-22-04
             - test-deb-ubuntu-24-04
+      - docker-promote:
+          filters: *release-tags
+          requires: [publish-github-release]

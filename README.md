@@ -202,14 +202,23 @@ The history lives in memory only and is lost on restart.
 
 ## Deployment
 
-**Container**
+**Container** (Docker Hub, `linux/amd64` and `linux/arm64`, based on Debian 13 slim):
 
 ```bash
-docker build -t live-qso-map .
 docker run -p 12060:12060/udp -p 8080:8080 \
-  -e LQM_STATION_CALLSIGN=IS0MZK -e LQM_STATION_LOCATOR=JM49NH \
-  -v lqm-data:/data live-qso-map
+  -v lqm-data:/var/lib/live-qso-map \
+  -v "$PWD/config.toml:/etc/live-qso-map/config.toml:ro" \
+  sardylan/live-qso-map:2.0.0
 ```
+
+- **Configuration**: a file mounted at `/etc/live-qso-map/config.toml` is used as is. Without
+  one, settings come from `LQM_*` environment variables (`-e LQM_STATION_CALLSIGN=IS0MZK`) or
+  options after the image name.
+- **Data**: `cty.dat` is kept in the `/var/lib/live-qso-map` volume, so it survives restarts.
+- **User**: the process runs as the unprivileged user `10001`, not root.
+- **Tags**: `2.0.0` for a release, `latest` for the newest one.
+- **Building locally**: `docker build -t live-qso-map .` builds the same image from source on any
+  host.
 
 **Release binaries**: the CircleCI pipeline builds every target and attaches the binaries to
 the GitHub release of each `vX.Y.Z` tag. The targets are static Linux for x86_64 (PC, VM,
