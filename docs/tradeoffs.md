@@ -1,7 +1,7 @@
 ---
 maturity: growing
 type: tradeoffs
-updated: 2026-10-08
+updated: 2026-10-11
 ---
 
 # Tradeoffs
@@ -19,6 +19,7 @@ we deliberately gave up. Records the *why*, not just the *what*.
 | TR-004 | proposed | JSON interface rules in docs/http-api.md, referenced by the constitution | 2026-10-09 |
 | TR-005 | proposed | Entity extents generated from Natural Earth by a dev-only script | 2026-10-09 |
 | TR-006 | proposed | The page requests max(map Last N, 20) QSOs to feed both the map and the box | 2026-10-09 |
+| TR-007 | proposed | Score staleness is judged from a server-supplied age, not the browser clock | 2026-10-09 |
 | TR-008 | proposed | Cross-compile only in the pipeline; gate every main commit, build releases on tags | 2026-10-11 |
 
 ## Decisions
