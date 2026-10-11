@@ -42,110 +42,191 @@ pub const DEFAULT_STYLE_ATTRIBUTION: &str = "<a href=\"https://openfreemap.org\"
 
 const LOG_LEVELS: &[&str] = &["error", "warn", "info", "debug", "trace"];
 
+/// Coloured help (feature 008): shown only on a colour terminal, never with `NO_COLOR`.
+fn help_styles() -> clap::builder::Styles {
+    use clap::builder::styling::{AnsiColor, Effects};
+    clap::builder::Styles::styled()
+        .header(AnsiColor::Yellow.on_default() | Effects::BOLD)
+        .usage(AnsiColor::Yellow.on_default() | Effects::BOLD)
+        .literal(AnsiColor::Green.on_default() | Effects::BOLD)
+        .placeholder(AnsiColor::Cyan.on_default())
+        .error(AnsiColor::Red.on_default() | Effects::BOLD)
+        .valid(AnsiColor::Green.on_default())
+        .invalid(AnsiColor::Yellow.on_default())
+}
+
 /// Command-line options. Every option also has an `LQM_*` environment variable, read by
 /// [`Config::load`]; the command line wins.
 #[derive(Debug, Default, Parser)]
-#[command(name = "live-qso-map", version, about = "Live map of contest QSOs")]
+#[command(name = "live-qso-map", version, about = "Live map of contest QSOs", styles = help_styles())]
 pub struct Cli {
-    /// TOML configuration file [env: LQM_CONFIG]
+    /// TOML configuration file
+    ///
+    /// Environment: LQM_CONFIG. Default: live-qso-map.toml next to the program, if present.
     #[arg(long)]
     pub config: Option<PathBuf>,
-    /// Address for the UDP and HTTP listeners [env: LQM_BIND_ADDRESS] [default: 0.0.0.0]
+    /// Address for the UDP and HTTP listeners
+    ///
+    /// Environment: LQM_BIND_ADDRESS. Default: 0.0.0.0.
     #[arg(long)]
     pub bind_address: Option<IpAddr>,
-    /// UDP port for QSO messages [env: LQM_UDP_PORT] [default: 12060]
+    /// UDP port for QSO messages (ADIF, QARTest)
+    ///
+    /// Environment: LQM_UDP_PORT. Default: 12060.
     #[arg(long)]
     pub udp_port: Option<u32>,
-    /// HTTP port for the map [env: LQM_HTTP_PORT] [default: 8080]
+    /// HTTP port for the map, WebSocket and /healthz
+    ///
+    /// Environment: LQM_HTTP_PORT. Default: 8080.
     #[arg(long)]
     pub http_port: Option<u32>,
-    /// QSOs kept in memory, 0 = unbounded [env: LQM_HISTORY_SIZE] [default: 10000]
+    /// QSOs kept in memory, 0 = unbounded
+    ///
+    /// Environment: LQM_HISTORY_SIZE. Default: 10000.
     #[arg(long)]
     pub history_size: Option<usize>,
-    /// Enrichment workers [env: LQM_WORKERS] [default: 1]
+    /// Enrichment workers
+    ///
+    /// Environment: LQM_WORKERS. Default: 1.
     #[arg(long)]
     pub workers: Option<usize>,
-    /// Capacity of the ingest queue [env: LQM_INGEST_QUEUE] [default: 1024]
+    /// Capacity of the ingest queue
+    ///
+    /// Environment: LQM_INGEST_QUEUE. Default: 1024.
     #[arg(long)]
     pub ingest_queue: Option<usize>,
-    /// Capacity of the broadcast queue [env: LQM_BROADCAST_QUEUE] [default: 1024]
+    /// Capacity of the broadcast queue
+    ///
+    /// Environment: LQM_BROADCAST_QUEUE. Default: 1024.
     #[arg(long)]
     pub broadcast_queue: Option<usize>,
-    /// error, warn, info, debug or trace [env: LQM_LOG_LEVEL] [default: info]
+    /// Log level: error, warn, info, debug or trace
+    ///
+    /// Environment: LQM_LOG_LEVEL. Default: info.
     #[arg(long)]
     pub log_level: Option<String>,
-    /// Default station callsign [env: LQM_STATION_CALLSIGN]
+    /// Station callsign, used when a QSO lacks it
+    ///
+    /// Environment: LQM_STATION_CALLSIGN.
     #[arg(long)]
     pub station_callsign: Option<String>,
-    /// Default station locator [env: LQM_STATION_LOCATOR]
+    /// Station Maidenhead locator, used when a QSO lacks it
+    ///
+    /// Environment: LQM_STATION_LOCATOR.
     #[arg(long)]
     pub station_locator: Option<String>,
-    /// Default station latitude [env: LQM_STATION_LATITUDE]
+    /// Station latitude in degrees (set with the longitude)
+    ///
+    /// Environment: LQM_STATION_LATITUDE.
     #[arg(long, allow_hyphen_values = true)]
     pub station_latitude: Option<f64>,
-    /// Default station longitude [env: LQM_STATION_LONGITUDE]
+    /// Station longitude in degrees (set with the latitude)
+    ///
+    /// Environment: LQM_STATION_LONGITUDE.
     #[arg(long, allow_hyphen_values = true)]
     pub station_longitude: Option<f64>,
-    /// Lookup timeout per provider, seconds [env: LQM_LOOKUP_TIMEOUT] [default: 5]
+    /// Lookup timeout per provider, in seconds
+    ///
+    /// Environment: LQM_LOOKUP_TIMEOUT. Default: 5.
     #[arg(long)]
     pub lookup_timeout: Option<u64>,
-    /// Provider order for ties, comma-separated [env: LQM_PROVIDER_ORDER] [default: qrz,hamqth,qrzcq]
+    /// Provider order for ties, comma-separated
+    ///
+    /// Environment: LQM_PROVIDER_ORDER. Default: qrz,hamqth,qrzcq.
     #[arg(long)]
     pub provider_order: Option<String>,
-    /// [env: LQM_QRZ_USERNAME]
+    /// QRZ.com username
+    ///
+    /// Environment: LQM_QRZ_USERNAME.
     #[arg(long)]
     pub qrz_username: Option<String>,
-    /// [env: LQM_QRZ_PASSWORD]
+    /// QRZ.com password (prefer the environment variable)
+    ///
+    /// Environment: LQM_QRZ_PASSWORD.
     #[arg(long)]
     pub qrz_password: Option<String>,
-    /// [env: LQM_HAMQTH_USERNAME]
+    /// HamQTH username
+    ///
+    /// Environment: LQM_HAMQTH_USERNAME.
     #[arg(long)]
     pub hamqth_username: Option<String>,
-    /// [env: LQM_HAMQTH_PASSWORD]
+    /// HamQTH password (prefer the environment variable)
+    ///
+    /// Environment: LQM_HAMQTH_PASSWORD.
     #[arg(long)]
     pub hamqth_password: Option<String>,
-    /// [env: LQM_QRZCQ_USERNAME]
+    /// QRZCQ username
+    ///
+    /// Environment: LQM_QRZCQ_USERNAME.
     #[arg(long)]
     pub qrzcq_username: Option<String>,
-    /// [env: LQM_QRZCQ_PASSWORD]
+    /// QRZCQ password (prefer the environment variable)
+    ///
+    /// Environment: LQM_QRZCQ_PASSWORD.
     #[arg(long)]
     pub qrzcq_password: Option<String>,
-    /// cty.dat location [env: LQM_CTY_PATH] [default: ./cty.dat]
+    /// Location of the cty.dat country data file
+    ///
+    /// Environment: LQM_CTY_PATH. Default: ./cty.dat (next to the program on Windows and macOS).
     #[arg(long)]
     pub cty_path: Option<PathBuf>,
-    /// cty.dat download URL [env: LQM_CTY_URL]
+    /// Download URL of cty.dat
+    ///
+    /// Environment: LQM_CTY_URL. Default: https://www.country-files.com/cty/cty.dat.
     #[arg(long)]
     pub cty_url: Option<String>,
-    /// Re-download cty.dat after this many days, 0 = never [env: LQM_CTY_MAX_AGE_DAYS] [default: 30]
+    /// Re-download cty.dat after this many days, 0 = never
+    ///
+    /// Environment: LQM_CTY_MAX_AGE_DAYS. Default: 30.
     #[arg(long)]
     pub cty_max_age_days: Option<u64>,
-    /// Base map style URL, MapLibre style JSON [env: LQM_STYLE_URL] [default: OpenFreeMap Liberty]
+    /// Base map style URL (MapLibre style JSON)
+    ///
+    /// Environment: LQM_STYLE_URL. Default: OpenFreeMap Liberty.
     #[arg(long)]
     pub style_url: Option<String>,
-    /// Base map style attribution, HTML [env: LQM_STYLE_ATTRIBUTION]
+    /// Base map style attribution, HTML
+    ///
+    /// Environment: LQM_STYLE_ATTRIBUTION.
     #[arg(long)]
     pub style_attribution: Option<String>,
-    /// Raster tile URL template instead of a style [env: LQM_TILE_URL]
+    /// Raster tile URL template, instead of a style
+    ///
+    /// Environment: LQM_TILE_URL.
     #[arg(long)]
     pub tile_url: Option<String>,
-    /// Map tile attribution [env: LQM_TILE_ATTRIBUTION]
+    /// Raster tile attribution, HTML (required with --tile-url)
+    ///
+    /// Environment: LQM_TILE_ATTRIBUTION.
     #[arg(long)]
     pub tile_attribution: Option<String>,
-    /// Colour for unknown bands, #RRGGBB [env: LQM_FALLBACK_COLOR] [default: #7f7f7f]
+    /// Colour for unknown bands, #RRGGBB
+    ///
+    /// Environment: LQM_FALLBACK_COLOR. Default: #7f7f7f.
     #[arg(long)]
     pub fallback_color: Option<String>,
-    /// BAND=#RRGGBB, repeatable [env: LQM_BAND_COLORS, comma-separated]
+    /// Band colour as BAND=#RRGGBB, repeatable
+    ///
+    /// Environment: LQM_BAND_COLORS (comma-separated). Default: built-in palette.
     #[arg(long = "band-color")]
     pub band_color: Vec<String>,
-    /// Bands to consider: ADIF bands or groups (lf-mf, hf, hf-contest, warc, vhf, uhf, shf, ehf),
-    /// comma-separated or repeated; prefix with - to exclude [env: LQM_BANDS] [default: all]
+    /// Bands to consider, comma-separated or repeated; prefix with - to exclude
+    ///
+    /// Entries are ADIF bands or groups: lf-mf, hf, hf-contest, warc, vhf, uhf, shf, ehf.
+    ///
+    /// Environment: LQM_BANDS. Default: every band.
     #[arg(long = "bands")]
     pub bands: Vec<String>,
-    /// Last-QSO box columns in order: call, band, mode, date, time, cqzone, country;
-    /// comma-separated or repeated [env: LQM_RECENT_COLUMNS] [default: call,band,time,cqzone,country]
+    /// Last-QSO box columns, in order, comma-separated or repeated
+    ///
+    /// Columns: call, band, mode, date, time, cqzone, country.
+    ///
+    /// Environment: LQM_RECENT_COLUMNS. Default: call,band,time,cqzone,country.
     #[arg(long = "recent-columns")]
     pub recent_columns: Vec<String>,
-    /// Show the last-QSO box header row: true or false [env: LQM_RECENT_HEADER] [default: true]
+    /// Show the last-QSO box header row: true or false
+    ///
+    /// Environment: LQM_RECENT_HEADER. Default: true.
     #[arg(long = "recent-header")]
     pub recent_header: Option<bool>,
     /// Write the effective configuration to PATH (- = standard output), then exit
@@ -1695,5 +1776,63 @@ style_attribution = "file credit"
         )
         .unwrap();
         assert_eq!(config, Config::default());
+    }
+
+    // --- feature 008: help (T044) ---
+
+    #[test]
+    fn cli_definition_is_valid() {
+        use clap::CommandFactory;
+        Cli::command().debug_assert();
+    }
+
+    #[test]
+    fn long_help_fits_80_columns() {
+        use clap::CommandFactory;
+        let help = Cli::command().term_width(80).render_long_help().to_string();
+        for line in help.lines() {
+            assert!(line.chars().count() <= 80, "too long: {line:?}");
+        }
+    }
+
+    #[test]
+    fn short_help_is_summaries_long_help_adds_environment_and_default() {
+        use clap::CommandFactory;
+        let short = Cli::command().term_width(200).render_help().to_string();
+        assert!(!short.contains("Environment:"), "{short}");
+        let long = Cli::command()
+            .term_width(200)
+            .render_long_help()
+            .to_string();
+        assert!(
+            long.contains("Environment: LQM_UDP_PORT. Default: 12060."),
+            "{long}"
+        );
+    }
+
+    #[test]
+    fn every_option_typo_gets_a_suggestion() {
+        use clap::CommandFactory;
+        let command = Cli::command();
+        let names: Vec<String> = command
+            .get_arguments()
+            .filter_map(|a| a.get_long().map(str::to_string))
+            .collect();
+        for name in names.iter().filter(|n| n.len() > 4) {
+            let mut chars: Vec<char> = name.chars().collect();
+            let mid = chars.len() / 2;
+            chars.swap(mid - 1, mid);
+            let typo: String = chars.into_iter().collect();
+            if typo == *name || names.contains(&typo) {
+                continue;
+            }
+            let err =
+                Cli::try_parse_from(["live-qso-map", &format!("--{typo}"), "1"]).expect_err(&typo);
+            let rendered = err.render().to_string();
+            assert!(
+                rendered.contains(&format!("--{name}")),
+                "--{typo} should suggest --{name}: {rendered}"
+            );
+        }
     }
 }

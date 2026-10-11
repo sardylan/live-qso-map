@@ -461,7 +461,7 @@ FR-027).
 
 ### Tests for User Story 5 (write first, confirm they FAIL)
 
-- [ ] T044 [P] [US5] Unit tests in `src/config.rs` using `Cli::command()`:
+- [X] T044 [P] [US5] Unit tests in `src/config.rs` using `Cli::command()`:
   - `.term_width(80).render_long_help()` has no line longer than 80 characters (count chars,
     not bytes);
   - `render_help()` (`-h`) contains no `Environment:`;
@@ -470,7 +470,7 @@ FR-027).
     two adjacent letters in the middle of the name (`--udp-port` → `--udp-prot`); parsing fails,
     and the rendered error contains the real `--<name>` (SC-007);
   - `Cli::command().debug_assert()` passes.
-- [ ] T045 [P] [US5] Integration test in `tests/cli_help.rs`, running the binary with
+- [X] T045 [P] [US5] Integration test in `tests/cli_help.rs`, running the binary with
   `std::process::Command` and using `Result` + `?`:
   - `--help` with `NO_COLOR=1` and piped output contains no `\x1b[`;
   - `-h` exits 0;
@@ -478,7 +478,7 @@ FR-027).
 
 ### Implementation for User Story 5
 
-- [ ] T046 [US5] In `src/config.rs`, rewrite the doc comment of every `Cli` option as a one-line
+- [X] T046 [US5] In `src/config.rs`, rewrite the doc comment of every `Cli` option as a one-line
   summary, a blank line, then `Environment: LQM_<NAME>. Default: <value>.`, leaving out the
   parts an option does not have. Remove the old inline `[env: …] [default: …]` text.
   Add `#[command(styles = …)]` with coloured `header`, `usage`, `literal` and `placeholder`
