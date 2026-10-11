@@ -10,25 +10,25 @@ HTTP/WebSocket interface rules (binding): `docs/http-api.md`.
 
 ### Active Technologies
 
-- Rust (edition 2024, stable toolchain; developed on 1.98) + tokio, axum, async-channel, reqwest (rustls), quick-xml, clap, serde, toml, serde_json, tracing, tracing-subscriber (001-live-qso-map)
+- Rust (edition 2024, stable toolchain; developed on 1.99) + tokio, axum, async-channel, reqwest (rustls), quick-xml, clap, serde, toml, serde_json, tracing, tracing-subscriber (001-live-qso-map)
 - in-memory history (bounded, lost on restart); cty.dat file cached on disk (001-live-qso-map)
-- Rust (edition 2024, stable toolchain; developed on 1.98); browser ES modules + no new crates; the frontend uses MapLibre GL JS 5.24.0 (cdnjs, SRI) (002-maplibre)
+- Rust (edition 2024, stable toolchain; developed on 1.99); browser ES modules + no new crates; the frontend uses MapLibre GL JS 5.24.0 (cdnjs, SRI) (002-maplibre)
 - browser `localStorage` for the projection preference; no server storage (002-maplibre)
-- Rust (edition 2024, stable toolchain; developed on 1.98) + none new (existing tokio, axum, serde, clap, toml) (003-band-filter)
+- Rust (edition 2024, stable toolchain; developed on 1.99) + none new (existing tokio, axum, serde, clap, toml) (003-band-filter)
 - none new; tombstones are kept in memory next to the history (003-band-filter)
-- Rust (edition 2024, stable toolchain; developed on 1.98); browser ES modules; Python 3 stdlib (dev-only generator) + no new crates or frontend libraries (004-qth-autozoom)
+- Rust (edition 2024, stable toolchain; developed on 1.99); browser ES modules; Python 3 stdlib (dev-only generator) + no new crates or frontend libraries (004-qth-autozoom)
 - browser `localStorage` (`lqm.autozoom`, `lqm.recent`); embedded `src/web/entity_extents.json` generated from Natural Earth (004-qth-autozoom)
-- Rust (edition 2024, stable toolchain; developed on 1.98); browser ES modules + none new (005-recent-box-dxcc)
+- Rust (edition 2024, stable toolchain; developed on 1.99); browser ES modules + none new (005-recent-box-dxcc)
 - none new; the entity is stored on the enriched QSO in the in-memory history (005-recent-box-dxcc)
-- Rust (edition 2024, stable toolchain; developed on 1.98); browser ES modules + none new (006-recent-box-config)
+- Rust (edition 2024, stable toolchain; developed on 1.99); browser ES modules + none new (006-recent-box-config)
 - browser `localStorage` for `lqm.limit` (moved from session storage), `lqm.recent.size`, `lqm.recent.order` (006-recent-box-config)
-- Rust (edition 2024, stable toolchain; developed on 1.98); browser ES modules + none new (existing `quick-xml` reads the score message) (007-contest-score-layout)
+- Rust (edition 2024, stable toolchain; developed on 1.99); browser ES modules + none new (existing `quick-xml` reads the score message) (007-contest-score-layout)
 - in memory, the latest score only, lost on restart; no new browser keys (007-contest-score-layout)
 
 ### Recent Changes
 
-- 007-contest-score-layout: Added Rust (edition 2024, stable toolchain; developed on 1.98); browser ES modules + none new (existing `quick-xml` reads the score message)
-- 006-recent-box-config: Added Rust (edition 2024, stable toolchain; developed on 1.98); browser ES modules + none new
-- 005-recent-box-dxcc: Added Rust (edition 2024, stable toolchain; developed on 1.98); browser ES modules + none new
+- 007-contest-score-layout: Added Rust (edition 2024, stable toolchain; developed on 1.99); browser ES modules + none new (existing `quick-xml` reads the score message)
+- 006-recent-box-config: Added Rust (edition 2024, stable toolchain; developed on 1.99); browser ES modules + none new
+- 005-recent-box-dxcc: Added Rust (edition 2024, stable toolchain; developed on 1.99); browser ES modules + none new
 
 <!-- SPECKIT END -->
