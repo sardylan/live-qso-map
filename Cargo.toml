@@ -16,6 +16,7 @@ categories = ["command-line-utilities", "visualization"]
 [package.metadata.deb]
 section = "hamradio"
 priority = "optional"
+revision = "1"
 depends = "adduser"
 extended-description = """\
 Your logger sends each QSO over UDP. live-qso-map converts it to ADIF, works out where the \

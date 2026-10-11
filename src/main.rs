@@ -32,7 +32,16 @@ fn program_folder() -> Option<PathBuf> {
 }
 
 fn run() -> ExitCode {
-    let cli = Cli::parse();
+    // `try_parse`, not `parse`: a usage error must return here so `main` can still pause.
+    // Help and version print and exit with code 0, so they never pause.
+    let cli = match Cli::try_parse() {
+        Ok(cli) => cli,
+        Err(e) => {
+            // Printing fails only when stdout/stderr are gone; the exit code still reports it.
+            let _ = e.print();
+            return ExitCode::from(u8::try_from(e.exit_code()).unwrap_or(2));
+        }
+    };
     let env = |key: &str| std::env::var(key).ok();
     let exe_dir = program_folder();
 

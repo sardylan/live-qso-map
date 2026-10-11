@@ -76,6 +76,8 @@ usermod -c "someone else" live-qso-map
 install_deb
 dpkg -P live-qso-map >/dev/null || fail "dpkg -P failed"
 getent passwd live-qso-map >/dev/null || fail "purge deleted an account it did not create"
+getent group live-qso-map >/dev/null || fail "purge deleted a group it did not create"
 deluser --system --quiet live-qso-map >/dev/null 2>&1 || true
+delgroup --system --quiet live-qso-map >/dev/null 2>&1 || true
 
 echo "test-deb: all life-cycle checks passed"

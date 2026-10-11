@@ -230,6 +230,8 @@ jobs:
             deb=$(ls ws/release/live-qso-map_*_"$want".deb)
             got=$(dpkg-deb --field "$deb" Architecture)
             [ "$got" = "$want" ] || { echo "Architecture $got, wanted $want"; exit 1; }
+            got=$(dpkg-deb --field "$deb" Version)
+            [ "$got" = "${CIRCLE_TAG#v}-1" ] || { echo "Version $got, wanted ${CIRCLE_TAG#v}-1"; exit 1; }
             contents=$(dpkg-deb --contents "$deb")
             for path in ./usr/bin/live-qso-map ./etc/live-qso-map/config.toml live-qso-map.service; do
               echo "$contents" | grep -q "$path" || { echo "missing $path"; exit 1; }

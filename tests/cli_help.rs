@@ -35,3 +35,21 @@ fn typo_is_a_usage_error_with_a_suggestion() -> TestResult {
     assert!(String::from_utf8(out.stderr)?.contains("--udp-port"));
     Ok(())
 }
+
+#[test]
+fn bad_option_value_is_a_usage_error() -> TestResult {
+    let out = run(&["--udp-port", "not-a-port", "--save-config", "-"], &[])?;
+    assert_eq!(out.status.code(), Some(2));
+    let stderr = String::from_utf8(out.stderr)?;
+    assert!(stderr.contains("not-a-port"), "no clap message: {stderr}");
+    assert!(out.stdout.is_empty(), "something was written");
+    Ok(())
+}
+
+#[test]
+fn version_exits_zero() -> TestResult {
+    let out = run(&["--version"], &[])?;
+    assert_eq!(out.status.code(), Some(0));
+    assert!(String::from_utf8(out.stdout)?.starts_with("live-qso-map "));
+    Ok(())
+}
