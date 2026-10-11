@@ -2,28 +2,28 @@
 version: 2.1
 
 orbs:
-  win: circleci/windows@5.0.0
+  win: circleci/windows@5.1.1
 
 executors:
   rust:
     docker:
-      - image: rust:1.98  # same toolchain as the Dockerfile
+      - image: rust:1.99  # same toolchain as the Dockerfile
   node:
     docker:
-      - image: node:22
+      - image: node:24
   python:
     docker:
-      - image: python:3.13
+      - image: python:3.14
   linux-machine:
     machine:
-      image: ubuntu-2404:current
+      image: ubuntu-2604:current
   macos:
     macos:
-      xcode: 16.1.0
-    resource_class: macos.m1.medium.gen1
+      xcode: "27.0"
+    resource_class: m4pro.medium
   github:
     docker:
-      - image: cibuilds/github:0.10
+      - image: cibuilds/github:0.13.0
 
 commands:
   install-rustup:
@@ -32,8 +32,27 @@ commands:
       - run:
           name: Install Rust
           command: |
-            curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain 1.98
+            curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain 1.99
             echo 'source "$HOME/.cargo/env"' >> "$BASH_ENV"
+
+  with-cargo-cache:
+    description: Restore the Cargo registry and target directory, run the steps, then save them
+    parameters:
+      key:
+        type: string
+      steps:
+        type: steps
+    steps:
+      - restore_cache:
+          keys:
+            - cargo-v1-<< parameters.key >>-{{ checksum "Cargo.lock" }}
+            - cargo-v1-<< parameters.key >>-
+      - steps: << parameters.steps >>
+      - save_cache:
+          key: cargo-v1-<< parameters.key >>-{{ checksum "Cargo.lock" }}
+          paths:
+            - /usr/local/cargo/registry
+            - target
 
 jobs:
   lint:
@@ -43,20 +62,26 @@ jobs:
       - run:
           name: Install rustfmt and clippy
           command: rustup component add rustfmt clippy
-      - run:
-          name: Format
-          command: cargo fmt --check
-      - run:
-          name: Clippy
-          command: cargo clippy --locked --all-targets -- -D warnings
+      - with-cargo-cache:
+          key: lint
+          steps:
+            - run:
+                name: Format
+                command: cargo fmt --check
+            - run:
+                name: Clippy
+                command: cargo clippy --locked --all-targets -- -D warnings
 
   test-rust:
     executor: rust
     steps:
       - checkout
-      - run:
-          name: Tests
-          command: cargo test --locked
+      - with-cargo-cache:
+          key: test
+          steps:
+            - run:
+                name: Tests
+                command: cargo test --locked
 
   test-web:
     executor: node
@@ -116,7 +141,7 @@ jobs:
             - live-qso-map-aarch64-apple-darwin
 
   build-windows:
-    executor: win/server-2022
+    executor: win/server-2025
     steps:
       - checkout
       - run:
@@ -124,7 +149,7 @@ jobs:
           shell: bash.exe
           command: |
             curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64
-            ./rustup-init.exe -y --profile minimal --default-toolchain 1.98
+            ./rustup-init.exe -y --profile minimal --default-toolchain 1.99
       - run:
           name: Build
           shell: bash.exe
@@ -139,12 +164,13 @@ jobs:
             - live-qso-map-x86_64-pc-windows-msvc.exe
 
   store-artifacts:
-    executor: rust
+    docker:
+      - image: cimg/base:current
     steps:
       - attach_workspace:
-          at: /workspace
+          at: /tmp/workspace
       - store_artifacts:
-          path: /workspace
+          path: /tmp/workspace
 
   publish-github-release:
     executor: github
