@@ -1,0 +1,5 @@
+# Development always uses the latest stable Rust (docs/rust-guidelines.md §2).
+# CI and the Dockerfile pin their own version and override this file.
+[toolchain]
+channel = "stable"
+components = ["rustfmt", "clippy"]

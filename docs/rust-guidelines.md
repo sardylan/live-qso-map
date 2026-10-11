@@ -108,8 +108,24 @@ pub type Result<T> = std::result::Result<T, Error>;
 - every `From` conversion;
 - `source()` for the variants that wrap another error.
 
+## 2. Toolchain
+
+### 2.1 Latest stable for development
+
+Development MUST use the latest stable Rust. `rust-toolchain.toml` selects the `stable` channel;
+run `rustup update stable` before starting a feature. Plans MUST NOT pin a Rust version.
+
+### 2.2 Pinned versions in builds
+
+CI (`.circleci/config.yml`, pipeline parameter `rust-version`) and the `Dockerfile`
+(`RUST_VERSION`) MUST pin an exact Rust version, so builds are reproducible. CI sets
+`RUSTUP_TOOLCHAIN` to that version, which overrides `rust-toolchain.toml`. Raise both pins
+deliberately, together, after `cargo clippy --all-targets -- -D warnings` and `cargo test` pass on
+the new version.
+
 ## Changelog
 
 | Date | Change |
 |------|--------|
 | 2026-10-08 | Initial version: §1 Errors and `Result`. |
+| 2026-10-11 | §2 Toolchain: latest stable for development, pinned versions in CI and Docker. |

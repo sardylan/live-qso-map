@@ -9,7 +9,7 @@
 
 ## Technical Context
 
-**Language/Version**: Rust (edition 2024, stable toolchain)
+**Language/Version**: Rust (edition 2024, latest stable toolchain; see `docs/rust-guidelines.md` §2)
 **Primary Dependencies**: [crates, each justified below, or NEEDS CLARIFICATION]
 **Storage**: [if applicable or N/A]
 **Testing**: `cargo test`

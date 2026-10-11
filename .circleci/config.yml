@@ -4,10 +4,19 @@ version: 2.1
 orbs:
   win: circleci/windows@5.1.1
 
+# Pinned Rust for CI (docs/rust-guidelines.md §2.2); keep in step with the Dockerfile.
+# RUSTUP_TOOLCHAIN makes it win over rust-toolchain.toml, which tracks latest stable.
+parameters:
+  rust-version:
+    type: string
+    default: "1.99"
+
 executors:
   rust:
     docker:
-      - image: rust:1.99  # same toolchain as the Dockerfile
+      - image: rust:<< pipeline.parameters.rust-version >>
+    environment:
+      RUSTUP_TOOLCHAIN: << pipeline.parameters.rust-version >>
   node:
     docker:
       - image: node:24
@@ -17,10 +26,14 @@ executors:
   linux-machine:
     machine:
       image: ubuntu-2604:current
+    environment:
+      RUSTUP_TOOLCHAIN: << pipeline.parameters.rust-version >>
   macos:
     macos:
       xcode: "27.0"
     resource_class: m4pro.medium
+    environment:
+      RUSTUP_TOOLCHAIN: << pipeline.parameters.rust-version >>
   github:
     docker:
       - image: cibuilds/github:0.13.0
@@ -32,7 +45,7 @@ commands:
       - run:
           name: Install Rust
           command: |
-            curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain 1.99
+            curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain << pipeline.parameters.rust-version >>
             echo 'source "$HOME/.cargo/env"' >> "$BASH_ENV"
 
   with-cargo-cache:
@@ -142,6 +155,8 @@ jobs:
 
   build-windows:
     executor: win/server-2025
+    environment:
+      RUSTUP_TOOLCHAIN: << pipeline.parameters.rust-version >>
     steps:
       - checkout
       - run:
@@ -149,7 +164,7 @@ jobs:
           shell: bash.exe
           command: |
             curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64
-            ./rustup-init.exe -y --profile minimal --default-toolchain 1.99
+            ./rustup-init.exe -y --profile minimal --default-toolchain << pipeline.parameters.rust-version >>
       - run:
           name: Build
           shell: bash.exe

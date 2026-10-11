@@ -1,4 +1,5 @@
 # Multi-stage build: a static musl binary on a distroless non-root image (research R18).
+# Pinned (docs/rust-guidelines.md §2.2); keep in step with rust-version in .circleci/config.yml.
 ARG RUST_VERSION=1.99
 
 FROM rust:${RUST_VERSION} AS build
