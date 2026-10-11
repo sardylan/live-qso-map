@@ -1,11 +1,45 @@
-/target
-.idea/
-*.rs.bk
-*.log
-.env*
-.DS_Store
-*.swp
-node_modules/
+# Rust
+# Cargo.lock is committed: this crate ships a binary.
+/target/
+**/*.rs.bk
+*.pdb
+/mutants.out*/
+
+# Runtime and generated data
 /cty.dat
 /.cache/
+
+# Local configuration and secrets (examples live in deploy/)
+/config.toml
+.env
+.env.*
+!.env.example
+
+# Python (tools/)
 __pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# JavaScript (web/)
+node_modules/
+coverage/
+.eslintcache
+*.tsbuildinfo
+
+# Logs
+*.log
+
+# Editors and IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Operating systems
+.DS_Store
+Thumbs.db

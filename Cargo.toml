@@ -1,7 +1,15 @@
 [package]
 name = "live-qso-map"
-version = "0.1.0"
+version = "2.0.0"
 edition = "2024"
+authors = ["Luca Cireddu <sardylan@gmail.com>"]
+description = "Live map of the QSOs an amateur radio station logs during a contest"
+readme = "README.md"
+homepage = "https://github.com/sardylan/live-qso-map"
+repository = "https://github.com/sardylan/live-qso-map"
+license = "GPL-3.0-or-later"
+keywords = ["ham-radio", "amateur-radio", "qso", "contest", "map"]
+categories = ["command-line-utilities", "visualization"]
 
 [dependencies]
 async-channel = "2.5"
