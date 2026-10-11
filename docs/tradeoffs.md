@@ -19,6 +19,7 @@ we deliberately gave up. Records the *why*, not just the *what*.
 | TR-004 | proposed | JSON interface rules in docs/http-api.md, referenced by the constitution | 2026-10-09 |
 | TR-005 | proposed | Entity extents generated from Natural Earth by a dev-only script | 2026-10-09 |
 | TR-006 | proposed | The page requests max(map Last N, 20) QSOs to feed both the map and the box | 2026-10-09 |
+| TR-008 | proposed | Cross-compile only in the pipeline; gate every main commit, build releases on tags | 2026-10-11 |
 
 ## Decisions
 
@@ -327,6 +328,42 @@ server timers, accepting one extra field and a sub-second error from network del
 - Positive: staleness is right regardless of clock offsets; sessions stay timer-free.
 - Negative / debt accepted: the age is short by the network delay (well under 1 s), and every
   `score` message carries one extra field.
+
+## TR-008: Cross-compile only in the pipeline; gate every main commit, build releases on tags
+
+- Status: proposed
+- Date: 2026-10-11
+- Phase: plan
+- Deciders: project owner
+- Links: .specify/memory/constitution.md (v1.5.0, Principle V); .circleci/config.yml
+<!-- key: 8c97aedbb8d3 -->
+
+### Context & problem
+
+Contributors develop on Linux, macOS or Windows; releases target static Linux (x86_64, aarch64, armv7), macOS and Windows. Until now the README told developers to cross-compile locally with `cross`.
+
+### Decision drivers
+
+- Develop on any host without extra toolchains
+- Reproducible release binaries
+- Keep every commit on main releasable at a reasonable CI cost
+
+### Options considered
+
+| Option | Pros | Cons / what it sacrifices |
+|--------|------|---------------------------|
+| Cross-compile only in CI; quality gates on every main commit; release builds on tags (chosen) | No local cross/Docker/emulation; one reproducible place for releases; cheap CI on day-to-day commits | A target that stops building is found only when a release is tagged; the fix needs a new tag |
+| Developers cross-compile locally with cross (previous README) | Release binaries without CI | Needs Docker and cross on every machine; behaves differently per host; builds not reproducible |
+| Build every target on each change to main | A broken target is found right after the merge | macOS and Windows build minutes on every push |
+
+### Decision
+
+Constitution 1.5.0, Principle V: development is portable and host-only; cross-compiling and release binaries happen only in the pipeline. The pipeline runs the quality gates on every commit to main and builds release targets only for vX.Y.Z tags.
+
+### Consequences
+
+- Positive: Any developer host works with cargo, node and python3; releases are reproducible; CI stays cheap for normal commits.
+- Negative / debt accepted: Target breakage surfaces at release time; cfg gating and the per-target dependency rule are the only guard on main.
 
 ## Archive
 

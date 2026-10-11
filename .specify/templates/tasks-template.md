@@ -60,6 +60,7 @@ implementation tasks they cover and MUST fail before implementation begins.
 - [ ] TXXX `cargo fmt --check` passes
 - [ ] TXXX `cargo clippy --all-targets -- -D warnings` passes
 - [ ] TXXX `cargo test` passes
+- [ ] TXXX Platform-specific code is `cfg`-gated with a path for every configured target (Principle V)
 - [ ] TXXX Review: each new dependency justified; no unjustified complexity
 
 ## Dependencies & Execution Order

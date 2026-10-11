@@ -1,6 +1,5 @@
-# Static release binaries (research R18):
-#   cross build --release --target x86_64-unknown-linux-musl
-#   cross build --release --target aarch64-unknown-linux-musl      # Raspberry Pi 4/5, 64-bit
-#   cross build --release --target armv7-unknown-linux-musleabihf  # Raspberry Pi, 32-bit OS
+# Static Linux release binaries (research R18), built by the CI pipeline only
+# (constitution Principle V): x86_64, aarch64 (Raspberry Pi 4/5) and armv7 (Raspberry Pi,
+# 32-bit OS) musl targets. See .circleci/config.yml.
 [build]
 default-target = "x86_64-unknown-linux-musl"

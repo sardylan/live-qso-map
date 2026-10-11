@@ -33,6 +33,9 @@ coverage/
 # Logs
 *.log
 
+# Lock files left by the decision-journal helper
+/docs/*.md.lock
+
 # Editors and IDEs
 .idea/
 .vscode/

@@ -13,7 +13,7 @@
 **Primary Dependencies**: [crates, each justified below, or NEEDS CLARIFICATION]
 **Storage**: [if applicable or N/A]
 **Testing**: `cargo test`
-**Target Platform**: [e.g., Linux/macOS/Windows, Raspberry Pi or NEEDS CLARIFICATION]
+**Target Platform**: development on any host; release targets as configured in `.circleci/config.yml` (Principle V)
 **Project Type**: single binary
 **Performance Goals**: [domain-specific or NEEDS CLARIFICATION]
 **Constraints**: [domain-specific or NEEDS CLARIFICATION]
@@ -37,6 +37,9 @@
       keep precision and source, dupes are kept.
 - [ ] **IV. Persistent Viewer Settings**: every viewer setting on the page is saved in local
       storage and survives a browser restart; reads fall back to defaults; tests planned.
+- [ ] **V. Portable Development, Pipeline-Built Releases**: builds and tests run natively on
+      Linux, macOS and Windows; no local cross-compiling; platform-specific code is `cfg`-gated
+      with a path for every configured target; new crates build for every configured target.
 - [ ] **Interface rules** (`docs/http-api.md`): HTTP bodies and WebSocket messages are JSON
       (text frames with `type`); every error response has a JSON `{"error","message"}` body;
       snake_case fields, UTC times, arrays where order matters; contract tests planned.

@@ -112,7 +112,7 @@ jobs:
           name: Python tool tests
           command: python3 -m unittest tools/test_entity_extents.py
 
-  # Static musl binaries through cross, as in Cross.toml and the README.
+  # Static musl binaries through cross (Cross.toml). Cross-compiling happens only here.
   build-linux:
     executor: linux-machine
     parameters:
@@ -210,7 +210,7 @@ workflows:
           filters: *every-commit
       - test-tools:
           filters: *every-commit
-      # Builds and the release run on release tags only.
+      # Release builds and the release run on release tags only (constitution Principle V).
       - build-linux:
           filters: &release-tags
             tags:

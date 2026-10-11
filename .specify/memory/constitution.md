@@ -1,30 +1,35 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 1.3.0 → 1.4.0
-Bump rationale: MINOR, because a new principle is added (IV. Persistent Viewer Settings). No
-principle is removed or redefined.
+Version change: 1.4.0 → 1.5.0
+Bump rationale: MINOR, because a new principle is added (V. Portable Development, Pipeline-Built
+Releases). No principle is removed or redefined.
 
-Modified principles: none (I–III unchanged)
-Added principles: IV. Persistent Viewer Settings
+Modified principles: none (I–IV unchanged)
+Added principles: V. Portable Development, Pipeline-Built Releases
 
 Modified sections:
-  - Governance / Compliance review: covers Principles I–IV.
+  - Technical Constraints / Distribution: one binary per configured target, built by the pipeline.
+  - Development Workflow: a failed release build is fixed on main and re-tagged.
+  - Governance / Compliance review: covers Principles I–V.
 
 Added sections: none
 Removed sections: none
 
-Templates:
-  - .specify/templates/plan-template.md   ✅ updated (Constitution Check gains Principle IV)
+Templates and runtime files:
+  - .specify/templates/plan-template.md   ✅ updated (Target Platform; Constitution Check gains V)
   - .specify/templates/spec-template.md   ✅ no change needed
-  - .specify/templates/tasks-template.md  ✅ no change needed
+  - .specify/templates/tasks-template.md  ✅ updated (Polish: cfg-gated platform code)
   - .specify/templates/commands/*.md      ⚠ not present
+  - .circleci/config.yml                  ✅ checked (gates on every commit, release builds on tags)
+  - README.md, Cross.toml                 ✅ updated (cross-compiling is the pipeline's job)
   - CLAUDE.md                             ✅ no change needed (points to the constitution)
 
-Follow-up TODOs (current code vs Principle IV):
-  - the map's "Last N" is kept in sessionStorage (feature 001): it is moved to local storage by
-    feature 006 (spec FR-011). Every other viewer setting (projection, auto-zoom, last-QSO box
-    visibility) already uses local storage.
+Follow-up TODOs:
+  - A target can stop building on main without anyone noticing until the next release tag, since
+    target builds run only on tags. Principle V's cfg and dependency rules are the guard.
+  - scripts/send_burst.sh needs Bash and nc, so it does not run on a stock Windows host. It is an
+    optional helper (Principle V allows that); a Python equivalent would make it portable.
 -->
 
 # live-qso-map Constitution
@@ -97,11 +102,35 @@ connectivity. Fewer moving parts mean an easier setup and fewer failures on the 
 Rationale: the map often runs unattended on a wall screen or kiosk that gets restarted during a
 contest. A viewer's choices must come back by themselves, without anyone setting them again.
 
+### V. Portable Development, Pipeline-Built Releases
+
+- Development MUST work natively on Linux, macOS and Windows. Building, testing and linting use
+  only `cargo`, `node` and `python3` with its standard library; no step may require a specific
+  host OS, shell, container runtime or emulator. A helper that runs only on some hosts (for
+  example a Bash script) MUST be optional or have a portable equivalent.
+- Cross-compilation MUST happen only in the CI pipeline. Developers build and test for their own
+  host and MUST NOT need `cross`, extra Rust targets or emulation. Release binaries MUST come
+  only from the pipeline.
+- The code MUST stay buildable for every configured target at all times. The configured targets
+  are the release targets in `.circleci/config.yml`: x86_64, aarch64 and armv7 Linux (static
+  musl), aarch64 macOS and x86_64 Windows (MSVC).
+- Platform-specific code MUST be gated with `cfg` and MUST have a working path on every
+  configured target. A new dependency MUST build for every configured target.
+- The pipeline MUST run the quality gates (`cargo fmt --check`, `cargo clippy`, `cargo test`, the
+  frontend and tool tests) on every commit to the main branch. It MUST build release binaries for
+  the configured targets only for release tags (`vX.Y.Z`).
+
+Rationale: contributors work on whatever machine they have, while stations run the tool on PCs,
+Raspberry Pis and servers. Keeping cross-compilation in one reproducible place avoids
+per-developer toolchains. Gating every commit on main keeps it releasable, while the slower
+multi-platform builds run only when a release is cut.
+
 ## Technical Constraints
 
 - Language: Rust, edition 2024. The project builds with stable `cargo` and no
   nightly features.
-- Distribution: a single binary built from this repository (`cargo build --release`).
+- Distribution: one self-contained binary per configured target (Principle V), built by the
+  pipeline. `cargo build --release` builds it for the developer's own host.
 - `Cargo.lock` MUST be committed. Dependency updates are deliberate changes that
   must pass every quality gate.
 - Amateur radio domain rules MUST be followed: `docs/ham-radio.md` §1 (HR-1 to HR-11).
@@ -123,6 +152,8 @@ contest. A viewer's choices must come back by themselves, without anyone setting
   `cargo clippy --all-targets -- -D warnings`, `cargo test`.
 - A review MUST confirm that the tests were written before the implementation and
   that every new dependency is justified.
+- If a release tag's target build fails, nothing is published: the fix lands on main and a new
+  release tag is cut.
 
 ## Governance
 
@@ -138,8 +169,8 @@ contest. A viewer's choices must come back by themselves, without anyone setting
     expanded.
   - PATCH: clarifications, wording and typo fixes that do not change meaning.
 - Compliance review: every plan's Constitution Check and every code review MUST verify
-  adherence to Principles I–IV, to the domain rules in `docs/ham-radio.md` §1 and to the
+  adherence to Principles I–V, to the domain rules in `docs/ham-radio.md` §1 and to the
   interface rules in `docs/http-api.md`.
   Unjustified violations block the merge.
 
-**Version**: 1.4.0 | **Ratified**: 2026-10-08 | **Last Amended**: 2026-10-09
+**Version**: 1.5.0 | **Ratified**: 2026-10-08 | **Last Amended**: 2026-10-11

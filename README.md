@@ -190,13 +190,14 @@ docker run -p 12060:12060/udp -p 8080:8080 \
   -v lqm-data:/data live-qso-map
 ```
 
-**Static binaries**: built with [`cross`](https://github.com/cross-rs/cross). Targets are listed
-in `Cross.toml`.
+**Release binaries**: the CircleCI pipeline builds every target and attaches the binaries to
+the GitHub release of each `vX.Y.Z` tag. The targets are static Linux for x86_64 (PC, VM,
+cloud), aarch64 (Raspberry Pi 4/5) and armv7 (Raspberry Pi, 32-bit OS), plus macOS (Apple
+silicon) and Windows (x64). Cross-compiling happens only in the pipeline; to build for your own
+machine:
 
 ```bash
-cross build --release --target aarch64-unknown-linux-musl       # Raspberry Pi 4/5 (64-bit)
-cross build --release --target armv7-unknown-linux-musleabihf   # Raspberry Pi (32-bit OS)
-cross build --release --target x86_64-unknown-linux-musl        # PC, VM, cloud
+cargo build --release
 ```
 
 **systemd** (Raspberry Pi or mini PC): see `deploy/live-qso-map.service`. Secrets go in
