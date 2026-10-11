@@ -22,6 +22,8 @@ we deliberately gave up. Records the *why*, not just the *what*.
 | TR-007 | proposed | Score staleness is judged from a server-supplied age, not the browser clock | 2026-10-09 |
 | TR-008 | proposed | Cross-compile only in the pipeline; gate every main commit, build releases on tags | 2026-10-11 |
 | TR-009 | proposed | Feature branches named feature/NNN-title and deleted after merge | 2026-10-11 |
+| TR-010 | proposed | Purge deletes the service account, guarded by a GECOS marker | 2026-10-11 |
+| TR-011 | proposed | Windows waits for Enter after an error whenever input is interactive | 2026-10-11 |
 
 ## Decisions
 
@@ -402,6 +404,79 @@ Constitution 1.6.0, Development Workflow: features are developed on feature/NNN-
 
 - Positive: Feature branches are recognisable at a glance and the branch list stays short.
 - Negative / debt accepted: The spec-kit scripts depend on a prefix-stripping helper; the plugin's own instructions still describe NNN-title branches.
+
+## TR-010: Purge deletes the service account, guarded by a GECOS marker
+
+- Status: proposed
+- Date: 2026-10-11
+- Phase: plan
+- Deciders: project owner
+- Links: specs/008-platform-packaging/research.md#r3-the-service-account; specs/008-platform-packaging/contracts/debian-package.md
+<!-- key: 9d2db38afe61 -->
+
+### Context & problem
+
+The Debian package creates a dedicated unprivileged account live-qso-map for the service. The operator asked that purge removes it. Debian policy discourages deleting system accounts, because a reused UID could own leftover files.
+
+### Decision drivers
+
+- Purge leaves nothing behind (SC-002)
+- Never delete an account the package did not create
+- No files left owned by a deleted UID
+
+### Options considered
+
+| Option | Pros | Cons / what it sacrifices |
+|--------|------|---------------------------|
+| postinst creates the account with GECOS 'live-qso-map service'; postrm purge deletes /etc and /var/lib first, then the account only if the GECOS marker matches, then the group if empty (chosen) | Clean purge as asked; foreign accounts are safe; no orphaned files | Goes against Debian's advice to keep system accounts; relies on the GECOS field not being edited |
+| systemd-sysusers | Declarative, no shell logic | Never removes accounts, so purge leaves the account |
+| systemd DynamicUser (today's unit) | No persistent account at all | No dedicated account, which the operator asked for; file ownership changes between runs |
+
+### Decision
+
+Purge deletes the service account and group after removing /etc/live-qso-map and /var/lib/live-qso-map, guarded by the GECOS marker of an account this package created.
+
+### Consequences
+
+- Positive: Purge leaves no account, files or service behind; an account created by someone else survives.
+- Negative / debt accepted: Deviates from Debian's keep-the-account advice; an operator who edits the GECOS keeps the account after purge.
+
+## TR-011: Windows waits for Enter after an error whenever input is interactive
+
+- Status: proposed
+- Date: 2026-10-11
+- Phase: plan
+- Deciders: project owner
+- Links: specs/008-platform-packaging/research.md#r11-keeping-the-windows-window-open-after-an-error; spec FR-019
+<!-- key: 9ed5ae50b7e2 -->
+
+### Context & problem
+
+On Windows the program is mainly started by double-click; an error closes the console before it can be read. Telling a double-click from a terminal start needs the GetConsoleProcessList API, an unsafe call, while the project forbids inline lint suppressions and unjustified unsafe code.
+
+### Decision drivers
+
+- Errors stay readable after a double-click (FR-019)
+- No unsafe code and no lint exceptions (Principle II)
+- No new crates (Principle III)
+
+### Options considered
+
+| Option | Pros | Cons / what it sacrifices |
+|--------|------|---------------------------|
+| Wait for Enter after an error whenever standard input is an interactive console (std IsTerminal) (chosen) | Standard library only; no unsafe; works for double-click | Terminal users press Enter once after an error |
+| Helper workspace crate holding the unsafe GetConsoleProcessList call | Exact: waits only after a double-click | Extra crate and workspace structure for one call; an unsafe exception |
+| A .cmd launcher that runs the exe and pauses | No unsafe | Double-clicking the .exe still closes at once on error |
+| Guess from environment variables (PROMPT, WT_SESSION) | No unsafe | Wrong in PowerShell and other terminals |
+
+### Decision
+
+On Windows only, after an error, the program waits for Enter when its standard input is interactive, and exits at once when input is redirected. Spec FR-019 relaxed accordingly.
+
+### Consequences
+
+- Positive: No unsafe code, no new crate, no lint exception; double-click errors stay visible.
+- Negative / debt accepted: One extra Enter after an error when run from a terminal.
 
 ## Archive
 

@@ -24,11 +24,13 @@ HTTP/WebSocket interface rules (binding): `docs/http-api.md`.
 - browser `localStorage` for `lqm.limit` (moved from session storage), `lqm.recent.size`, `lqm.recent.order` (006-recent-box-config)
 - Rust (edition 2024, latest stable toolchain); browser ES modules + none new (existing `quick-xml` reads the score message) (007-contest-score-layout)
 - in memory, the latest score only, lost on restart; no new browser keys (007-contest-score-layout)
+- Rust (edition 2024, latest stable toolchain; see `docs/rust-guidelines.md` §2) + none new (clap gains `wrap_help` and `unicode`; existing `toml` writes the export); CI-only release tools cargo-deb 3.8.0, cross, docker buildx, zip (008-platform-packaging)
+- none new; Debian `/etc/live-qso-map/` and `/var/lib/live-qso-map/`, the same paths in the container (volume), the program's folder on Windows and macOS (008-platform-packaging)
 
 ### Recent Changes
 
+- 008-platform-packaging: Added Rust (edition 2024, latest stable toolchain; see `docs/rust-guidelines.md` §2) + none new (clap gains `wrap_help` and `unicode`; existing `toml` writes the export); CI-only release tools cargo-deb 3.8.0, cross, docker buildx, zip
 - 007-contest-score-layout: Added Rust (edition 2024, latest stable toolchain); browser ES modules + none new (existing `quick-xml` reads the score message)
 - 006-recent-box-config: Added Rust (edition 2024, latest stable toolchain); browser ES modules + none new
-- 005-recent-box-dxcc: Added Rust (edition 2024, latest stable toolchain); browser ES modules + none new
 
 <!-- SPECKIT END -->
