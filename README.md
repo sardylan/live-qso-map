@@ -280,6 +280,19 @@ node --test web/                                              # frontend logic, 
 cargo test --release --test load_ws -- --ignored --nocapture  # load test (SC-004)
 ```
 
+**Releases**: pushing a `vX.Y.Z` tag that matches the `Cargo.toml` version runs the CircleCI
+release workflow. It builds every target, packages the `.deb` files, zips and Linux archives,
+tests the packages and the image, publishes the GitHub release with `SHA256SUMS`, and only then
+publishes the Docker Hub tags. The scripts in `scripts/` that it uses (`check-version.sh`,
+`test-deb.sh`, `test-image.sh`) are POSIX `sh` for CI. The CircleCI project needs these
+variables:
+
+| Variable | Used for |
+|----------|----------|
+| `GITHUB_TOKEN` | publishing the GitHub release (`contents: write`) |
+| `DOCKERHUB_USERNAME` | Docker Hub account that owns `sardylan/live-qso-map` |
+| `DOCKERHUB_TOKEN` | Docker Hub access token with write access to that repository |
+
 | Document | Location |
 |----------|----------|
 | Project rules | [`.specify/memory/constitution.md`](.specify/memory/constitution.md) |

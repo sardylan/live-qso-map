@@ -490,15 +490,15 @@ FR-027).
 
 ## Phase 8: Polish & Quality Gates
 
-- [ ] T047 `cargo fmt --check` passes
-- [ ] T048 `cargo clippy --all-targets -- -D warnings` passes, with no new inline lint
+- [X] T047 `cargo fmt --check` passes
+- [X] T048 `cargo clippy --all-targets -- -D warnings` passes, with no new inline lint
   suppression anywhere
-- [ ] T049 `cargo test` passes; `node --test web/` still passes
-- [ ] T050 Platform-specific code is `cfg`-gated with a path for every configured target
+- [X] T049 `cargo test` passes; `node --test web/` still passes
+- [X] T050 Platform-specific code is `cfg`-gated with a path for every configured target
   (Principle V). Review `src/console.rs`, `src/config.rs` and `src/config_export.rs` for
   `cfg(windows)`, `cfg(any(windows, target_os = "macos"))` and `cfg(unix)`, each with a
   fallback. The Windows and macOS builds on the fork tag (T052) compile them.
-- [ ] T051 Review: no new crate (only clap features). No unjustified complexity; plan Complexity
+- [X] T051 Review: no new crate (only clap features). No unjustified complexity; plan Complexity
   Tracking is still empty.
 - [ ] T052 [R:YELLOW] Push a test tag to a fork with `DOCKERHUB_*` pointing at a test repository.
   The whole tag workflow must pass. Then check each artifact against
@@ -506,7 +506,7 @@ FR-027).
   and confirm that `check-version` stops the workflow before any build (FR-002).
 - [ ] T053 Run quickstart §1–§8 and record the results in `checklists/verification.md`,
   following feature 007's verification note.
-- [ ] T054 [P] Add the three CircleCI variables to `README.md`'s Development section:
+- [X] T054 [P] Add the three CircleCI variables to `README.md`'s Development section:
   `GITHUB_TOKEN`, `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`
   (contracts/release-artifacts.md).
 - [ ] T055 Close the feature:

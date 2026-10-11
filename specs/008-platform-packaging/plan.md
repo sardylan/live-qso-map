@@ -97,7 +97,8 @@ packages.
   - no `unwrap`/`expect` in runtime paths;
   - fmt and clippy remain gates.
 - [x] **III. Simplicity & Minimal Dependencies**:
-  - no new crate, only two clap features;
+  - no new direct crate, only two clap features; their five small transitive crates are listed
+    below;
   - still one self-contained binary; packaging tools run only in CI;
   - no new configuration setting; the two new options are actions.
 - [x] **Domain rules**:
@@ -115,7 +116,9 @@ packages.
 
 | Crate | Why needed | Alternatives considered (std / existing dep) |
 |-------|------------|----------------------------------------------|
-| none new | clap features `wrap_help`, `unicode` (R8) on the existing dependency | `std` for terminal width (needs platform calls); clap's own feature is the supported path |
+| none new (direct) | clap features `wrap_help`, `unicode` (R8) on the existing dependency | `std` for terminal width (needs platform calls); clap's own feature is the supported path |
+| `terminal_size` 0.4 (+ `rustix` 1.1, `linux-raw-sys` 0.12 on Linux; `windows-sys` already present) | transitive, from `wrap_help`: reads the terminal width to wrap help (FR-027) | a fixed width breaks narrow and wide terminals (SC-007) |
+| `unicode-width` 0.2, `unicase` 2.10 | transitive, from `unicode`: width of non-ASCII help text, case-insensitive suggestions | ASCII-only width; acceptable, but the operator asked for every useful help feature |
 
 ## Project Structure
 
