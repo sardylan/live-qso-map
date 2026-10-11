@@ -11,7 +11,7 @@ if __name__ == "__main__":
             b'<logger>QARTest 14.9.1</logger>'
             b'<contestname>CQ-WW-SSB</contestname>'
             b'<timestamp>2024-10-24 09:00:00</timestamp>'
-            b'<mycall>IS0GVH</mycall>'
+            b'<mycall>IS0MZK</mycall>'
             b'<band>40</band>'
             b'<txfreq>0</txfreq>'
             b'<operator>YYYYYY</operator>'
