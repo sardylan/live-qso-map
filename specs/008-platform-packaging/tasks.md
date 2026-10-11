@@ -558,3 +558,25 @@ Task: "T007–T009 [US2] render/round-trip/write tests in src/config_export.rs" 
 3. **US3 and US4**: Windows/macOS archives and the image, in either order.
 4. **US5**: the help polish.
 5. **Release**: polish, then tag `v2.0.0` on `main` after the merge.
+
+## Phase 9: Convergence
+
+Appended by `/speckit-converge` on review of the current codebase against
+spec/plan/tasks. Complete with `/speckit-implement`.
+
+- [ ] T056 [US3] Keep the Windows pause for command-line errors: `src/main.rs` calls `Cli::parse()`,
+  which exits the process on a bad option or a bad `LQM_*` environment value before `main()` can
+  pause, so a double-clicked program with a wrong environment variable closes at once. Use
+  `Cli::try_parse()`; on error print it with `err.print()` and return `ExitCode::from(err.exit_code())`
+  (help and version keep exit code 0, so they never pause). Add a test in `tests/cli_help.rs` that a
+  bad environment value exits with code 2 and the clap message. <!-- gap: FR-019 -->
+- [ ] T057 [US1] Purge must not delete a group the package did not create: in `deploy/debian/postrm`,
+  `delgroup --only-if-empty` ignores users whose primary group it is, so purging next to a foreign
+  `live-qso-map` account deletes that account's group. Delete the group only when the package's
+  account was just deleted (or no account uses it as primary group). Extend the `foreign-account`
+  step of `scripts/test-deb.sh` to check the group survives the purge. <!-- gap: FR-013, SC-002 -->
+- [ ] T058 [US1] Check the Debian package version: the `package-deb` job in `.circleci/config.yml`
+  checks the architecture but not the `Version` field. Assert
+  `dpkg-deb --field <deb> Version` equals `${CIRCLE_TAG#v}-1`, and set `revision = "1"` in
+  `[package.metadata.deb]` of `Cargo.toml` so the revision does not depend on the cargo-deb
+  default. <!-- gap: FR-002 -->
