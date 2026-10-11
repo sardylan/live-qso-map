@@ -5,6 +5,8 @@ pub mod adif;
 pub mod band;
 pub mod band_filter;
 pub mod config;
+pub mod config_export;
+pub mod console;
 pub mod enrich;
 pub mod entity_extents;
 pub mod errors;
