@@ -12,7 +12,7 @@ use std::time::Duration;
 use clap::Parser;
 use serde::{Deserialize, Serialize};
 
-use crate::band::canonical_band;
+use crate::band::{band_rank, canonical_band};
 use crate::band_filter::{BandSet, parse_setting};
 use crate::errors::{Error, Result};
 use crate::maidenhead;
@@ -148,6 +148,32 @@ pub struct Cli {
     /// Show the last-QSO box header row: true or false [env: LQM_RECENT_HEADER] [default: true]
     #[arg(long = "recent-header")]
     pub recent_header: Option<bool>,
+    /// Write the effective configuration to PATH (- = standard output), then exit
+    #[arg(long, value_name = "PATH", conflicts_with = "dump_config")]
+    pub save_config: Option<PathBuf>,
+    /// Write the effective configuration to PATH (- = standard output), then run
+    #[arg(long, value_name = "PATH")]
+    pub dump_config: Option<PathBuf>,
+}
+
+/// What to do with the effective configuration before running (feature 008).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ExportAction {
+    /// Write it, then exit.
+    Save(PathBuf),
+    /// Write it, then run.
+    Dump(PathBuf),
+}
+
+impl Cli {
+    /// The requested export, if any. Command line only: there is no `LQM_*` variable.
+    pub fn export_action(&self) -> Option<ExportAction> {
+        match (&self.save_config, &self.dump_config) {
+            (Some(path), _) => Some(ExportAction::Save(path.clone())),
+            (None, Some(path)) => Some(ExportAction::Dump(path.clone())),
+            (None, None) => None,
+        }
+    }
 }
 
 /// A secret value whose `Debug` output is redacted.
@@ -335,19 +361,28 @@ impl Default for Config {
     }
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
-struct FileConfig {
+pub(crate) struct FileConfig {
+    #[serde(skip_serializing_if = "Option::is_none")]
     bands: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     bind_address: Option<IpAddr>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     udp_port: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     http_port: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     history_size: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     workers: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     ingest_queue: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     broadcast_queue: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     log_level: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "FileStation::is_empty")]
     station: FileStation,
     #[serde(default)]
     lookup: FileLookup,
@@ -357,55 +392,177 @@ struct FileConfig {
     map: FileMap,
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 struct FileStation {
+    #[serde(skip_serializing_if = "Option::is_none")]
     callsign: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     locator: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     latitude: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     longitude: Option<f64>,
 }
 
-#[derive(Debug, Default, Deserialize)]
+impl FileStation {
+    fn is_empty(&self) -> bool {
+        self.callsign.is_none()
+            && self.locator.is_none()
+            && self.latitude.is_none()
+            && self.longitude.is_none()
+    }
+}
+
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 struct FileLookup {
+    #[serde(skip_serializing_if = "Option::is_none")]
     timeout_secs: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     provider_order: Option<Vec<String>>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "FileCredentials::is_empty")]
     qrz: FileCredentials,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "FileCredentials::is_empty")]
     hamqth: FileCredentials,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "FileCredentials::is_empty")]
     qrzcq: FileCredentials,
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 struct FileCredentials {
+    #[serde(skip_serializing_if = "Option::is_none")]
     username: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     password: Option<String>,
 }
 
-#[derive(Debug, Default, Deserialize)]
+impl FileCredentials {
+    fn is_empty(&self) -> bool {
+        self.username.is_none() && self.password.is_none()
+    }
+}
+
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 struct FileCountryData {
+    #[serde(skip_serializing_if = "Option::is_none")]
     path: Option<PathBuf>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     max_age_days: Option<u64>,
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 struct FileMap {
+    #[serde(skip_serializing_if = "Option::is_none")]
     style_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     style_attribution: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     tile_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     tile_attribution: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     fallback_color: Option<String>,
-    #[serde(default)]
-    bands: BTreeMap<String, String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     recent_columns: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     recent_header: Option<bool>,
+    // Last: a sub-table. Written in frequency order (HR-2), not alphabetically.
+    #[serde(
+        default,
+        skip_serializing_if = "BTreeMap::is_empty",
+        serialize_with = "serialize_bands_by_frequency"
+    )]
+    bands: BTreeMap<String, String>,
+}
+
+fn serialize_bands_by_frequency<S: serde::Serializer>(
+    bands: &BTreeMap<String, String>,
+    serializer: S,
+) -> std::result::Result<S::Ok, S::Error> {
+    use serde::ser::SerializeMap;
+    let mut ordered: Vec<(&String, &String)> = bands.iter().collect();
+    ordered.sort_by_key(|(band, _)| (band_rank(band).unwrap_or(usize::MAX), band.as_str()));
+    let mut map = serializer.serialize_map(Some(ordered.len()))?;
+    for (band, colour) in ordered {
+        map.serialize_entry(band, colour)?;
+    }
+    map.end()
+}
+
+impl FileConfig {
+    /// The effective configuration in file form: every setting, unset values left out
+    /// (feature 008, data-model "Exported configuration").
+    pub(crate) fn from_config(config: &Config) -> Self {
+        let credentials = |c: &Option<Credentials>| match c {
+            Some(c) => FileCredentials {
+                username: Some(c.username.clone()),
+                password: Some(c.password.expose().to_string()),
+            },
+            None => FileCredentials::default(),
+        };
+        FileConfig {
+            bands: config
+                .band_filter
+                .as_ref()
+                .map(|set| set.bands().iter().map(|b| b.to_string()).collect()),
+            bind_address: Some(config.bind_address),
+            udp_port: Some(u32::from(config.udp_port)),
+            http_port: Some(u32::from(config.http_port)),
+            history_size: Some(config.history_size),
+            workers: Some(config.workers),
+            ingest_queue: Some(config.ingest_queue),
+            broadcast_queue: Some(config.broadcast_queue),
+            log_level: Some(config.log_level.clone()),
+            station: FileStation {
+                callsign: config.station.callsign.clone(),
+                locator: config.station.locator.clone(),
+                latitude: config.station.latitude,
+                longitude: config.station.longitude,
+            },
+            lookup: FileLookup {
+                timeout_secs: Some(config.lookup.timeout.as_secs()),
+                provider_order: Some(
+                    config
+                        .lookup
+                        .provider_order
+                        .iter()
+                        .map(|p| p.as_str().to_string())
+                        .collect(),
+                ),
+                qrz: credentials(&config.lookup.qrz),
+                hamqth: credentials(&config.lookup.hamqth),
+                qrzcq: credentials(&config.lookup.qrzcq),
+            },
+            country_data: FileCountryData {
+                path: Some(config.country_data.path.clone()),
+                url: Some(config.country_data.url.clone()),
+                max_age_days: Some(config.country_data.max_age_days),
+            },
+            map: FileMap {
+                style_url: config.map.style_url.clone(),
+                style_attribution: config.map.style_attribution.clone(),
+                tile_url: config.map.tile_url.clone(),
+                tile_attribution: config.map.tile_attribution.clone(),
+                fallback_color: Some(config.map.fallback_color.clone()),
+                recent_columns: Some(
+                    config
+                        .map
+                        .recent_columns
+                        .iter()
+                        .map(|c| c.keyword().to_string())
+                        .collect(),
+                ),
+                recent_header: Some(config.map.recent_header),
+                bands: config.map.bands.clone(),
+            },
+        }
+    }
 }
 
 /// Looks up an environment variable; injected so tests never touch the process environment.
@@ -1416,5 +1573,38 @@ style_attribution = "file credit"
             load(&[], &[("LQM_RECENT_HEADER", "maybe")], None),
             "map.recent_header",
         );
+    }
+
+    // --- feature 008: export options (T010) ---
+
+    #[test]
+    fn export_options_parse_and_map_to_actions() {
+        assert_eq!(cli(&[]).export_action(), None);
+        assert_eq!(
+            cli(&["--save-config", "a.toml"]).export_action(),
+            Some(ExportAction::Save(PathBuf::from("a.toml")))
+        );
+        assert_eq!(
+            cli(&["--dump-config", "-"]).export_action(),
+            Some(ExportAction::Dump(PathBuf::from("-")))
+        );
+    }
+
+    #[test]
+    fn save_and_dump_conflict() {
+        let err = Cli::try_parse_from(["live-qso-map", "--save-config", "a", "--dump-config", "b"])
+            .unwrap_err();
+        assert_eq!(err.kind(), clap::error::ErrorKind::ArgumentConflict);
+    }
+
+    #[test]
+    fn export_options_have_no_environment_variable() {
+        let (config, _) = load(
+            &[],
+            &[("LQM_SAVE_CONFIG", "/x.toml"), ("LQM_DUMP_CONFIG", "-")],
+            None,
+        )
+        .unwrap();
+        assert_eq!(config, Config::default());
     }
 }

@@ -3,7 +3,8 @@
 use std::process::ExitCode;
 
 use clap::Parser;
-use live_qso_map::config::{Cli, Config, config_path};
+use live_qso_map::config::{Cli, Config, ExportAction, config_path};
+use live_qso_map::config_export;
 use tracing_subscriber::EnvFilter;
 
 fn main() -> ExitCode {
@@ -27,6 +28,17 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
+
+    // Feature 008: write the validated configuration before anything is bound.
+    if let Some(action) = cli.export_action() {
+        let (ExportAction::Save(path) | ExportAction::Dump(path)) = &action;
+        if let Err(code) = export(&config, path) {
+            return code;
+        }
+        if matches!(action, ExportAction::Save(_)) {
+            return ExitCode::SUCCESS;
+        }
+    }
 
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::new(format!(
@@ -55,4 +67,28 @@ fn main() -> ExitCode {
             ExitCode::FAILURE
         }
     }
+}
+
+/// Writes the effective configuration to `path` (`-` = standard output) and reports it.
+fn export(config: &Config, path: &std::path::Path) -> Result<(), ExitCode> {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or_default();
+    let text = config_export::render(
+        config,
+        env!("CARGO_PKG_VERSION"),
+        &live_qso_map::history::format_rfc3339(now),
+    );
+    if let Err(e) = config_export::write(path, &text, &mut std::io::stdout()) {
+        eprintln!("{e}");
+        return Err(ExitCode::FAILURE);
+    }
+    if path != std::path::Path::new("-") {
+        eprintln!("configuration written to {}", path.display());
+        if config_export::has_credentials(config) {
+            eprintln!("note: {} contains provider passwords", path.display());
+        }
+    }
+    Ok(())
 }

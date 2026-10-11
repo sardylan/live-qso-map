@@ -103,7 +103,7 @@ order.
 
 ### Tests for User Story 2 (write first, confirm they FAIL)
 
-- [ ] T007 [P] [US2] Unit tests for `render` in `src/config_export.rs` (data-model.md "Exported
+- [X] T007 [P] [US2] Unit tests for `render` in `src/config_export.rs` (data-model.md "Exported
   configuration", contracts/configuration.md):
   - **Header**: line 1 is `# live-qso-map 2.0.0 configuration, written 2026-10-11T14:03:00Z.`,
     with version and time injected. The password line is present only when a provider has
@@ -117,7 +117,7 @@ order.
     section.
   - **Kept as configured**: `country_data.path` exactly as configured, a relative path included.
   - **Format**: `toml::from_str` accepts the output.
-- [ ] T008 [P] [US2] Round-trip unit tests in `src/config_export.rs`. For each case, build `x` with
+- [X] T008 [P] [US2] Round-trip unit tests in `src/config_export.rs`. For each case, build `x` with
   `Cli::try_parse_from`, an injected env closure and file text, then assert that
   `Config::load(empty cli, no env, Some(render(load(x))))` equals `load(x)` (SC-004). Cases:
   - defaults;
@@ -131,7 +131,7 @@ order.
   - band colour overrides;
   - every top-level number changed;
   - values from env overriding the file.
-- [ ] T009 [P] [US2] Unit tests for `write` in `src/config_export.rs`, using a temporary folder
+- [X] T009 [P] [US2] Unit tests for `write` in `src/config_export.rs`, using a temporary folder
   under `std::env::temp_dir()` with a unique name:
   - **Standard output**: `-` writes the exact text to the `stdout` sink and creates no file.
   - **New file**: written with the exact text.
@@ -140,12 +140,12 @@ order.
   - **Unix** (`#[cfg(unix)]`): a new file has mode `0o600`; replacing an existing `0o640` file
     keeps `0o640`, and replacing a `0o644` file keeps `0o644` (FR-022). Owner and group are kept
     as well (same user in the test).
-- [ ] T010 [P] [US2] Unit tests in `src/config.rs` for the new options (contracts/command-line.md):
+- [X] T010 [P] [US2] Unit tests in `src/config.rs` for the new options (contracts/command-line.md):
   - **Parsing**: `--save-config a.toml` and `--dump-config -` parse.
   - **Conflict**: both together fail with `ErrorKind::ArgumentConflict`.
   - **No variable**: `Config::load` ignores `LQM_SAVE_CONFIG` / `LQM_DUMP_CONFIG`.
   - **Decision**: `Cli::export_action()` returns `None`, `Some(Save(path))` or `Some(Dump(path))`.
-- [ ] T011 [P] [US2] Integration tests in `tests/config_export.rs`. They run
+- [X] T011 [P] [US2] Integration tests in `tests/config_export.rs`. They run
   `env!("CARGO_BIN_EXE_live-qso-map")` with `std::process::Command`, using `Result` + `?` and no
   unwrap:
   - **Save**: `--station-callsign IS0MZK --bands hf-contest --save-config <tmp>/a.toml` exits 0
@@ -162,7 +162,7 @@ order.
 
 ### Implementation for User Story 2
 
-- [ ] T012 [US2] In `src/config.rs`:
+- [X] T012 [US2] In `src/config.rs`:
   - derive `Serialize` on `FileConfig`, `FileStation`, `FileLookup`, `FileCredentials`,
     `FileCountryData` and `FileMap`, with `skip_serializing_if = "Option::is_none"` and empty-map
     skips;
@@ -170,9 +170,9 @@ order.
     frequency order via the existing band order, timeout → `timeout_secs`, providers → lowercase
     names, `Secret::expose()` for passwords;
   - keep field order as in contracts/configuration.md.
-- [ ] T013 [US2] Implement `render` in `src/config_export.rs` (header + `toml::to_string_pretty`
+- [X] T013 [US2] Implement `render` in `src/config_export.rs` (header + `toml::to_string_pretty`
   of `FileConfig::from(config)`), so T007–T008 pass.
-- [ ] T014 [US2] [R:YELLOW] Implement `write` in `src/config_export.rs`, so T009 passes:
+- [X] T014 [US2] [R:YELLOW] Implement `write` in `src/config_export.rs`, so T009 passes:
   - **Standard output**: `-` goes to the sink.
   - **Temporary file**: `<name>.tmp-<pid>` in the target's folder, created with
     `OpenOptions::new().write(true).create_new(true)`. On Unix, `.mode(0o600)` comes from
@@ -183,12 +183,12 @@ order.
     error (a writer that isn't root keeps its own ownership).
   - **Write**: write all, `sync_all`, then `fs::rename` over the target.
   - **Failure**: remove the temporary file, then return `Error::ConfigWrite`.
-- [ ] T015 [US2] In `src/config.rs`, add to `Cli`:
+- [X] T015 [US2] In `src/config.rs`, add to `Cli`:
   - `--save-config <PATH>` and `--dump-config <PATH>` (`PathBuf`, `conflicts_with` each other);
   - `pub enum ExportAction { Save(PathBuf), Dump(PathBuf) }` and `Cli::export_action()`.
 
   Neither option is read from the environment, so T010 passes.
-- [ ] T016 [US2] In `src/main.rs`, after `Config::load` succeeds and before logging and the
+- [X] T016 [US2] In `src/main.rs`, after `Config::load` succeeds and before logging and the
   runtime:
   - on an export action, call `render(&config, env!("CARGO_PKG_VERSION"), <now UTC
     ISO 8601 with Z>)`, using the crate's existing UTC formatting helper (`history.rs`), and then
@@ -199,7 +199,7 @@ order.
   - `Save` returns `ExitCode::SUCCESS` here, and `Dump` continues.
 
   This makes T011 pass.
-- [ ] T017 [P] [US2] In `README.md`, under Configuration, document `--save-config` and
+- [X] T017 [P] [US2] In `README.md`, under Configuration, document `--save-config` and
   `--dump-config` with the "generate from a clean installation" example and the passwords note.
 
 **Checkpoint**: export works on every host. Run quickstart §2.

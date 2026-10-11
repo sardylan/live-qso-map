@@ -161,6 +161,27 @@ Passwords are never written to the logs. Prefer environment variables for them.
 > When the service runs on the Internet, restrict the UDP port with a firewall to your station's
 > address.
 
+### Saving the configuration to a file
+
+`--save-config <PATH>` writes the effective configuration to a file and exits, without starting
+the map. It combines the command line, environment variables, the configuration file and the
+defaults, so every setting is written with the value the program would use. `--dump-config <PATH>`
+does the same, then starts the map. Use `-` as the path to print to the terminal.
+
+This is the quickest way to create a configuration file on a fresh installation:
+
+```bash
+live-qso-map --station-callsign IS0MZK --station-locator JM49NH --bands hf-contest \
+  --save-config live-qso-map.toml
+```
+
+The configuration is checked first, so an invalid setting writes nothing. An existing file is
+replaced only once the new one is complete. On Linux and macOS a new file is readable by its owner
+only, and a replaced file keeps its owner and permissions.
+
+The file includes provider usernames and **passwords**, so it is a complete, working
+configuration. The program prints a note when it holds any: keep that file private.
+
 ### Band selection
 
 `--bands` (or `LQM_BANDS`, or `bands = [...]` in the file) limits the map to some bands. QSOs on
