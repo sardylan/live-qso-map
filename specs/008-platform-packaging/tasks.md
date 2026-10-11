@@ -583,3 +583,16 @@ spec/plan/tasks. Complete with `/speckit-implement`.
   `dpkg-deb --field <deb> Version` equals `${CIRCLE_TAG#v}-1`, and set `revision = "1"` in
   `[package.metadata.deb]` of `Cargo.toml` so the revision does not depend on the cargo-deb
   default. <!-- gap: FR-002 -->
+
+## Phase 10: Convergence
+
+Appended by `/speckit-converge` on review of the current codebase against
+spec/plan/tasks. Complete with `/speckit-implement`.
+
+- [ ] T059 [US2] Constitution (Principle II, `docs/rust-guidelines.md` §1.2): in
+  `src/config_export.rs`, `write_temporary` and both `cfg` variants of `keep_existing_permissions`
+  return `std::io::Result<()>`; every fallible crate function must return the crate `Result<T>`.
+  Make them return `Result<()>`, mapping I/O errors to `Error::ConfigWrite { path, source }` with
+  the destination path, and simplify `write` accordingly. The existing write tests must keep
+  passing, and a test must check a failure names the destination, not the temporary file.
+  <!-- gap: constitution Principle II / rust-guidelines §1.2 -->
