@@ -137,6 +137,42 @@ circleci api -X POST api/v2/project/gh/sardylan/live-qso-map/pipeline/run -d '{
 - **Secrets:** the summary prints `publishing secrets: not checked (rehearsal)`. To check the
   secrets' names, see section 8.
 
+## 8. Secrets
+
+The publishing secrets live in the CircleCI context **`live-qso-map-release`**, never in
+project-level variables:
+
+| Variable | What it is |
+|----------|------------|
+| `GITHUB_TOKEN` | fine-grained GitHub token, repository `sardylan/live-qso-map` only, permission `contents: write` |
+| `DOCKERHUB_USERNAME` | Docker Hub account that owns `sardylan/live-qso-map` |
+| `DOCKERHUB_TOKEN` | Docker Hub personal access token, Read/Write/Delete on `sardylan/live-qso-map` (Delete removes the `-rc` tag) |
+
+The context has two restrictions, which CircleCI enforces whatever the config says:
+- the project `e4ace6e1-9360-4882-9faf-21f77e871b0e`;
+- the expression `pipeline.git.tag starts-with "v"`.
+
+Runs for `main`, pull requests, rehearsals and the weekly schedule have no tag, so they can't
+receive it. Only four jobs declare it: `check-version`, `image-push`, `publish-github-release` and
+`docker-promote`.
+
+`check-version` runs `scripts/check-secrets.sh`, which stops the release before any build when a
+secret is missing, and names it without printing any value.
+
+```bash
+circleci context create live-qso-map-release --org gh/sardylan
+circleci context restriction create live-qso-map-release --type project \
+  --value e4ace6e1-9360-4882-9faf-21f77e871b0e --org gh/sardylan
+circleci context restriction create live-qso-map-release --type expression \
+  --value 'pipeline.git.tag starts-with "v"' --org gh/sardylan
+circleci context env-var list live-qso-map-release --org gh/sardylan   # names only, before tagging
+circleci project envvar list                                        # must not list them
+```
+
+**Entering or rotating a value:** use the CircleCI UI (Organization Settings → Contexts) or the
+CLI prompt, never a file or a command-line argument. Rotate a token by creating the new one,
+replacing the value in the context, then revoking the old token.
+
 ## 10. Local reproduction
 
 Everything the gates run can be repeated on any host with `cargo`, `node` and `python3`:

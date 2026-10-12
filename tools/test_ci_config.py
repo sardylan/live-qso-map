@@ -34,5 +34,25 @@ class PageTestCommand(unittest.TestCase):
         self.assertNotIn("node --test web/", readme)
 
 
+class ReleaseRerun(unittest.TestCase):
+    """R2: `ghr -delete` deleted and recreated an existing release, losing its notes."""
+
+    def setUp(self):
+        self.config = read(".circleci/config.yml")
+
+    def test_release_rerun_keeps_notes(self):
+        self.assertNotIn("ghr ", self.config)
+        self.assertNotIn(" -delete", self.config)
+        view = self.config.find("gh release view")
+        create = self.config.find("gh release create")
+        self.assertNotEqual(view, -1, "no existence check before creating the release")
+        self.assertNotEqual(create, -1, "no gh release create")
+        self.assertLess(view, create)
+        create_line = self.config[create:self.config.find("\n", create)]
+        self.assertIn("--verify-tag", create_line)
+        self.assertIn("--notes-file", create_line)
+        self.assertRegex(self.config, r"gh release upload [^\n]*--clobber")
+
+
 if __name__ == "__main__":
     unittest.main()

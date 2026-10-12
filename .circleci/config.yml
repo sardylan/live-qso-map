@@ -55,9 +55,6 @@ executors:
     resource_class: m4pro.medium
     environment:
       RUSTUP_TOOLCHAIN: << pipeline.parameters.rust-version >>
-  github:
-    docker:
-      - image: cibuilds/github:0.13.0
 
 commands:
   fetch-verified:
@@ -188,19 +185,30 @@ jobs:
       - run:
           name: Python tool tests
           command: python3 -m unittest discover -s tools -p 'test_*.py'
+      - run:
+          name: CI script tests
+          command: |
+            sh scripts/test-check-version.sh
+            sh scripts/test-changelog-section.sh
+            sh scripts/test-check-secrets.sh
 
-  # Release gate (FR-002): the tag must be "v" + the Cargo.toml version.
+  # Release gate, before any build (FR-002, FR-013, FR-032): the tag is "v" + the Cargo.toml
+  # version, CHANGELOG.md has notes for it, and the publishing secrets are present. It runs
+  # with the release context, which CircleCI only grants to v* tags.
   check-version:
     docker:
       - image: cimg/base:current
     steps:
       - checkout
       - run:
-          name: Test the version gate
-          command: sh scripts/test-check-version.sh
-      - run:
           name: Tag matches Cargo.toml
           command: sh scripts/check-version.sh "$CIRCLE_TAG"
+      - run:
+          name: Release notes in CHANGELOG.md
+          command: sh scripts/changelog-section.sh "${CIRCLE_TAG#v}" > /dev/null
+      - run:
+          name: Publishing secrets present
+          command: sh scripts/check-secrets.sh GITHUB_TOKEN DOCKERHUB_USERNAME DOCKERHUB_TOKEN
 
   # Static musl binaries through cross (Cross.toml). Cross-compiling happens only here.
   # Raw binaries stay in the workspace under bin/; only release/ is published.
@@ -212,11 +220,13 @@ jobs:
     steps:
       - checkout
       - install-rustup
+      - fetch-verified:
+          url: https://github.com/cross-rs/cross/releases/download/v0.2.5/cross-x86_64-unknown-linux-musl.tar.gz
+          sha256: a486cefa6cb486971b97be321ea9dfc2e90c1979550295314a368f53fab6d588
+          dest: cross.tar.gz
       - run:
-          name: Install cross
-          command: |
-            curl -sSfL https://github.com/cross-rs/cross/releases/download/v0.2.5/cross-x86_64-unknown-linux-musl.tar.gz \
-              | tar -xz -C "$HOME/.cargo/bin"
+          name: Install cross 0.2.5
+          command: tar -xzf cross.tar.gz -C "$HOME/.cargo/bin" cross && rm cross.tar.gz
       - run:
           name: Build
           command: |
@@ -456,27 +466,69 @@ jobs:
       - store_artifacts:
           path: ws/release
 
-  # After the GitHub release: re-tag the tested -rc manifest, no rebuild (SC-008).
+  # After the GitHub release (FR-018, FR-022, research R8): re-tag the tested -rc manifest as
+  # <version> and latest with crane (same digest, no rebuild, no VM), then delete the -rc tag.
+  # Re-running it is harmless.
   docker-promote:
-    executor: linux-machine
+    docker:
+      - image: cimg/base:current
     steps:
+      - fetch-verified:
+          url: https://github.com/google/go-containerregistry/releases/download/v0.22.1/go-containerregistry_Linux_x86_64.tar.gz
+          sha256: 0ab7a1d6932a213aed964ce97666c3077fe691c8606413674a8b3e0b9ec4cda0
+          dest: crane.tar.gz
       - run:
-          name: Log in to Docker Hub
-          command: echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+          name: Install crane 0.22.1
+          command: |
+            mkdir -p "$HOME/bin"
+            tar -xzf crane.tar.gz -C "$HOME/bin" crane
+            echo 'export PATH="$HOME/bin:$PATH"' >> "$BASH_ENV"
       - run:
           name: Publish <version> and latest
           command: |
             version="${CIRCLE_TAG#v}"
-            docker buildx imagetools create \
-              -t "sardylan/live-qso-map:${version}" -t sardylan/live-qso-map:latest \
-              "sardylan/live-qso-map:${version}-rc"
+            repo=sardylan/live-qso-map
+            printf '%s' "$DOCKERHUB_TOKEN" | crane auth login index.docker.io -u "$DOCKERHUB_USERNAME" --password-stdin
+            crane tag "${repo}:${version}-rc" "${version}"
+            crane tag "${repo}:${version}-rc" latest
+            [ "$(crane digest "${repo}:${version}")" = "$(crane digest "${repo}:latest")" ]
+      - run:
+          name: Delete the -rc tag
+          command: |
+            version="${CIRCLE_TAG#v}"
+            repo=sardylan/live-qso-map
+            if crane ls "$repo" | grep -qx "${version}-rc"; then
+              token=$(jq -n --arg u "$DOCKERHUB_USERNAME" --arg p "$DOCKERHUB_TOKEN" '{identifier: $u, secret: $p}' \
+                | curl -fsS -H 'Content-Type: application/json' -d @- https://hub.docker.com/v2/auth/token \
+                | jq -r .access_token)
+              curl -fsS -o /dev/null -X DELETE -H "Authorization: Bearer ${token}" \
+                "https://hub.docker.com/v2/namespaces/sardylan/repositories/live-qso-map/tags/${version}-rc"
+            fi
+            if crane ls "$repo" | grep -qx "${version}-rc"; then
+              echo "the ${version}-rc tag is still on Docker Hub; remove it in the Hub UI (docs/ci.md)"
+              exit 1
+            fi
 
-  # Publishes only ws/release (packages and archives), with SHA256SUMS (FR-003, FR-004).
+  # Publishes only ws/release (packages and archives), with SHA256SUMS (FR-003, FR-004). The
+  # notes are the tag's CHANGELOG.md section (FR-032). On a re-run the release already exists:
+  # its files are replaced and its notes are kept (FR-015).
   publish-github-release:
-    executor: github
+    docker:
+      - image: cimg/base:current
     steps:
+      - checkout
       - attach_workspace:
           at: ./ws
+      - fetch-verified:
+          url: https://github.com/cli/cli/releases/download/v2.102.0/gh_2.102.0_linux_amd64.tar.gz
+          sha256: bb766f710eef8ede859c18578c72c327597cd4c8a85b06001b1f3843c6019386
+          dest: gh.tar.gz
+      - run:
+          name: Install gh 2.102.0
+          command: |
+            mkdir -p "$HOME/bin"
+            tar -xzf gh.tar.gz --strip-components=2 -C "$HOME/bin" gh_2.102.0_linux_amd64/bin/gh
+            echo 'export PATH="$HOME/bin:$PATH"' >> "$BASH_ENV"
       - run:
           name: Checksums
           command: cd ws/release && sha256sum * > SHA256SUMS && cat SHA256SUMS
@@ -484,7 +536,14 @@ jobs:
           path: ws/release
       - run:
           name: Publish the GitHub release
-          command: ghr -t "${GITHUB_TOKEN}" -u "${CIRCLE_PROJECT_USERNAME}" -r "${CIRCLE_PROJECT_REPONAME}" -c "${CIRCLE_SHA1}" -delete "${CIRCLE_TAG}" ./ws/release/
+          command: |
+            repo="${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}"
+            sh scripts/changelog-section.sh "${CIRCLE_TAG#v}" > notes.md
+            if gh release view "$CIRCLE_TAG" --repo "$repo" > /dev/null 2>&1; then
+              gh release upload "$CIRCLE_TAG" --repo "$repo" --clobber ws/release/*
+            else
+              gh release create "$CIRCLE_TAG" --repo "$repo" --verify-tag --title "$CIRCLE_TAG" --notes-file notes.md ws/release/*
+            fi
 
 workflows:
   test_and_build:
@@ -507,6 +566,7 @@ workflows:
           filters: *every-commit
       # Release builds and the release run on release tags only (constitution Principle V).
       - check-version:
+          context: live-qso-map-release
           filters: &release-tags
             tags:
               only: /^v\d+\.\d+\.\d+$/
@@ -568,11 +628,13 @@ workflows:
           target: x86_64-unknown-linux-musl
           requires: [build-linux-x86_64-unknown-linux-musl]
       - image-push:
+          context: live-qso-map-release
           filters: *release-tags
           requires:
             - image-test-amd64
             - build-linux-aarch64-unknown-linux-musl
       - publish-github-release:
+          context: live-qso-map-release
           filters: *release-tags
           requires:
             - package-archives
@@ -586,6 +648,7 @@ workflows:
             - test-deb-ubuntu-22-04-amd64
             - test-deb-ubuntu-24-04-amd64
       - docker-promote:
+          context: live-qso-map-release
           filters: *release-tags
           requires: [publish-github-release]
 
