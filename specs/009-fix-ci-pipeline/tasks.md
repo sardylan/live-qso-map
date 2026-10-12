@@ -194,7 +194,7 @@ and no `-rc` tag.
 
 ### Tests for User Story 3 (write first, confirm they FAIL)
 
-- [ ] T024 [P] [US3] Write `scripts/test-check-secrets.sh`, in the style of `scripts/test-check-version.sh`. It covers:
+- [X] T024 [P] [US3] Write `scripts/test-check-secrets.sh`, in the style of `scripts/test-check-version.sh`. It covers:
   - every variable set: exit 0, and the output names them as present;
   - one unset and one empty: exit 1, and stderr names both;
   - a value containing `s3cr3t` never appears in stdout or stderr;
@@ -204,28 +204,28 @@ and no `-rc` tag.
 
 ### Implementation for User Story 3
 
-- [ ] T025 [US3] Write `scripts/check-secrets.sh` (POSIX `sh`, `set -u`, reads variables through `eval "v=\${$name-}"` without echoing values) to make T024 pass.
-- [ ] T026 [US3] Add `sh scripts/test-check-secrets.sh` to the `test-tools` gate. Move `sh scripts/test-check-version.sh` from `check-version` into `test-tools` too (`contracts/pipeline.md`). Validate.
-- [ ] T027 [US3] In `.circleci/config.yml`:
+- [X] T025 [US3] Write `scripts/check-secrets.sh` (POSIX `sh`, `set -u`, reads variables through `eval "v=\${$name-}"` without echoing values) to make T024 pass.
+- [X] T026 [US3] Add `sh scripts/test-check-secrets.sh` to the `test-tools` gate. Move `sh scripts/test-check-version.sh` from `check-version` into `test-tools` too (`contracts/pipeline.md`). Validate.
+- [X] T027 [US3] In `.circleci/config.yml`:
   - give `check-version`, `image-push`, `publish-github-release` and `docker-promote` `context: live-qso-map-release` (in the workflow entries), and no other job;
   - make `check-version` run `sh scripts/check-secrets.sh GITHUB_TOKEN DOCKERHUB_USERNAME DOCKERHUB_TOKEN` after the version gate;
   - make `cargo-deb` and every build job require `check-version` on tags.
 
   Validate, and check `circleci config process … | grep -c 'context: live-qso-map-release'` = 4.
-- [ ] T028 [P] [US3] Add a "Secrets" section to `docs/ci.md`:
+- [X] T028 [P] [US3] Add a "Secrets" section to `docs/ci.md`:
   - the context, its two restrictions and the token scopes (`contracts/ci-service-setup.md`);
   - listing the variable names (`circleci context env-var list`);
   - rotating the tokens.
 
   In `README.md`, replace the "CircleCI project needs these variables" table with a pointer to it.
 - [ ] T029 [US3] [ext] Create the context `live-qso-map-release` with its project and expression restrictions. The maintainer enters the three values: a fine-grained GitHub token (this repository only, `contents: write`) and a Docker Hub personal access token (Read/Write/Delete). Delete any project-level variables with these names. Check with `quickstart.md` §6.
-- [ ] T030 [US3] Add `test_release_rerun_keeps_notes` to `tools/test_ci_config.py`, a regression test for R2. It asserts that the config:
+- [X] T030 [US3] Add `test_release_rerun_keeps_notes` to `tools/test_ci_config.py`, a regression test for R2. It asserts that the config:
   - contains no `ghr` and no ` -delete`;
   - contains `gh release view` before `gh release create` with `--verify-tag` and `--notes-file`;
   - contains `gh release upload` with `--clobber`.
 
   Run it and confirm it FAILS.
-- [ ] T031 [US3] Replace `publish-github-release` in `.circleci/config.yml`:
+- [X] T031 [US3] Replace `publish-github-release` in `.circleci/config.yml`:
   - **Executor:** `cimg/base:current`.
   - **Tool:** install gh 2.102.0 through `fetch-verified`.
   - **Steps:**
@@ -235,7 +235,7 @@ and no `-rc` tag.
   - **Remove** the `github` executor and `ghr`.
 
   Validate, and confirm T030 passes.
-- [ ] T032 [US3] Replace `docker-promote` in `.circleci/config.yml`:
+- [X] T032 [US3] Replace `docker-promote` in `.circleci/config.yml`:
   - **Executor:** `cimg/base:current`.
   - **Tool:** install crane 0.22.1 through `fetch-verified`.
   - **Promote:** `crane auth login index.docker.io -u "$DOCKERHUB_USERNAME" --password-stdin`; `crane tag sardylan/live-qso-map:${v}-rc ${v}`; `crane tag … latest`.
@@ -243,8 +243,8 @@ and no `-rc` tag.
   - **Check:** fail if `crane ls` still lists `${v}-rc`, and never print the token.
 
   This also covers FR-022 (no VM). Validate.
-- [ ] T033 [US3] Install cross 0.2.5 in `build-linux` through `fetch-verified` (T002). In `Cross.toml`, pin each of the three targets' images by digest (`[target.<triple>] image = "ghcr.io/cross-rs/<triple>:0.2.5Tsha256:…"`; get the digests with `crane digest ghcr.io/cross-rs/<triple>:0.2.5`), with a comment naming the date. Validate.
-- [ ] T034 [P] [US3] Update `specs/009-fix-ci-pipeline/reference/circleci-review.md` items 1, 2, 3 and 10, each with a "Resolution" line naming the task.
+- [X] T033 [US3] Install cross 0.2.5 in `build-linux` through `fetch-verified` (T002). In `Cross.toml`, pin each of the three targets' images by digest (`[target.<triple>] image = "ghcr.io/cross-rs/<triple>:0.2.5Tsha256:…"`; get the digests with `crane digest ghcr.io/cross-rs/<triple>:0.2.5`), with a comment naming the date. Validate.
+- [X] T034 [P] [US3] Update `specs/009-fix-ci-pipeline/reference/circleci-review.md` items 1, 2, 3 and 10, each with a "Resolution" line naming the task.
 
 **Checkpoint**: on a tag, secrets reach only the publishing jobs. Publishing and promotion are
 re-runnable, and every download is verified.
@@ -260,14 +260,14 @@ then tags the merged commit. The version is typed once.
 
 ### Tests for User Story 6 (write first, confirm they FAIL)
 
-- [ ] T035 [P] [US6] Write `tests/changelog.rs`. It reads `CHANGELOG.md` from `env!("CARGO_MANIFEST_DIR")`, and asserts:
+- [X] T035 [P] [US6] Write `tests/changelog.rs`. It reads `CHANGELOG.md` from `env!("CARGO_MANIFEST_DIR")`, and asserts:
   - exactly one `## [Unreleased]` heading, before any version heading;
   - a heading `## [<CARGO_PKG_VERSION>] - YYYY-MM-DD` (date shape `\d{4}-\d{2}-\d{2}`, checked with `std` only);
   - that section has at least one `### ` subsection and one `- ` entry before the next `## `;
   - version headings are unique.
 
   Return `Result<(), Box<dyn std::error::Error>>`. Run `cargo test --test changelog` and confirm it fails, because `CHANGELOG.md` is missing.
-- [ ] T036 [P] [US6] Write `scripts/test-changelog-section.sh`. It covers:
+- [X] T036 [P] [US6] Write `scripts/test-changelog-section.sh`. It covers:
   - printing the body of a middle section and of the last section;
   - `2.0.1` vs `2.0.10` not confused;
   - a missing version: exit 1;
@@ -279,8 +279,8 @@ then tags the merged commit. The version is typed once.
 
 ### Implementation for User Story 6
 
-- [ ] T037 [US6] Write `scripts/changelog-section.sh` (POSIX `sh` + `awk`; usage `changelog-section.sh <X.Y.Z> [CHANGELOG.md]`, prints the body without its heading) to make T036 pass.
-- [ ] T038 [US6] Create `CHANGELOG.md` ("Keep a Changelog" layout, `data-model.md` "CHANGELOG.md").
+- [X] T037 [US6] Write `scripts/changelog-section.sh` (POSIX `sh` + `awk`; usage `changelog-section.sh <X.Y.Z> [CHANGELOG.md]`, prints the body without its heading) to make T036 pass.
+- [X] T038 [US6] Create `CHANGELOG.md` ("Keep a Changelog" layout, `data-model.md` "CHANGELOG.md").
   - **`## [Unreleased]`:**
     - `### Fixed`: this feature's fixes (checkout over HTTPS, page tests on Node 24, release re-runs keep notes, verified downloads);
     - `### Changed`: triggers, protected `main`, secrets in a restricted context, new `audit` gate, ARM64 tests, release process;
@@ -289,7 +289,7 @@ then tags the merged commit. The version is typed once.
   - **A closing line:** points to the GitHub history for 1.0.0 and earlier.
 
   Make T035 pass.
-- [ ] T039 [US6] Add `sh scripts/test-changelog-section.sh` to `test-tools`. Add `sh scripts/changelog-section.sh "${CIRCLE_TAG#v}" > /dev/null` to `check-version`, before the secrets check, in `.circleci/config.yml`. Validate.
+- [X] T039 [US6] Add `sh scripts/test-changelog-section.sh` to `test-tools`. Add `sh scripts/changelog-section.sh "${CIRCLE_TAG#v}" > /dev/null` to `check-version`, before the secrets check, in `.circleci/config.yml`. Validate.
 - [ ] T040 [P] [US6] Create `release.toml` exactly as in `contracts/release-process.md`.
 - [ ] T041 [US6] Dry-run the steps with cargo-release 1.1.6 on a throw-away branch (`quickstart.md` §5):
   - `version patch` and `replace` show the planned changes;

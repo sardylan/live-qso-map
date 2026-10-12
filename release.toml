@@ -1,0 +1,12 @@
+# cargo-release 1.1.6 configuration (feature 009, docs/releasing.md). A release is cut in two
+# steps: prepare a release/next pull request, then tag the merged commit. Nothing is published
+# to crates.io; the CI pipeline builds and publishes on the tag.
+publish = false
+tag-name = "v{{version}}"
+allow-branch = ["main", "release/next"]
+pre-release-commit-message = "chore(release): {{version}}"
+# Turns the "Unreleased" entries into the new version's section, dated in UTC. The pattern
+# needs a ### subsection right after the heading, so an empty "Unreleased" is refused.
+pre-release-replacements = [
+  { file = "CHANGELOG.md", search = "## \\[Unreleased\\]\n\n###", replace = "## [Unreleased]\n\n## [{{version}}] - {{date}}\n\n###", exactly = 1 },
+]

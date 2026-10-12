@@ -114,6 +114,8 @@ security group or to protected tags. Attach it only to `docker-image`, `docker-p
 and `publish-github-release`. Then delete the project-level variables. Also check that
 "Pass secrets to builds from forked pull requests" is disabled.
 
+**Resolution (feature 009):** context `live-qso-map-release` restricted to this project and to `pipeline.git.tag starts-with "v"`, used by four jobs only; `check-secrets.sh` in `check-version` (T024–T029).
+
 ## 2. `ghr -delete` replaces an existing release
 
 **Where:** line 355.
@@ -129,6 +131,8 @@ mirrors.
 **Fix:** drop `-delete` and add `-replace` (replace assets only) if re-uploads are needed.
 Alternatively, have the job fail when the release already exists, so that recreating it
 is always a deliberate action.
+
+**Resolution (feature 009):** `publish-github-release` uses gh 2.102.0: `gh release create --verify-tag --notes-file` for a new release, `gh release upload --clobber` on a re-run, so notes are kept; `tools/test_ci_config.py` guards it (T030–T031).
 
 ## 3. `cross` downloaded without verification, old version
 
@@ -150,6 +154,8 @@ versions) are old compared with Rust 1.99.
   (`[target.<triple>] image = "...@sha256:..."`).
 - Alternatively, drop `cross` for the musl targets and use `rustup target add` plus a
   musl linker or `cargo-zigbuild`.
+
+**Resolution (feature 009):** cross 0.2.5 goes through `fetch-verified` with a recorded SHA-256, and `Cross.toml` pins each target image by digest (T033). Whether 0.2.5 still builds with Rust 1.99 is proven by the rehearsal (T023).
 
 ## 4. Cargo cache keys never refresh, miss the toolchain
 
@@ -265,6 +271,8 @@ is a supported version.
 
 **Fix:** delete the `-rc` tag after a successful promotion (Docker Hub API), or push the
 candidate to a separate staging repository.
+
+**Resolution (feature 009):** `docker-promote` deletes the `-rc` tag through the Docker Hub API after re-tagging with crane, and fails if it is still there (T032).
 
 ## 11. macOS binary not signed or notarized
 
