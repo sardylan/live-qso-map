@@ -24,13 +24,16 @@ Precondition: on `main`, up to date with `origin/main`, clean tree, and "Unrelea
 entries.
 
 ```
+git switch main && git pull --ff-only
 git switch -c release/next
-cargo release version <patch|minor|major> --execute
-cargo release replace --execute
-cargo release commit --execute
+cargo release <patch|minor|major> --no-tag --no-push --no-publish --execute
 git push -u origin release/next
 gh pr create --base main --fill
 ```
+
+The separate steps (`cargo release version`, `replace`, `commit`) were rejected after testing
+(T041): `version` and `replace` check neither a clean tree nor `allow-branch`. The full command
+checks both before changing anything.
 
 **Result:**
 - one commit `chore(release): X.Y.Z` on `release/next`, holding:
@@ -39,13 +42,13 @@ gh pr create --base main --fill
 - a pull request into `main`;
 - no tag.
 
-**Refusals (non-zero exit, nothing changed):**
+**Refusals (non-zero exit):**
 
 | Situation | Refused by |
 |-----------|------------|
-| "Unreleased" empty | `replace` (`exactly = 1`) |
-| dirty tree | cargo-release |
-| branch not in `allow-branch` | cargo-release |
+| "Unreleased" empty | `exactly = 1` replacement (after the version bump: undo with `git restore Cargo.toml Cargo.lock`) |
+| dirty tree | cargo-release (exit 101) |
+| branch not in `allow-branch` | cargo-release (exit 101) |
 | missing `--execute` | dry run: prints the plan only |
 
 ## Merge
@@ -73,9 +76,9 @@ cargo release push --execute
 
 | Situation | Refused by |
 |-----------|------------|
-| the tag already exists | cargo-release |
+| the tag already exists | cargo-release: "disabled due to existing tag" (exit 2) |
 | dirty tree | cargo-release |
-| `main` behind the remote | `git pull --ff-only` must be run first; the documentation says so |
+| `main` behind the remote | caught only when the stale commit's version is already tagged; otherwise the documented `git pull --ff-only` is the guard |
 
 ## After the release
 

@@ -112,8 +112,7 @@ On an up-to-date `main` with entries under "Unreleased":
 
 ```bash
 git switch -c release/next
-cargo release version patch                  # dry run: "Upgrading live-qso-map from X to Y"
-cargo release replace                        # dry run: shows the CHANGELOG replacement
+cargo release patch --no-tag --no-push --no-publish   # dry run: version, CHANGELOG diff, commit
 git switch main && git branch -D release/next
 ```
 
