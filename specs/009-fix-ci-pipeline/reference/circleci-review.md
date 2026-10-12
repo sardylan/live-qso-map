@@ -360,7 +360,14 @@ tag, after the version has already been tagged.
 classes available on the plan. Consider a manual or branch-triggered dry run of the
 build jobs (without publishing) to prove the executors before a real release.
 
-**Resolution (feature 009):** pending: proven by the first rehearsal (T023, T056).
+**Resolution (feature 009):** proven by the first rehearsal, run `e7c7fe5e-7418-464d-8ff6-3620e409e4cf` (2026-10-12, commit `b9c4f82`), green in all 23 jobs:
+- **Machine images:** `ubuntu-2604:current` on x86 and `ubuntu-2204:current` on `arm.medium`.
+- **macOS:** `xcode: "27.0"` with `m4pro.medium`.
+- **Windows:** Server 2025.
+- **Arm Docker:** `arm.medium`.
+- **Cross builds:** cross 0.2.5, with the pinned images, built all three musl targets with Rust 1.99.
+
+The run published nothing. GitHub releases are unchanged, and the Docker Hub repository `sardylan/live-qso-map` doesn't exist yet (404).
 
 ## 16. `test-web` fails: Node 24 doesn't accept a directory in `node --test`
 
