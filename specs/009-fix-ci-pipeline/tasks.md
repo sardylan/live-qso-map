@@ -115,7 +115,7 @@ verified downloads.
      - `audit`, which needs cargo-deny 0.20.2 (`cargo install cargo-deny --version 0.20.2 --locked`, optional).
 
   Sections for secrets, rehearsal and the weekly run are added by T028, T022 and T055. Link it from `README.md`.
-- [ ] T013 [US1] [ext] Replace the event trigger: create the `only-build-prs` GitHub App trigger, then delete trigger `2f62efc0-51a0-461d-96c2-f5750aea445d` (commands in `contracts/ci-service-setup.md`). Confirm with `circleci project trigger list --pipeline-definition-id f5014549-bbc3-4712-901f-e2bd315c9e6e`.
+- [X] T013 [US1] [ext] Replace the event trigger: create the `only-build-prs` GitHub App trigger, then delete trigger `2f62efc0-51a0-461d-96c2-f5750aea445d` (commands in `contracts/ci-service-setup.md`). Confirm with `circleci project trigger list --pipeline-definition-id f5014549-bbc3-4712-901f-e2bd315c9e6e`.
 - [X] T014 [US1] Push the branch, open the feature pull request into `main`, and check that its run executes all four gates green, checking out over HTTPS (job step 101).
 - [X] T015 [US1] [ext] Apply `deploy/github/main-ruleset.json` with `gh api -X POST repos/sardylan/live-qso-map/rulesets --input deploy/github/main-ruleset.json`, after T014 is green. That way the required contexts exist, and the feature pull request itself is mergeable. Record the ruleset id in `docs/ci.md`. Check `bypass_actors` and the admin role id (research R9).
 - [ ] T016 [US1] **Verify** `quickstart.md` §2 (branch without a pull request: no run; pull request open and push: one run each; draft pull request: one run; tag `v0.0.0`: gates and failing `check-version`, no build) and §3 (direct push to `main` refused for a non-bypass actor; merging blocked while a gate is red). Record the results in `specs/009-fix-ci-pipeline/reference/circleci-review.md` (item 17 resolution). If the draft pull request starts no run, change the spec's assumption "Draft pull requests are checked as well" to "checked once marked ready for review", and record it in research R1.
@@ -330,7 +330,7 @@ tagged without typing the version twice.
 
 ### Tests for User Story 4
 
-- [ ] T043 [US4] Measure the baseline before changing caches: record the `lint` and `test-rust` durations of a cold run and of a re-run, from `circleci run get` / `circleci job get`, in `specs/009-fix-ci-pipeline/reference/circleci-review.md` (item 4).
+- [X] T043 [US4] Measure the baseline before changing caches: record the `lint` and `test-rust` durations of a cold run and of a re-run, from `circleci run get` / `circleci job get`, in `specs/009-fix-ci-pipeline/reference/circleci-review.md` (item 4).
 
 ### Implementation for User Story 4
 
@@ -347,7 +347,7 @@ tagged without typing the version twice.
   - saves the cache, and persists `tools/cargo-deb` to the workspace.
 
   Make the three `package-deb` jobs require it and use `ws/tools/cargo-deb` (in `test_and_build` and `rehearsal`). Validate.
-- [ ] T047 [US4] **Verify** `quickstart.md` §9: the second gate run is at least 30% faster than T043's cold run, and a branch with a different `rust-version` restores no old-toolchain key. Record the numbers next to T043's.
+- [X] T047 [US4] **Verify** `quickstart.md` §9: the second gate run is at least 30% faster than T043's cold run, and a branch with a different `rust-version` restores no old-toolchain key. Record the numbers next to T043's.
 
 **Checkpoint**: repeat runs reuse their caches; packaging builds no tool more than once.
 
