@@ -365,7 +365,7 @@ with a known advisory fails `audit`; `quickstart.md` §7.
 
 ### Tests for User Story 5 (write first, confirm they FAIL)
 
-- [ ] T048 [US5] Create `deny.toml` (research R14):
+- [X] T048 [US5] Create `deny.toml` (research R14):
   - **Advisories:** default `[advisories]`.
   - **Licences:** `[licenses] confidence-threshold = 0.8` and the allow list from R14.
   - **Check:** run `cargo deny check advisories licenses` locally with cargo-deny 0.20.2, and confirm it passes on the current tree.
@@ -374,18 +374,18 @@ with a known advisory fails `audit`; `quickstart.md` §7.
 
 ### Implementation for User Story 5
 
-- [ ] T049 [US5] Add the gate job `audit` in `.circleci/config.yml`, with tag filters like the other gates:
+- [X] T049 [US5] Add the gate job `audit` in `.circleci/config.yml`, with tag filters like the other gates:
   1. install cargo-deny 0.20.2 through `fetch-verified`;
   2. run `cargo deny check advisories licenses`;
   3. run `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --locked`, inside `with-cargo-cache`.
 
   Make the build jobs also require `audit`. Validate. Then run `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --locked` locally, and fix any warnings in `src/` doc comments (no behaviour change).
-- [ ] T050 [US5] Extend `test-deb` in `.circleci/config.yml` with a job parameter `arch` (`amd64` → Docker default resource class; `arm64` → `resource_class: arm.medium`) and a matrix over the four images × two architectures, named `test-deb-<distro>-<arch>`. The arm64 jobs require `package-deb-aarch64-unknown-linux-musl` and install `ws/release/live-qso-map_*_arm64.deb`. Add them to `test_and_build` and `rehearsal`, and to `publish-github-release`'s requirements. Validate.
-- [ ] T051 [US5] Add `image-test-arm64` in `.circleci/config.yml` (machine, `resource_class: arm.medium`, image `ubuntu-2204:current`, `--load` for `linux/arm64` + `scripts/test-image.sh`). Make `image-push` require both image tests. Add it to `rehearsal`. Validate.
-- [ ] T052 [US5] Add the workflow `newest_toolchain` (`when: << pipeline.parameters.newest-toolchain >>`) with the jobs `lint-stable` and `test-rust-stable` (`rustup toolchain install stable --profile minimal -c rustfmt,clippy`, `RUSTUP_TOOLCHAIN=stable`, then the `lint` / `test-rust` commands) in `.circleci/config.yml`. Their names must differ from the gates' (research R2). Validate.
+- [X] T050 [US5] Extend `test-deb` in `.circleci/config.yml` with a job parameter `arch` (`amd64` → Docker default resource class; `arm64` → `resource_class: arm.medium`) and a matrix over the four images × two architectures, named `test-deb-<distro>-<arch>`. The arm64 jobs require `package-deb-aarch64-unknown-linux-musl` and install `ws/release/live-qso-map_*_arm64.deb`. Add them to `test_and_build` and `rehearsal`, and to `publish-github-release`'s requirements. Validate.
+- [X] T051 [US5] Add `image-test-arm64` in `.circleci/config.yml` (machine, `resource_class: arm.medium`, image `ubuntu-2204:current`, `--load` for `linux/arm64` + `scripts/test-image.sh`). Make `image-push` require both image tests. Add it to `rehearsal`. Validate.
+- [X] T052 [US5] Add the workflow `newest_toolchain` (`when: << pipeline.parameters.newest-toolchain >>`) with the jobs `lint-stable` and `test-rust-stable` (`rustup toolchain install stable --profile minimal -c rustfmt,clippy`, `RUSTUP_TOOLCHAIN=stable`, then the `lint` / `test-rust` commands) in `.circleci/config.yml`. Their names must differ from the gates' (research R2). Validate.
 - [ ] T053 [US5] Add `{ "context": "ci/circleci: audit", "integration_id": 302869 }` to `deploy/github/main-ruleset.json`. [ext] After `audit` has reported once on the pull request, apply the update with `gh api -X PUT repos/sardylan/live-qso-map/rulesets/<id> --input deploy/github/main-ruleset.json`.
 - [ ] T054 [US5] [ext] Create the weekly schedule trigger (Monday 04:00 UTC, `main`, `{"newest-toolchain": true}`) with the `circleci api` command in `contracts/ci-service-setup.md`. Use the UI fallback if the API refuses it, and note which one worked in `docs/ci.md`.
-- [ ] T055 [P] [US5] Add the sections "Weekly newest-toolchain run" (what runs, where failures show, how to raise the pin per `docs/rust-guidelines.md` §2.2) and "Audit gate" (`deny.toml`, how to handle a new advisory or licence) to `docs/ci.md`.
+- [X] T055 [P] [US5] Add the sections "Weekly newest-toolchain run" (what runs, where failures show, how to raise the pin per `docs/rust-guidelines.md` §2.2) and "Audit gate" (`deny.toml`, how to handle a new advisory or licence) to `docs/ci.md`.
 - [ ] T056 [US5] **Verify**:
   - a rehearsal (`quickstart.md` §4) now includes eight `test-deb` jobs and two `image-test` jobs, all green;
   - `quickstart.md` §7: only `lint-stable` and `test-rust-stable` run, and the commit's `ci/circleci: lint` status is unchanged;
@@ -397,10 +397,10 @@ with a known advisory fails `audit`; `quickstart.md` §7.
 
 ## Phase 9: Polish & Cross-Cutting Concerns
 
-- [ ] T057 [P] Change the image label to `org.opencontainers.image.licenses="GPL-3.0-or-later"` in `deploy/docker/Dockerfile.release`, and the matching row in `specs/008-platform-packaging/contracts/release-artifacts.md` (research R17).
-- [ ] T058 [P] Mark every item of `specs/009-fix-ci-pipeline/reference/circleci-review.md` with its resolution, or "out of scope (decision)" for 9, 11 and 14. Mark item 15 resolved by T023/T056.
+- [X] T057 [P] Change the image label to `org.opencontainers.image.licenses="GPL-3.0-or-later"` in `deploy/docker/Dockerfile.release`, and the matching row in `specs/008-platform-packaging/contracts/release-artifacts.md` (research R17).
+- [X] T058 [P] Mark every item of `specs/009-fix-ci-pipeline/reference/circleci-review.md` with its resolution, or "out of scope (decision)" for 9, 11 and 14. Mark item 15 resolved by T023/T056.
 - [ ] T059 [P] Add a lessons-learned entry to `docs/lessons-learned.md`, following the file's format and lock rules. The lesson: a pipeline that validates can still never have run. Check the run history (`circleci run list`), not only `config validate`, before trusting a release path. OAuth checkout needs an SSH key even for public repositories.
-- [ ] T060 Run the local gates: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test --locked`, `node --test 'web/*.test.js'`, `sh scripts/test-*.sh`, and `circleci config validate .circleci/config.yml`.
+- [X] T060 Run the local gates: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test --locked`, `node --test 'web/*.test.js'`, `sh scripts/test-*.sh`, and `circleci config validate .circleci/config.yml`.
 - [ ] T061 Run a final rehearsal and the event checks (`quickstart.md` §2, §4, §6) on the final branch head, then merge the feature pull request with the gates green. Delete the feature branch locally and remotely (constitution, Development Workflow).
 
 ---

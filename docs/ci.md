@@ -20,8 +20,8 @@ the repository, on CircleCI and on GitHub (feature 009, FR-008).
 | scheduled | the weekly schedule (section 9) | `newest_toolchain` | fmt, clippy and tests on the newest stable Rust |
 
 A push to a branch with no pull request starts nothing, and neither does a pull request from a
-fork (section 5). The quality gates are the jobs `lint`, `test-rust`, `test-web` and
-`test-tools`.
+fork (section 5). The quality gates are the jobs `lint`, `test-rust`, `test-web`, `test-tools`
+and `audit`.
 
 ## 2. Repository connection
 
@@ -173,7 +173,50 @@ circleci project envvar list                                        # must not l
 CLI prompt, never a file or a command-line argument. Rotate a token by creating the new one,
 replacing the value in the context, then revoking the old token.
 
-## 10. Local reproduction
+## 9. Weekly newest-toolchain run
+
+CI pins Rust (`rust-version` in `.circleci/config.yml`, together with the `Dockerfile`;
+`docs/rust-guidelines.md` §2.2). A weekly schedule runs fmt, clippy and the tests on the newest
+**stable** Rust, so that new lints or breakages show up before the pin is raised.
+
+| Item | Value |
+|------|-------|
+| Trigger | schedule, Monday 04:00 UTC, branch `main`, parameter `newest-toolchain: true` |
+| Workflow | `newest_toolchain`: jobs `lint-stable`, `test-rust-stable` |
+| Blocking | never. The job names aren't required checks, and releases don't depend on them |
+| Failures | a red `newest_toolchain` workflow in CircleCI, plus CircleCI's e-mail for failed runs |
+
+When it fails, fix the code on a pull request, or raise the pin deliberately: change
+`rust-version` and the `Dockerfile`'s `RUST_VERSION` together, after fmt, clippy and the tests
+pass on the new version.
+
+To create the schedule (in the UI under Project Setup → Schedule, if the API refuses it):
+
+```bash
+circleci api -X POST api/v2/projects/e4ace6e1-9360-4882-9faf-21f77e871b0e/pipeline-definitions/f5014549-bbc3-4712-901f-e2bd315c9e6e/triggers -d '{
+  "event_name": "weekly newest toolchain",
+  "event_source": {"provider": "schedule", "schedule": {"cron_expression": "0 4 * * 1", "attribution_actor": "system"}},
+  "config_ref": "main", "checkout_ref": "main",
+  "parameters": {"newest-toolchain": true}}'
+```
+
+## 10. Audit gate
+
+`audit` runs two checks:
+- `cargo deny check advisories licenses` (cargo-deny 0.20.2, settings in
+  [`deny.toml`](../deny.toml));
+- `cargo doc` with warnings denied. rustdoc's `bare_urls` lint is allowed, because the options'
+  doc comments are also the `--help` text.
+
+**Fixing a red `audit`:**
+- **A new advisory:** update the dependency (`cargo update -p <crate>`). If no fix exists and
+  the advisory doesn't apply, add its id to `ignore` in `deny.toml`, with the reason and a
+  follow-up.
+- **A new licence:** check that it is compatible with GPL-3.0-or-later, then add it to `allow`
+  in `deny.toml`. If it isn't, replace the dependency.
+- **A documentation warning:** fix the doc comment.
+
+## 11. Local reproduction
 
 Everything the gates run can be repeated on any host with `cargo`, `node` and `python3`:
 

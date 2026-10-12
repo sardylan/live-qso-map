@@ -32,7 +32,8 @@
           { "context": "ci/circleci: lint", "integration_id": 302869 },
           { "context": "ci/circleci: test-rust", "integration_id": 302869 },
           { "context": "ci/circleci: test-web", "integration_id": 302869 },
-          { "context": "ci/circleci: test-tools", "integration_id": 302869 }
+          { "context": "ci/circleci: test-tools", "integration_id": 302869 },
+          { "context": "ci/circleci: audit", "integration_id": 302869 }
         ]
       }
     }

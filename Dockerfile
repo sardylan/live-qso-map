@@ -28,7 +28,7 @@ RUN cargo build --release --locked --target "$(cat /rust-target)" \
 FROM debian:trixie-slim
 LABEL org.opencontainers.image.title="live-qso-map" \
       org.opencontainers.image.source="https://github.com/sardylan/live-qso-map" \
-      org.opencontainers.image.licenses="GPL-3.0-only"
+      org.opencontainers.image.licenses="GPL-3.0-or-later"
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=build /out/etc/live-qso-map /etc/live-qso-map
 COPY --from=build --chown=10001:10001 /out/var/lib/live-qso-map /var/lib/live-qso-map

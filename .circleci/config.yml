@@ -184,6 +184,60 @@ jobs:
                 name: Tests
                 command: cargo test --locked
 
+  # Vulnerable dependencies, licences and documentation warnings (FR-025, research R14).
+  # rustdoc's bare_urls lint is allowed: the doc comments of the command-line options are also
+  # the --help text, where URLs stay plain.
+  audit:
+    executor: rust
+    steps:
+      - checkout
+      - fetch-verified:
+          url: https://github.com/EmbarkStudios/cargo-deny/releases/download/0.20.2/cargo-deny-0.20.2-x86_64-unknown-linux-musl.tar.gz
+          sha256: 9f12ed4c49936e09b48bf862b595cde2fe64fcbd9d74dfacac6131ca824c8d5f
+          dest: cargo-deny.tar.gz
+      - run:
+          name: Install cargo-deny 0.20.2
+          command: |
+            tar -xzf cargo-deny.tar.gz --strip-components=1 -C /usr/local/cargo/bin \
+              cargo-deny-0.20.2-x86_64-unknown-linux-musl/cargo-deny
+            rm cargo-deny.tar.gz
+      - run:
+          name: Advisories and licences
+          command: cargo deny check advisories licenses
+      - with-cargo-cache:
+          key: audit
+          steps:
+            - run:
+                name: Documentation
+                command: RUSTDOCFLAGS="-D warnings -A rustdoc::bare_urls" cargo doc --no-deps --locked
+
+  # Weekly, on the newest stable Rust (FR-026). Not quality gates: different job names, so they
+  # never set the status of a required check, and they never block a release.
+  lint-stable:
+    executor: rust
+    steps:
+      - checkout
+      - run:
+          name: Format and clippy on stable
+          command: |
+            rustup toolchain install stable --profile minimal -c rustfmt,clippy
+            export RUSTUP_TOOLCHAIN=stable
+            rustc --version
+            cargo fmt --check
+            cargo clippy --locked --all-targets -- -D warnings
+
+  test-rust-stable:
+    executor: rust
+    steps:
+      - checkout
+      - run:
+          name: Tests on stable
+          command: |
+            rustup toolchain install stable --profile minimal
+            export RUSTUP_TOOLCHAIN=stable
+            rustc --version
+            cargo test --locked
+
   test-web:
     executor: node
     steps:
@@ -395,8 +449,16 @@ jobs:
     parameters:
       image:
         type: string
+      arch:
+        type: enum
+        enum: [amd64, arm64]
+        default: amd64
+      resource-class:
+        type: string
+        default: medium
     docker:
       - image: << parameters.image >>
+    resource_class: << parameters.resource-class >>
     steps:
       - run:
           name: Install test dependencies
@@ -409,7 +471,7 @@ jobs:
           at: ./ws
       - run:
           name: Package life cycle
-          command: sh scripts/test-deb.sh ws/release/live-qso-map_*_amd64.deb
+          command: sh scripts/test-deb.sh ws/release/live-qso-map_*_<< parameters.arch >>.deb
 
   # Windows and macOS zips: program, license, read-me (contracts/release-artifacts.md).
   package-archives:
@@ -616,6 +678,8 @@ workflows:
           filters: *every-commit
       - test-tools:
           filters: *every-commit
+      - audit:
+          filters: *every-commit
       # Release builds and the release run on release tags only (constitution Principle V).
       - check-version:
           context: live-qso-map-release
@@ -633,13 +697,13 @@ workflows:
                 - x86_64-unknown-linux-musl
                 - aarch64-unknown-linux-musl
                 - armv7-unknown-linux-musleabihf
-          requires: [check-version, lint, test-rust, test-web, test-tools]
+          requires: [check-version, lint, test-rust, test-web, test-tools, audit]
       - build-macos:
           filters: *release-tags
-          requires: [check-version, lint, test-rust, test-web, test-tools]
+          requires: [check-version, lint, test-rust, test-web, test-tools, audit]
       - build-windows:
           filters: *release-tags
-          requires: [check-version, lint, test-rust, test-web, test-tools]
+          requires: [check-version, lint, test-rust, test-web, test-tools, audit]
       - cargo-deb:
           filters: *release-tags
           requires: [check-version]
@@ -673,6 +737,34 @@ workflows:
           name: test-deb-ubuntu-24-04-amd64
           image: "ubuntu:24.04"
           requires: [package-deb-x86_64-unknown-linux-musl]
+      - test-deb:
+          filters: *release-tags
+          name: test-deb-debian-12-arm64
+          image: "debian:12"
+          arch: arm64
+          resource-class: arm.medium
+          requires: [package-deb-aarch64-unknown-linux-musl]
+      - test-deb:
+          filters: *release-tags
+          name: test-deb-debian-13-arm64
+          image: "debian:13"
+          arch: arm64
+          resource-class: arm.medium
+          requires: [package-deb-aarch64-unknown-linux-musl]
+      - test-deb:
+          filters: *release-tags
+          name: test-deb-ubuntu-22-04-arm64
+          image: "ubuntu:22.04"
+          arch: arm64
+          resource-class: arm.medium
+          requires: [package-deb-aarch64-unknown-linux-musl]
+      - test-deb:
+          filters: *release-tags
+          name: test-deb-ubuntu-24-04-arm64
+          image: "ubuntu:24.04"
+          arch: arm64
+          resource-class: arm.medium
+          requires: [package-deb-aarch64-unknown-linux-musl]
       - package-archives:
           filters: *release-tags
           requires: [build-macos, build-windows]
@@ -682,12 +774,20 @@ workflows:
           arch: amd64
           target: x86_64-unknown-linux-musl
           requires: [build-linux-x86_64-unknown-linux-musl]
+      - image-test:
+          filters: *release-tags
+          name: image-test-arm64
+          arch: arm64
+          target: aarch64-unknown-linux-musl
+          machine-image: ubuntu-2204:current
+          resource-class: arm.medium
+          requires: [build-linux-aarch64-unknown-linux-musl]
       - image-push:
           context: live-qso-map-release
           filters: *release-tags
           requires:
             - image-test-amd64
-            - build-linux-aarch64-unknown-linux-musl
+            - image-test-arm64
       - publish-github-release:
           context: live-qso-map-release
           filters: *release-tags
@@ -702,6 +802,10 @@ workflows:
             - test-deb-debian-13-amd64
             - test-deb-ubuntu-22-04-amd64
             - test-deb-ubuntu-24-04-amd64
+            - test-deb-debian-12-arm64
+            - test-deb-debian-13-arm64
+            - test-deb-ubuntu-22-04-arm64
+            - test-deb-ubuntu-24-04-arm64
       - docker-promote:
           context: live-qso-map-release
           filters: *release-tags
@@ -748,6 +852,30 @@ workflows:
           name: test-deb-ubuntu-24-04-amd64
           image: "ubuntu:24.04"
           requires: [package-deb-x86_64-unknown-linux-musl]
+      - test-deb:
+          name: test-deb-debian-12-arm64
+          image: "debian:12"
+          arch: arm64
+          resource-class: arm.medium
+          requires: [package-deb-aarch64-unknown-linux-musl]
+      - test-deb:
+          name: test-deb-debian-13-arm64
+          image: "debian:13"
+          arch: arm64
+          resource-class: arm.medium
+          requires: [package-deb-aarch64-unknown-linux-musl]
+      - test-deb:
+          name: test-deb-ubuntu-22-04-arm64
+          image: "ubuntu:22.04"
+          arch: arm64
+          resource-class: arm.medium
+          requires: [package-deb-aarch64-unknown-linux-musl]
+      - test-deb:
+          name: test-deb-ubuntu-24-04-arm64
+          image: "ubuntu:24.04"
+          arch: arm64
+          resource-class: arm.medium
+          requires: [package-deb-aarch64-unknown-linux-musl]
       - package-archives:
           requires: [build-macos, build-windows]
       - image-test:
@@ -755,6 +883,13 @@ workflows:
           arch: amd64
           target: x86_64-unknown-linux-musl
           requires: [build-linux-x86_64-unknown-linux-musl]
+      - image-test:
+          name: image-test-arm64
+          arch: arm64
+          target: aarch64-unknown-linux-musl
+          machine-image: ubuntu-2204:current
+          resource-class: arm.medium
+          requires: [build-linux-aarch64-unknown-linux-musl]
       - rehearsal-summary:
           requires:
             - build-linux
@@ -765,5 +900,17 @@ workflows:
             - test-deb-debian-13-amd64
             - test-deb-ubuntu-22-04-amd64
             - test-deb-ubuntu-24-04-amd64
+            - test-deb-debian-12-arm64
+            - test-deb-debian-13-arm64
+            - test-deb-ubuntu-22-04-arm64
+            - test-deb-ubuntu-24-04-arm64
             - package-archives
             - image-test-amd64
+            - image-test-arm64
+
+  # Weekly schedule trigger (newest-toolchain=true, docs/ci.md section 9).
+  newest_toolchain:
+    when: << pipeline.parameters.newest-toolchain >>
+    jobs:
+      - lint-stable
+      - test-rust-stable

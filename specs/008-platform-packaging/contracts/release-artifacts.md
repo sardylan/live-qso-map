@@ -36,7 +36,7 @@ No bare binary is published: every program file ships inside a package or an arc
 | Environment | none set by the image, so a mounted file's `country_data.path` is honoured |
 | Volume | `/var/lib/live-qso-map` |
 | Ports | `12060/udp`, `8080/tcp` |
-| Labels | `org.opencontainers.image.source`, `.version`, `.licenses=GPL-3.0-only`, `.title` |
+| Labels | `org.opencontainers.image.source`, `.version`, `.licenses=GPL-3.0-or-later`, `.title` |
 | Contents | the binary, `ca-certificates`, `/usr/share/doc/live-qso-map/LICENSE.md` |
 
 ## Read-me files in the zips
