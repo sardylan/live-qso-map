@@ -1,7 +1,7 @@
 ---
 maturity: growing
 type: tradeoffs
-updated: 2026-10-11
+updated: 2026-10-12
 ---
 
 # Tradeoffs
@@ -24,6 +24,9 @@ we deliberately gave up. Records the *why*, not just the *what*.
 | TR-009 | proposed | Feature branches named feature/NNN-title and deleted after merge | 2026-10-11 |
 | TR-010 | accepted | Purge deletes the service account, guarded by a GECOS marker | 2026-10-11 |
 | TR-011 | accepted | Windows waits for Enter after an error whenever input is interactive | 2026-10-11 |
+| TR-012 | accepted | Checkout through the CircleCI GitHub App with one only-build-prs trigger | 2026-10-12 |
+| TR-013 | accepted | The version lives in Cargo.toml and the tag follows it; two-step release with cargo-release | 2026-10-12 |
+| TR-014 | accepted | A manual release rehearsal instead of pre-release tags | 2026-10-12 |
 
 ## Decisions
 
@@ -477,6 +480,126 @@ On Windows only, after an error, the program waits for Enter when its standard i
 
 - Positive: No unsafe code, no new crate, no lint exception; double-click errors stay visible.
 - Negative / debt accepted: One extra Enter after an error when run from a terminal.
+
+## TR-012: Checkout through the CircleCI GitHub App with one only-build-prs trigger
+
+- Status: accepted
+- Date: 2026-10-12
+- Phase: plan
+- Deciders: project owner
+- Links: specs/009-fix-ci-pipeline/research.md#r1-which-events-start-a-run; specs/009-fix-ci-pipeline/reference/circleci-review.md; spec FR-001, FR-006, FR-010
+<!-- key: 5a08e1e7a7be -->
+
+### Context & problem
+
+Every CircleCI run failed at checkout: the project used the legacy OAuth integration, which clones over SSH, and GitHub had no deploy key for it. The repository is public and HTTPS cloning was expected. The run policy also changed: gates on pushes to main and on pull requests, release builds on tags only, one run per event.
+
+### Decision drivers
+
+- The pipeline must fetch the code without managing keys (FR-001)
+- Exactly one run per event, none for branches without a pull request (FR-004, FR-006)
+- Publishing secrets never reach untrusted code (FR-014)
+
+### Options considered
+
+| Option | Pros | Cons / what it sacrifices |
+|--------|------|---------------------------|
+| GitHub App pipeline (HTTPS checkout) with a single `only-build-prs` trigger; OAuth trigger deleted (chosen) | No SSH or deploy key; one rule covers main, pull requests and tags; CircleCI's current model | Fork pull requests never run (App limit); the OAuth pipeline lingers without triggers because it can't be deleted |
+| Add a read-only deploy key to the OAuth project | Smallest fix, no config change | Keeps SSH and a key to rotate; OAuth is the legacy integration |
+| Several App triggers (`default-branch-pushes` + PR preset + `only-tags`) | Each rule reads clearly | Overlapping matches start duplicate runs |
+
+### Decision
+
+We moved the project to a GitHub App pipeline with one `only-build-prs` trigger, deleted the OAuth trigger, and handle fork pull requests by re-pushing reviewed commits to an internal branch.
+
+### Y-statement
+
+In the context of a CI that could never check out the code, facing the choice between restoring SSH keys and changing integration, we chose the GitHub App with a single only-build-prs trigger over a deploy key or several triggers, to achieve keyless HTTPS checkout and exactly one run per event, accepting that fork pull requests can't run CI and must be re-pushed by the maintainer.
+
+### Consequences
+
+- Positive: no keys to manage; the run policy lives in one trigger plus config filters.
+- Negative / debt accepted: fork contributions need a manual re-push; revisit if CircleCI adds fork builds for GitHub App pipelines.
+
+## TR-013: The version lives in Cargo.toml and the tag follows it; two-step release with cargo-release
+
+- Status: accepted
+- Date: 2026-10-12
+- Phase: plan
+- Deciders: project owner
+- Links: specs/009-fix-ci-pipeline/research.md#r7-release-process-with-cargo-release; specs/009-fix-ci-pipeline/contracts/release-process.md; spec FR-029, FR-030
+<!-- key: 82269a0093fa -->
+
+### Context & problem
+
+Releases are tagged vX.Y.Z and the pipeline refuses a tag that differs from the Cargo.toml version. Keeping the two equal depended on editing the manifest and typing the tag by hand. main is now protected: changes only through pull requests with green gates.
+
+### Decision drivers
+
+- One source for the version; no typing it twice (SC-012)
+- Locked builds keep working (`--locked`)
+- No direct pushes to the protected main (FR-009)
+
+### Options considered
+
+| Option | Pros | Cons / what it sacrifices |
+|--------|------|---------------------------|
+| Cargo.toml is the source; cargo-release prepares a release/next pull request, then tags the merged commit and pushes only the tag (chosen) | Version typed once; the release commit passes the same gates; no bypass needed | One extra pull request per release; two commands instead of one |
+| CI rewrites Cargo.toml from the tag | Release = push a tag | Cargo.lock changes break `--locked`; main reports a wrong version; a tag typo becomes the published version |
+| One-step `cargo release patch --execute` pushing to main | Single command | Needs the admin bypass on every release |
+
+### Decision
+
+We keep the version in Cargo.toml and cut releases with cargo-release in two steps: prepare a pull request, then tag the merged commit. The CI version gate stays as a second check.
+
+### Y-statement
+
+In the context of tag-driven releases on a protected main, facing tag/manifest mismatches and locked builds, we chose a manifest-driven two-step cargo-release flow over deriving the version from the tag or a one-step push, to achieve a single version source and gated release commits, accepting one extra pull request per release.
+
+### Consequences
+
+- Positive: tags can't disagree with the manifest; the changelog section is checked before the tag exists.
+- Negative / debt accepted: maintainers need cargo-release installed; the release takes two commands and a merge.
+
+## TR-014: A manual release rehearsal instead of pre-release tags
+
+- Status: accepted
+- Date: 2026-10-12
+- Phase: plan
+- Deciders: project owner
+- Links: specs/009-fix-ci-pipeline/plan.md#constitution-check; .specify/memory/constitution.md (1.7.0); specs/009-fix-ci-pipeline/research.md#r2-workflows-and-pipeline-parameters; spec FR-011, FR-012
+<!-- key: aa68cd0b67d8 -->
+
+### Context & problem
+
+The release path (five targets, packages, archives, image, publishing) had never run. Proving it on a real tag consumes a version number when it fails. Constitution Principle V says release binaries are built only for release tags.
+
+### Decision drivers
+
+- Prove executors, cross images and packaging before tagging (R15)
+- Publish nothing outside a release tag
+- Don't burn version numbers
+
+### Options considered
+
+| Option | Pros | Cons / what it sacrifices |
+|--------|------|---------------------------|
+| Manual rehearsal: a pipeline parameter runs the whole build, package and image-test chain on a branch, with no secrets and no publishing (chosen) | Same jobs as a release; no version consumed; can't publish (no context) | Needed a constitution amendment (Principle V, 1.7.0); costs credits per rehearsal |
+| Pre-release tags (vX.Y.Z-rc.N) | Within the principle's letter | Consumes version numbers; tag patterns change everywhere |
+| Rehearse in a fork | No change to this project | Needs a separate CircleCI project and secrets; doesn't prove this project's executors or plan |
+
+### Decision
+
+We added a manually started rehearsal workflow that builds and tests everything a release does but publishes nothing, and amended Principle V (constitution 1.7.0) so that a manual, non-publishing rehearsal may build release binaries.
+
+### Y-statement
+
+In the context of a never-exercised release path, facing the cost of failed real releases, we chose a manual non-publishing rehearsal over pre-release tags or a fork, to achieve a proven pipeline before tagging, accepting a constitution amendment (Principle V: release binaries are published only for release tags).
+
+### Consequences
+
+- Positive: release problems surface before a version is tagged.
+- Negative / debt accepted: costs CI credits per rehearsal. The Principle V deviation was resolved by the constitution amendment to 1.7.0 (2026-10-12).
 
 ## Archive
 
