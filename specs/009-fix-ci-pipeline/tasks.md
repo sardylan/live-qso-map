@@ -173,7 +173,7 @@ nothing.
   - how to start it (`circleci pipeline run --definition-id f5014549-… --branch <b> --param rehearsal=true`, and the API fallback with a JSON boolean from `quickstart.md` §4);
   - what it proves;
   - that it never publishes, and doesn't check secrets.
-- [ ] T023 [US2] **Verify** `quickstart.md` §4 on this branch: the rehearsal is green, artefacts are stored, and `gh release list` and `crane ls sardylan/live-qso-map` are unchanged.
+- [X] T023 [US2] **Verify** `quickstart.md` §4 on this branch: the rehearsal is green, artefacts are stored, and `gh release list` and `crane ls sardylan/live-qso-map` are unchanged.
   - **If an executor or cross image fails:** fix it here (R11 fallback, R15) and record it in `research.md`.
   - **If `--param rehearsal=true` doesn't select the workflow:** switch `docs/ci.md` to the API form.
 

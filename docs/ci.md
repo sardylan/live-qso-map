@@ -115,6 +115,13 @@ A rehearsal runs everything a release builds and tests, but publishes nothing:
 It receives no secrets, and it never starts by itself. Run one before tagging whenever the release
 path changed: executors, cross images, packaging or the image.
 
+**Auto-cancel:** the project has CircleCI's "auto-cancel redundant builds" setting on. A
+rehearsal started on a branch cancels that branch's gate run if it is still running, and a later
+push to the branch can cancel the rehearsal. So either start rehearsals on a branch of their own
+(for example `rehearsal/<topic>`, which has no pull request), or wait until the gates have
+finished. If a gate run was cancelled, re-run it (`circleci workflow rerun <workflow-id>`, or
+"Rerun workflow" in the UI); otherwise the pull request's required checks never complete.
+
 ```bash
 circleci pipeline run --definition-id f5014549-bbc3-4712-901f-e2bd315c9e6e \
   --branch <branch> --param rehearsal=true
