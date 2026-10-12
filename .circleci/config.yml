@@ -106,6 +106,25 @@ commands:
             rm rustup-init
             echo 'source "$HOME/.cargo/env"' >> "$BASH_ENV"
 
+  set-release-version:
+    description: >-
+      Export RELEASE_VERSION and DEB_VERSION. On a release tag they come from the tag; in a
+      rehearsal (no tag) from Cargo.toml, with a -rehearsal.<sha> suffix on file names.
+    steps:
+      - run:
+          name: Release version
+          command: |
+            if [ -n "${CIRCLE_TAG:-}" ]; then
+              version="${CIRCLE_TAG#v}"
+              deb="${version}-1"
+            else
+              cargo=$(sed -n '/^\[package\]/,/^\[/{/^version[[:space:]]*=/{s/^version[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p;q;};}' Cargo.toml)
+              version="${cargo}-rehearsal.$(printf '%.7s' "$CIRCLE_SHA1")"
+              deb="${cargo}-1"
+            fi
+            echo "export RELEASE_VERSION='${version}' DEB_VERSION='${deb}'" >> "$BASH_ENV"
+            echo "release version ${version}, package version ${deb}"
+
   with-cargo-cache:
     description: Restore the Cargo registry and target directory, run the steps, then save them
     parameters:
@@ -202,10 +221,11 @@ jobs:
           name: Build
           command: |
             cross build --release --locked --target << parameters.target >>
+      - set-release-version
       - run:
           name: Archive with the license
           command: |
-            version="${CIRCLE_TAG#v}"
+            version="${RELEASE_VERSION}"
             mkdir -p ws/bin/<< parameters.target >> ws/release stage
             cp target/<< parameters.target >>/release/live-qso-map ws/bin/<< parameters.target >>/
             install -m 755 target/<< parameters.target >>/release/live-qso-map stage/live-qso-map
@@ -275,6 +295,7 @@ jobs:
       - checkout
       - attach_workspace:
           at: ./ws
+      - set-release-version
       - run:
           name: Install cargo-deb
           command: cargo install cargo-deb --version 3.8.0 --locked
@@ -296,7 +317,7 @@ jobs:
             got=$(dpkg-deb --field "$deb" Architecture)
             [ "$got" = "$want" ] || { echo "Architecture $got, wanted $want"; exit 1; }
             got=$(dpkg-deb --field "$deb" Version)
-            [ "$got" = "${CIRCLE_TAG#v}-1" ] || { echo "Version $got, wanted ${CIRCLE_TAG#v}-1"; exit 1; }
+            [ "$got" = "${DEB_VERSION}" ] || { echo "Version $got, wanted ${DEB_VERSION}"; exit 1; }
             contents=$(dpkg-deb --contents "$deb")
             for path in ./usr/bin/live-qso-map ./etc/live-qso-map/config.toml live-qso-map.service; do
               echo "$contents" | grep -q "$path" || { echo "missing $path"; exit 1; }
@@ -336,13 +357,14 @@ jobs:
       - checkout
       - attach_workspace:
           at: ./ws
+      - set-release-version
       - run:
           name: Install zip
           command: sudo apt-get update && sudo apt-get install -y --no-install-recommends zip
       - run:
           name: Zip
           command: |
-            version="${CIRCLE_TAG#v}"
+            version="${RELEASE_VERSION}"
             mkdir -p ws/release win mac
             cp ws/bin/x86_64-pc-windows-msvc/live-qso-map.exe win/live-qso-map.exe
             cp LICENSE.md deploy/windows/README.txt win/
@@ -356,9 +378,46 @@ jobs:
           paths:
             - release/*.zip
 
-  # Container image (research R6): built from the pipeline binaries, smoke-tested, then pushed
-  # as the internal <version>-rc tag only. docker-promote publishes it after the release.
-  docker-image:
+  # Container image (research R6, feature 009 R8): each architecture is built natively from the
+  # pipeline binaries and smoke-tested before anything is pushed. Dockerfile.release runs nothing
+  # on the target platform, so no emulation is needed.
+  image-test:
+    parameters:
+      arch:
+        type: enum
+        enum: [amd64, arm64]
+      target:
+        type: string
+      machine-image:
+        type: string
+        default: ubuntu-2604:current
+      resource-class:
+        type: string
+        default: medium
+    machine:
+      image: << parameters.machine-image >>
+    resource_class: << parameters.resource-class >>
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ./ws
+      - set-release-version
+      - run:
+          name: Lay out the binary
+          command: |
+            mkdir -p dist/linux/<< parameters.arch >>
+            cp ws/bin/<< parameters.target >>/live-qso-map dist/linux/<< parameters.arch >>/
+      - run:
+          name: Build and smoke-test (<< parameters.arch >>)
+          command: |
+            docker buildx build --platform linux/<< parameters.arch >> --load \
+              --build-arg VERSION="${RELEASE_VERSION}" \
+              -f deploy/docker/Dockerfile.release -t lqm-test .
+            sh scripts/test-image.sh lqm-test
+
+  # Release only: pushes the tested image for both architectures as the internal <version>-rc
+  # tag. docker-promote publishes it after the GitHub release.
+  image-push:
     executor: linux-machine
     steps:
       - checkout
@@ -374,20 +433,28 @@ jobs:
           name: Log in to Docker Hub
           command: echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
       - run:
-          name: Build and smoke-test (amd64)
-          command: |
-            docker buildx create --use --name lqm
-            docker buildx build --platform linux/amd64 --load \
-              --build-arg VERSION="${CIRCLE_TAG#v}" \
-              -f deploy/docker/Dockerfile.release -t lqm-test .
-            sh scripts/test-image.sh lqm-test
-      - run:
           name: Push the release candidate (amd64 + arm64)
           command: |
+            docker buildx create --use --name lqm
             docker buildx build --platform linux/amd64,linux/arm64 --push \
               --build-arg VERSION="${CIRCLE_TAG#v}" \
               -f deploy/docker/Dockerfile.release \
               -t "sardylan/live-qso-map:${CIRCLE_TAG#v}-rc" .
+
+  # Rehearsal only: lists and keeps what a release would publish (FR-011, FR-012).
+  rehearsal-summary:
+    docker:
+      - image: cimg/base:current
+    steps:
+      - attach_workspace:
+          at: ./ws
+      - run:
+          name: Rehearsal summary
+          command: |
+            ls -l ws/release
+            echo "publishing secrets: not checked (rehearsal)"
+      - store_artifacts:
+          path: ws/release
 
   # After the GitHub release: re-tag the tested -rc manifest, no rebuild (SC-008).
   docker-promote:
@@ -426,7 +493,8 @@ workflows:
         - not: << pipeline.parameters.rehearsal >>
         - not: << pipeline.parameters.newest-toolchain >>
     jobs:
-      # Tests run on every branch and on release tags (v2.0.0).
+      # The gates run on every run of this workflow: pushes to main, pull requests and release
+      # tags (v2.0.1). Which events start a run is set by the CircleCI trigger (docs/ci.md).
       - lint:
           filters: &every-commit
             tags:
@@ -472,45 +540,111 @@ workflows:
           requires: [build-linux-<< matrix.target >>]
       - test-deb:
           filters: *release-tags
-          name: test-deb-debian-12
-          image: debian:12
+          name: test-deb-debian-12-amd64
+          image: "debian:12"
           requires: [package-deb-x86_64-unknown-linux-musl]
       - test-deb:
           filters: *release-tags
-          name: test-deb-debian-13
-          image: debian:13
+          name: test-deb-debian-13-amd64
+          image: "debian:13"
           requires: [package-deb-x86_64-unknown-linux-musl]
       - test-deb:
           filters: *release-tags
-          name: test-deb-ubuntu-22-04
-          image: ubuntu:22.04
+          name: test-deb-ubuntu-22-04-amd64
+          image: "ubuntu:22.04"
           requires: [package-deb-x86_64-unknown-linux-musl]
       - test-deb:
           filters: *release-tags
-          name: test-deb-ubuntu-24-04
-          image: ubuntu:24.04
+          name: test-deb-ubuntu-24-04-amd64
+          image: "ubuntu:24.04"
           requires: [package-deb-x86_64-unknown-linux-musl]
       - package-archives:
           filters: *release-tags
           requires: [build-macos, build-windows]
-      - docker-image:
+      - image-test:
+          filters: *release-tags
+          name: image-test-amd64
+          arch: amd64
+          target: x86_64-unknown-linux-musl
+          requires: [build-linux-x86_64-unknown-linux-musl]
+      - image-push:
           filters: *release-tags
           requires:
-            - build-linux-x86_64-unknown-linux-musl
+            - image-test-amd64
             - build-linux-aarch64-unknown-linux-musl
       - publish-github-release:
           filters: *release-tags
           requires:
             - package-archives
-            - docker-image
+            - image-push
             - build-linux
             - build-macos
             - build-windows
             - package-deb
-            - test-deb-debian-12
-            - test-deb-debian-13
-            - test-deb-ubuntu-22-04
-            - test-deb-ubuntu-24-04
+            - test-deb-debian-12-amd64
+            - test-deb-debian-13-amd64
+            - test-deb-ubuntu-22-04-amd64
+            - test-deb-ubuntu-24-04-amd64
       - docker-promote:
           filters: *release-tags
           requires: [publish-github-release]
+
+  # Manual rehearsal (FR-011, FR-012): the whole release path on a branch, with no context, no
+  # push and no publishing. Start it with --param rehearsal=true (docs/ci.md, section 7).
+  rehearsal:
+    when: << pipeline.parameters.rehearsal >>
+    jobs:
+      - build-linux:
+          name: build-linux-<< matrix.target >>
+          matrix:
+            parameters:
+              target:
+                - x86_64-unknown-linux-musl
+                - aarch64-unknown-linux-musl
+                - armv7-unknown-linux-musleabihf
+      - build-macos
+      - build-windows
+      - package-deb:
+          name: package-deb-<< matrix.target >>
+          matrix:
+            parameters:
+              target:
+                - x86_64-unknown-linux-musl
+                - aarch64-unknown-linux-musl
+                - armv7-unknown-linux-musleabihf
+          requires: [build-linux-<< matrix.target >>]
+      - test-deb:
+          name: test-deb-debian-12-amd64
+          image: "debian:12"
+          requires: [package-deb-x86_64-unknown-linux-musl]
+      - test-deb:
+          name: test-deb-debian-13-amd64
+          image: "debian:13"
+          requires: [package-deb-x86_64-unknown-linux-musl]
+      - test-deb:
+          name: test-deb-ubuntu-22-04-amd64
+          image: "ubuntu:22.04"
+          requires: [package-deb-x86_64-unknown-linux-musl]
+      - test-deb:
+          name: test-deb-ubuntu-24-04-amd64
+          image: "ubuntu:24.04"
+          requires: [package-deb-x86_64-unknown-linux-musl]
+      - package-archives:
+          requires: [build-macos, build-windows]
+      - image-test:
+          name: image-test-amd64
+          arch: amd64
+          target: x86_64-unknown-linux-musl
+          requires: [build-linux-x86_64-unknown-linux-musl]
+      - rehearsal-summary:
+          requires:
+            - build-linux
+            - build-macos
+            - build-windows
+            - package-deb
+            - test-deb-debian-12-amd64
+            - test-deb-debian-13-amd64
+            - test-deb-ubuntu-22-04-amd64
+            - test-deb-ubuntu-24-04-amd64
+            - package-archives
+            - image-test-amd64

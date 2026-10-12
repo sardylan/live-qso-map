@@ -56,7 +56,9 @@ The gates carry tag filters (`/^v\d+\.\d+\.\d+$/`), so they also run on release 
   `test-deb` ×8, `package-archives`, `image-test` ×2, and `rehearsal-summary` (requires all of
   them).
 - **Not included:** no `check-version`, no context, no push, no publish, no promote.
-- **Version in names:** artefact names use `Cargo.toml`'s version with the suffix
+- **Version in names:** the reusable command `set-release-version` exports `RELEASE_VERSION` and
+  `DEB_VERSION`. On a tag they come from the tag. Without one (a rehearsal), artefact names use
+  `Cargo.toml`'s version with the suffix
   `-rehearsal.<short-sha>`. Example: `live-qso-map-2.0.1-rehearsal.ab12cd3-x86_64-unknown-linux-musl.tar.gz`.
 - **Packages:** for the `.deb` files, the version gate's `X.Y.Z-1` check is replaced by "equals
   `Cargo.toml` version".

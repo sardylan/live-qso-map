@@ -134,7 +134,7 @@ nothing.
 
 ### Tests for User Story 2
 
-- [ ] T017 [US2] Before T018–T021, write the expected job list in `specs/009-fix-ci-pipeline/contracts/pipeline.md` ("Rehearsal workflow"). For now it holds the amd64 packages and the amd64 image test only; arm64 is added in US5. Expected job names after T021 (US5 adds the arm64 `test-deb-*` jobs and `image-test-arm64`):
+- [X] T017 [US2] Before T018–T021, write the expected job list in `specs/009-fix-ci-pipeline/contracts/pipeline.md` ("Rehearsal workflow"). For now it holds the amd64 packages and the amd64 image test only; arm64 is added in US5. Expected job names after T021 (US5 adds the arm64 `test-deb-*` jobs and `image-test-arm64`):
   - `build-linux-x86_64-unknown-linux-musl`, `build-linux-aarch64-unknown-linux-musl`, `build-linux-armv7-unknown-linux-musleabihf`
   - `build-macos`, `build-windows`
   - `package-deb-x86_64-unknown-linux-musl`, `package-deb-aarch64-unknown-linux-musl`, `package-deb-armv7-unknown-linux-musleabihf`
@@ -144,7 +144,7 @@ nothing.
   The check, recorded in `quickstart.md` §4:
 
   ```
-  p=$(circleci config process .circleci/config.yml)
+  p=$(circleci config process .circleci/config.yml --pipeline-parameters 'rehearsal: true' | sed -n '/^  rehearsal:$/,/^  [a-z_]*:$/p')
   for j in <names above>; do printf '%s\n' "$p" | grep -Eq "(name: |- )$j:?\$" || echo "missing: $j"; done
   ```
 
@@ -152,24 +152,24 @@ nothing.
 
 ### Implementation for User Story 2
 
-- [ ] T018 [US2] Split `docker-image` in `.circleci/config.yml` into `image-test` (job parameter `arch`, `--load` build for `linux/<arch>` + `scripts/test-image.sh`; for now only `amd64`, on `linux-machine`) and `image-push` (the multi-platform `-rc` push, requires `image-test-amd64`). Keep `docker-promote` requiring `publish-github-release`. Validate.
-- [ ] T019 [US2] Add a job parameter `version-source` (`tag` | `cargo`) to `build-linux`, `package-deb`, `package-archives` in `.circleci/config.yml`:
+- [X] T018 [US2] Split `docker-image` in `.circleci/config.yml` into `image-test` (job parameter `arch`, `--load` build for `linux/<arch>` + `scripts/test-image.sh`; for now only `amd64`, on `linux-machine`) and `image-push` (the multi-platform `-rc` push, requires `image-test-amd64`). Keep `docker-promote` requiring `publish-github-release`. Validate.
+- [X] T019 [US2] (Implemented as the reusable command `set-release-version`, used by these jobs, instead of a job parameter: it uses the tag when there is one, otherwise `Cargo.toml`. Both workflows share the jobs unchanged.) Add a job parameter `version-source` (`tag` | `cargo`) to `build-linux`, `package-deb`, `package-archives` in `.circleci/config.yml`:
   - with `cargo`, the version is read from `Cargo.toml`, with the suffix `-rehearsal.<short sha>` in archive names (`contracts/pipeline.md`);
   - the `.deb` version check compares with `Cargo.toml` instead of `CIRCLE_TAG`.
 
   Then validate.
-- [ ] T020 [US2] Add the job `rehearsal-summary` in `.circleci/config.yml`:
+- [X] T020 [US2] Add the job `rehearsal-summary` in `.circleci/config.yml`:
   1. attaches the workspace;
   2. runs `ls -l ws/release`;
   3. stores `ws/release` as artefacts;
   4. prints `publishing secrets: not checked (rehearsal)`.
 
   It uses no context. Validate.
-- [ ] T021 [US2] Add the workflow `rehearsal` (`when: << pipeline.parameters.rehearsal >>`) in `.circleci/config.yml`:
+- [X] T021 [US2] Add the workflow `rehearsal` (`when: << pipeline.parameters.rehearsal >>`) in `.circleci/config.yml`:
   - **Jobs:** `build-linux` ×3, `build-macos`, `build-windows`, `package-deb` ×3, `test-deb` amd64 ×4, `package-archives`, `image-test-amd64`, `rehearsal-summary` (requires all).
   - **Settings:** `version-source: cargo`, no filters, no context, no `check-version`, `image-push`, `publish-github-release` or `docker-promote`.
   - **Check:** run T017's command and confirm the job list matches.
-- [ ] T022 [P] [US2] Add a "Rehearsal" section to `docs/ci.md`:
+- [X] T022 [P] [US2] Add a "Rehearsal" section to `docs/ci.md`:
   - how to start it (`circleci pipeline run --definition-id f5014549-… --branch <b> --param rehearsal=true`, and the API fallback with a JSON boolean from `quickstart.md` §4);
   - what it proves;
   - that it never publishes, and doesn't check secrets.

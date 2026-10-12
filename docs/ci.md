@@ -104,6 +104,39 @@ commits keep the contributor as author.
 | Checkout clones `git@github.com:…` and fails with `Permission denied (publickey)` | The run came from the OAuth pipeline: delete its trigger |
 | A gate is red | Open the job (`circleci run list`, `circleci job get <id>`, `circleci job output get <id> --step-num <n>`); the step output names the failing check |
 
+## 7. Rehearsal
+
+A rehearsal runs everything a release builds and tests, but publishes nothing:
+- the five builds;
+- the three Debian packages, and their install/upgrade/remove tests;
+- the Windows and macOS archives;
+- the container image smoke test.
+
+It receives no secrets, and it never starts by itself. Run one before tagging whenever the release
+path changed: executors, cross images, packaging or the image.
+
+```bash
+circleci pipeline run --definition-id f5014549-bbc3-4712-901f-e2bd315c9e6e \
+  --branch <branch> --param rehearsal=true
+circleci run watch <run-id>
+```
+
+If the run starts `test_and_build` instead (the parameter arrived as a string), use the API with a
+JSON boolean:
+
+```bash
+circleci api -X POST api/v2/project/gh/sardylan/live-qso-map/pipeline/run -d '{
+  "definition_id": "f5014549-bbc3-4712-901f-e2bd315c9e6e",
+  "config": {"branch": "<branch>"}, "checkout": {"branch": "<branch>"},
+  "parameters": {"rehearsal": true}}'
+```
+
+**Outputs:**
+- **File names:** they use the `Cargo.toml` version with a `-rehearsal.<sha>` suffix.
+- **Where:** they are stored as artefacts of the `rehearsal-summary` job.
+- **Secrets:** the summary prints `publishing secrets: not checked (rehearsal)`. To check the
+  secrets' names, see section 8.
+
 ## 10. Local reproduction
 
 Everything the gates run can be repeated on any host with `cargo`, `node` and `python3`:

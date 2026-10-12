@@ -62,10 +62,13 @@ A pull request with a red gate shows "Merging is blocked". The admin bypass is l
 
 ## 4. Rehearsal (FR-011 to FR-013, SC-005, SC-010)
 
-Job list (before running it). Each missing job prints a line:
+Job list (before running it). Each missing job prints `missing: …`, and each publishing job in
+the rehearsal prints `unexpected: …`. `config process` applies the parameters, so it must be
+given `rehearsal: true`:
 
 ```bash
-p=$(circleci config process .circleci/config.yml)
+p=$(circleci config process .circleci/config.yml --pipeline-parameters 'rehearsal: true' \
+    | sed -n '/^  rehearsal:$/,/^  [a-z_]*:$/p')
 for j in build-linux-x86_64-unknown-linux-musl build-linux-aarch64-unknown-linux-musl \
          build-linux-armv7-unknown-linux-musleabihf build-macos build-windows \
          package-deb-x86_64-unknown-linux-musl package-deb-aarch64-unknown-linux-musl \
@@ -73,6 +76,9 @@ for j in build-linux-x86_64-unknown-linux-musl build-linux-aarch64-unknown-linux
          test-deb-debian-12-amd64 test-deb-debian-13-amd64 test-deb-ubuntu-22-04-amd64 \
          test-deb-ubuntu-24-04-amd64 package-archives image-test-amd64 rehearsal-summary; do
   printf '%s\n' "$p" | grep -Eq "(name: |- )$j:?\$" || echo "missing: $j"
+done
+for j in check-version image-push publish-github-release docker-promote; do
+  printf '%s\n' "$p" | grep -Eq "(name: |- )$j:?\$" && echo "unexpected: $j"
 done
 # after US5 also: test-deb-<distro>-arm64 (×4), image-test-arm64
 ```
