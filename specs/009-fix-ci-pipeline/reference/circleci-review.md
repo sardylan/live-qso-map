@@ -433,6 +433,19 @@ Keep the workflow filters as the second line of defence: the release jobs stay l
 `/^v\d+\.\d+\.\d+$/` tags. Then push a throw-away test tag (or start a rehearsal) to confirm
 that exactly one run starts per event.
 
+**Resolution (feature 009):** one GitHub App trigger, preset `only-build-prs` (`fab01dee-76c4-40e4-8cd5-f6edd2f2d351`), replaced `all-pushes` (T013). The events were checked live on 2026-10-12 (T016, quickstart §2):
+
+| Event | Runs | Result |
+|-------|------|--------|
+| push of `feature/009-fix-ci-pipeline` with no pull request | 0 | as expected |
+| PR #2 opened | 1 (`1182d7c3`) | the five gates, green |
+| push to PR #2 | 1 (`f029c482`) | later cancelled by the rehearsal (auto-cancel, docs/ci.md section 7) |
+| draft PR #3 opened (branch pushed 2 s earlier) | 1 (`ae5af748`) | the five gates, green: **draft pull requests are built** |
+| tag `v0.0.0` | 1 (`b7477061`) | gates run; `check-version` refused ("tag v0.0.0 is version 0.0.0, but Cargo.toml has 2.0.0"); no build started |
+| merge into `main` | checked when PR #2 is merged (T061) | |
+
+The ruleset on `main` is applied (id `24935176`). PR #2 was `CLEAN` with the five required checks green. PR #3, the scratch branch and the tag were removed afterwards.
+
 ## State before implementation (2026-10-12, task T001)
 
 | Item | State |
