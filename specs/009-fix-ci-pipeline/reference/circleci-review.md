@@ -188,7 +188,17 @@ versions) are old compared with Rust 1.99.
 
 Also consider trimming `target/` before saving (for example dropping `target/*/incremental`).
 
-**Resolution (feature 009):** `with-cargo-cache` keys carry the job, the pinned Rust version and `{{ arch }}`, save under `{{ epoch }}` every run, cache `registry`, `git` and `target`, and prune incremental data (T044). Speed-up measured in T047.
+**Resolution (feature 009):** `with-cargo-cache` keys carry the job, the pinned Rust version and `{{ arch }}`, save under `{{ epoch }}` every run, cache `registry`, `git` and `target`, and prune incremental data (T044). Speed-up measured (T043, T047), with the same `Cargo.lock`:
+
+| Job | Cold, run `1182d7c3` | Warm, run `bd482a75` | Change |
+|-----|----------------------|----------------------|--------|
+| `test-rust` | 1m37.9s | 59.8s | −39% |
+| `audit` | 57.6s | 27.8s | −52% |
+| `lint` | 48.1s | 41.7s | −13% |
+
+The longest gate is 39% faster, which meets SC-009 (≥30%). The run before had no `cargo-v2` cache at all, because earlier runs never got past checkout.
+
+**Not run live:** the "no old-toolchain cache" check (US4 scenario 2). It holds by construction: every key contains `<< pipeline.parameters.rust-version >>`, so a different pin has no matching prefix.
 
 ## 5. `cargo-deb` compiled from source three times per release
 
