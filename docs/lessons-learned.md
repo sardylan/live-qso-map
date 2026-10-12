@@ -1,7 +1,7 @@
 ---
 maturity: growing
 type: lessons
-updated: 2026-10-11
+updated: 2026-10-12
 ---
 
 # Lessons Learned
@@ -14,6 +14,8 @@ so the team replicates what worked and avoids what did not.
 | ID | Status | Title | Date |
 |----|--------|-------|------|
 | LL-001 | open | Inline lint suppressions are blocked by a project hook | 2026-10-11 |
+| LL-002 | open | A valid pipeline config had never run | 2026-10-12 |
+| LL-003 | open | cargo-release step subcommands skip the safety checks | 2026-10-12 |
 
 ## Lessons
 
@@ -46,6 +48,70 @@ The no-inline-suppression rule lives only in the hook, not in docs/rust-guidelin
 ### Recommendation / action item
 
 Check new designs against the hook during planning. Integration tests return Result and use ? instead of unwrap/expect. Platform checks use the standard library before reaching for unsafe or FFI.
+
+## LL-002: A valid pipeline config had never run
+
+- Status: open
+- Date: 2026-10-12
+- Phase: execute
+- Category: process
+- Owner: maintainer
+- Links: specs/009-fix-ci-pipeline/reference/circleci-review.md (item 0); TR-012; docs/ci.md
+<!-- key: 954273315d69 -->
+
+### What happened
+
+Feature 008 built a full CircleCI release path and `circleci config validate` reported it valid. The v2.0.0 tag produced nothing. The run history showed the pipeline had never passed a single job: every job failed at `Checkout code` with `Permission denied (publickey)`. Once checkout worked, a second hidden failure appeared (the page tests ran nothing on Node 24).
+
+### What went well / where we got lucky
+
+The review asked for the run history before planning fixes, so the real blocker was found first. The CircleCI CLI exposes runs, jobs and step logs, so the cause was confirmed from the failing step's output rather than guessed.
+
+### What did not work
+
+Trusting static validation: a config can be schema-valid and still never execute. The release path was designed and documented without one green run behind it.
+
+### Root cause
+
+The project used CircleCI's legacy OAuth connection, which clones over SSH with a checkout key, and GitHub had no matching key. SSH needs an authorised key even for public repositories; only HTTPS allows anonymous reads. Nothing checked the run results after the project was followed, and failures were only visible on CircleCI.
+
+### Recommendation / action item
+
+- Action: before trusting a pipeline, check `circleci run list` and the checkout step log, not only `circleci config validate`. Owner: maintainer. Status: documented in docs/ci.md (Diagnosis).
+- Action: rehearse release paths (`--param rehearsal=true`) before tagging whenever they change. Owner: maintainer. Status: done (feature 009).
+- Action: keep checkout on the GitHub App (HTTPS); never re-add an OAuth trigger. Owner: maintainer. Status: done (TR-012).
+
+## LL-003: cargo-release step subcommands skip the safety checks
+
+- Status: open
+- Date: 2026-10-12
+- Phase: execute
+- Category: technology
+- Owner: maintainer
+- Links: specs/009-fix-ci-pipeline/research.md (R7); specs/009-fix-ci-pipeline/contracts/release-process.md; docs/releasing.md; TR-013
+<!-- key: fb12120f2618 -->
+
+### What happened
+
+The planned prepare step ran cargo-release 1.1.6 as separate steps (`cargo release version`, `replace`, `commit`). Tested in a scratch clone (T041), `version` and `replace` changed `Cargo.toml` and `Cargo.lock` even with uncommitted changes and on a branch outside `allow-branch`, with `--execute`.
+
+### What went well / where we got lucky
+
+The release flow was dry-run in a throw-away clone with a local bare remote before being documented, so the gap was found without touching the real repository or tags.
+
+### What did not work
+
+Assuming each step subcommand applies the same checks as the full `cargo release` command. A refused prepare (empty "Unreleased") also leaves the version already bumped.
+
+### Root cause
+
+In cargo-release, the dirty-tree and allowed-branch checks run in the full release command (and in some steps, such as `commit` and `tag`), not in `version` or `replace`. Replacements run after the version bump, so a failing `exactly = 1` replacement aborts with the bump already applied.
+
+### Recommendation / action item
+
+- Action: prepare with `cargo release <level> --no-tag --no-push --no-publish --execute`, which checks the tree and the branch first. Owner: maintainer. Status: done (docs/releasing.md).
+- Action: after a refused prepare, run `git restore Cargo.toml Cargo.lock`. Owner: maintainer. Status: documented.
+- Action: dry-run release tooling in a scratch clone before documenting a process. Owner: maintainer. Status: open.
 
 ## Archive
 

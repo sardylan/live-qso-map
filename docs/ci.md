@@ -64,7 +64,7 @@ starts its own run.
 
 ## 4. Protection of `main`
 
-`main` is protected by a GitHub ruleset, kept in
+`main` is protected by a GitHub ruleset (id `24935176`, applied 2026-10-12), kept in
 [`deploy/github/main-ruleset.json`](../deploy/github/main-ruleset.json):
 - changes arrive only through pull requests;
 - merging needs every quality gate green (`ci/circleci: <job>`, from the CircleCI App);
