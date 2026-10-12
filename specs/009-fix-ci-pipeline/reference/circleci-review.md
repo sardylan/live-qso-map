@@ -188,6 +188,8 @@ versions) are old compared with Rust 1.99.
 
 Also consider trimming `target/` before saving (for example dropping `target/*/incremental`).
 
+**Resolution (feature 009):** `with-cargo-cache` keys carry the job, the pinned Rust version and `{{ arch }}`, save under `{{ epoch }}` every run, cache `registry`, `git` and `target`, and prune incremental data (T044). Speed-up measured in T047.
+
 ## 5. `cargo-deb` compiled from source three times per release
 
 **Where:** `package-deb`, line 215 (matrix of 3 targets).
@@ -201,6 +203,8 @@ three times per release.
 - cache `/usr/local/cargo/bin/cargo-deb` keyed on the version;
 - use `cargo binstall cargo-deb@3.8.0` or a prebuilt release archive with a checksum.
 
+**Resolution (feature 009):** a `cargo-deb` job installs it once (cached across releases) and hands it to the package jobs through the workspace (T046).
+
 ## 6. No caching on macOS and Windows builds
 
 **Where:** `build-macos` (line 162), `build-windows` (line 178).
@@ -211,6 +215,8 @@ They run on the most expensive executors (`m4pro.medium`, `windows.medium`).
 **Fix:** add `restore_cache`/`save_cache` for the Cargo registry and `target/`, with the
 same key scheme as in item 4. The paths are `~/.cargo/registry` and `target` on macOS,
 and `%USERPROFILE%\.cargo\registry` and `target` on Windows.
+
+**Resolution (feature 009):** `build-macos` and `build-windows` use `with-cargo-cache` with `~/.cargo` (T045).
 
 ## 7. `docker-promote` uses a full machine VM
 
@@ -223,6 +229,8 @@ which are registry API calls. It does not need a Docker daemon, yet it starts an
 **Fix:** use a Docker executor with the Docker CLI and buildx plugin (for example
 `cimg/base` plus `setup_remote_docker`), or a small image that has `crane`/`regctl` to
 copy the tags.
+
+**Resolution (feature 009):** `docker-promote` runs on `cimg/base` with crane 0.22.1; no machine executor (T032).
 
 ## 8. Uneven test coverage across architectures
 
@@ -245,6 +253,8 @@ explicit target (`Cross.toml`).
   promotion.
 - armhf can stay on static checks, or use QEMU if it's worth the cost.
 
+**Resolution (feature 009):** `test-deb` runs on arm64 Docker (`arm.medium`) for the four distributions, and `image-test-arm64` builds and smoke-tests the image on an Arm machine before `image-push` (T050–T051).
+
 ## 9. armv7 missing from the container image
 
 **Where:** `docker-image`, lines 315–325.
@@ -257,6 +267,8 @@ deliberate choice; if so, it should be documented.
 
 **Fix:** either add `linux/arm/v7` (`dist/linux/arm/live-qso-map` with
 `TARGETARCH=arm`), or state the supported image platforms in the README.
+
+**Resolution (feature 009):** out of scope: feature 008 decided the image ships for amd64 and arm64 only (clarification Q2).
 
 ## 10. `-rc` image tags never cleaned up
 
@@ -287,6 +299,8 @@ candidate to a separate staging repository.
 with the credentials in a restricted context. Otherwise, document the workaround in
 `deploy/macos/README.txt`, if that isn't already done.
 
+**Resolution (feature 009):** out of scope: feature 008 keeps the macOS archive unsigned and documents the "Open anyway" step.
+
 ## 12. No security, licence or doc checks
 
 **Where:** `lint` / `test-rust`.
@@ -298,6 +312,8 @@ broken documentation.
 **Fix:** add a job with `cargo deny check` (advisories, bans, licences, sources) or
 `cargo audit`, and a `cargo doc --no-deps` step with `RUSTDOCFLAGS="-D warnings"`.
 
+**Resolution (feature 009):** new gate `audit`: cargo-deny 0.20.2 (`deny.toml`) and `cargo doc` with warnings denied, except rustdoc's `bare_urls` (doc comments double as `--help` text) (T048–T049).
+
 ## 13. No early warning against latest stable Rust
 
 **Where:** pipeline parameter `rust-version` (line 12).
@@ -308,6 +324,8 @@ behaviour are found only when someone bumps the pin, or on a developer machine.
 
 **Fix:** add a scheduled pipeline (for example weekly) that runs `lint` and `test-rust`
 with `rust-version` overridden to `stable`, so problems appear before the pin is moved.
+
+**Resolution (feature 009):** `newest_toolchain` workflow, started by a weekly schedule with `newest-toolchain: true`; jobs `lint-stable` and `test-rust-stable` (T052, schedule in T054).
 
 ## 14. Tag regex rejects pre-release tags
 
@@ -322,6 +340,8 @@ pre-release) without publishing a final version number.
 **Fix:** if pre-releases are wanted, extend the regex (for example
 `/^v\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$/`). Then update `scripts/check-version.sh`, and
 mark the release as a pre-release (`ghr -prerelease`) without promoting `latest`.
+
+**Resolution (feature 009):** out of scope: replaced by the manual rehearsal (TR-014).
 
 ## 15. Executor images and resource classes unconfirmed
 
@@ -339,6 +359,8 @@ tag, after the version has already been tagged.
 **Fix:** check them against CircleCI's machine image and Xcode lists, and the resource
 classes available on the plan. Consider a manual or branch-triggered dry run of the
 build jobs (without publishing) to prove the executors before a real release.
+
+**Resolution (feature 009):** pending: proven by the first rehearsal (T023, T056).
 
 ## 16. `test-web` fails: Node 24 doesn't accept a directory in `node --test`
 
@@ -366,6 +388,8 @@ never pass, and a release tag can never reach the build jobs.
   not the shell, expands it, the same way on every host), and update the README;
 - or move the executor to the Node version developers use (`node:26`), keeping the command;
 - doing both makes the command work on every current Node LTS and the newest release.
+
+**Resolution (feature 009):** `test-web` runs `node --test 'web/*.test.js'`; `tools/test_ci_config.py` guards it (T007–T010).
 
 ## 17. Runs start on every branch push; tag runs unconfirmed
 
