@@ -285,7 +285,8 @@ release workflow. It builds every target, packages the `.deb` files, zips and Li
 tests the packages and the image, publishes the GitHub release with `SHA256SUMS`, and only then
 publishes the Docker Hub tags. The scripts in `scripts/` that it uses are POSIX `sh`, for CI
 only. The publishing secrets, the triggers and the protection of `main` are described in
-[`docs/ci.md`](docs/ci.md).
+[`docs/ci.md`](docs/ci.md); cutting a release, step by step, in
+[`docs/releasing.md`](docs/releasing.md).
 
 | Document | Location |
 |----------|----------|

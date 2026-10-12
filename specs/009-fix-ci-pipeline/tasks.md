@@ -290,8 +290,8 @@ then tags the merged commit. The version is typed once.
 
   Make T035 pass.
 - [X] T039 [US6] Add `sh scripts/test-changelog-section.sh` to `test-tools`. Add `sh scripts/changelog-section.sh "${CIRCLE_TAG#v}" > /dev/null` to `check-version`, before the secrets check, in `.circleci/config.yml`. Validate.
-- [ ] T040 [P] [US6] Create `release.toml` exactly as in `contracts/release-process.md`.
-- [ ] T041 [US6] Dry-run the steps with cargo-release 1.1.6 on a throw-away branch (`quickstart.md` §5):
+- [X] T040 [P] [US6] Create `release.toml` exactly as in `contracts/release-process.md`.
+- [X] T041 [US6] (Done 2026-10-12 in a scratch clone. Result: the prepare step is one `cargo release <level> --no-tag --no-push --no-publish --execute`, because `version` and `replace` alone don't check the tree or the branch; `Cargo.lock` is updated; tag refusals confirmed. See research R7.) Dry-run the steps with cargo-release 1.1.6 on a throw-away branch (`quickstart.md` §5):
   - `version patch` and `replace` show the planned changes;
   - an empty "Unreleased" makes `replace` fail;
   - a dirty tree and a wrong branch name are refused.
@@ -303,7 +303,7 @@ then tags the merged commit. The version is typed once.
   - with `main` one commit behind `origin/main` (`git reset --hard HEAD~1`), check whether `cargo release tag`/`push` refuse.
 
   If the second case isn't refused, the documented `git pull --ff-only` is the only guard. Record that in `docs/releasing.md`, and confirm that FR-029's wording ("brought up to date by the documented steps") matches.
-- [ ] T042 [P] [US6] Write `docs/releasing.md`:
+- [X] T042 [P] [US6] Write `docs/releasing.md`:
   - **Requirements:** cargo-release 1.1.6 install command; `gh`.
   - **Changelog rules:** keeping "Unreleased" up to date in every pull request.
   - **The two steps:** prepare and tag, from `contracts/release-process.md`, including the refusals.

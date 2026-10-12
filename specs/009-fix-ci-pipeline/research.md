@@ -227,8 +227,16 @@ Feature: `009-fix-ci-pipeline` · Spec: [spec.md](spec.md) · Date: 2026-10-12
     the local branch equals the remote. So nothing is pushed to the protected `main` (FR-009).
   - **Dates:** `{{date}}` is UTC (`%Y-%m-%d`), as HR-1 requires.
   - **No registry:** `publish = false` keeps it off crates.io.
-- **To verify while implementing**: that `cargo release version` also updates `Cargo.lock`. If it
-  doesn't, `cargo check` before the commit step updates it (quickstart §5).
+- **Verified (T041, 2026-10-12, scratch clone):**
+  - **`Cargo.lock`:** the version bump also updates it.
+  - **Separate steps:** `version` and `replace` check neither a clean tree nor `allow-branch`, so
+    the prepare step is the full command `cargo release <level> --no-tag --no-push --no-publish
+    --execute`. It refuses a dirty tree and a wrong branch (exit 101) before changing anything.
+  - **Empty "Unreleased":** refused by `exactly = 1`, but only after the version bump. The docs
+    say to undo it with `git restore Cargo.toml Cargo.lock`.
+  - **Tag step:** `tag` + `push` push only the tag. A second `tag` refuses ("disabled due to
+    existing tag", exit 2). A `main` behind its remote is caught only when the stale commit's
+    version is already tagged.
 - **Alternatives**:
   - **One-step `cargo release patch --execute`**: needs a direct push to `main`, rejected by the
     clarification.
