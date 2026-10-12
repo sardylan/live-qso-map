@@ -1,33 +1,33 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 1.5.0 → 1.6.0
-Bump rationale: MINOR, because the Development Workflow gains two mandatory rules (feature branch
-naming, branch deletion after completion). No principle is removed or redefined.
+Version change: 1.6.0 → 1.7.0
+Bump rationale: MINOR. Principle V now allows a manual, non-publishing rehearsal to build release
+binaries on a branch. The rule's intent is kept, and no principle is removed: published release
+binaries still come only from release tags.
 
-Modified principles: none (I–V unchanged)
+Modified principles:
+  - V. Portable Development, Pipeline-Built Releases: "MUST build release binaries … only for
+    release tags" becomes "MUST publish release binaries … only for release tags". A manually
+    started rehearsal MAY build and test them on any branch, with no publishing and no
+    publishing secrets (feature 009, TR-014).
 Added principles: none
 
-Modified sections:
-  - Development Workflow: feature branches are named feature/NNN-title and are deleted, locally
-    and on the remote, once the feature is merged into main.
-
+Modified sections: none
 Added sections: none
 Removed sections: none
 
 Templates and runtime files:
-  - .specify/templates/spec-template.md          ✅ updated (Feature Branch: feature/[###-feature-name])
-  - .specify/templates/plan-template.md          ✅ updated (Branch: feature/[###-feature-name])
-  - .specify/templates/tasks-template.md         ✅ no change needed (refers to specs/, not branches)
+  - .specify/templates/plan-template.md          ✅ no change needed (its Principle V check covers
+                                                    portability and cross-compiling, not the tag rule)
+  - .specify/templates/spec-template.md          ✅ no change needed
+  - .specify/templates/tasks-template.md         ✅ no change needed
   - .specify/templates/commands/*.md             ⚠ not present
-  - .specify/scripts/bash/create-new-feature.sh  ✅ updated (creates feature/NNN-short-name)
-  - .specify/scripts/bash/common.sh              ✅ updated (validates feature/NNN-; maps branch to specs/NNN-*)
-  - .specify/scripts/bash/update-agent-context.sh ✅ updated (labels CLAUDE.md by feature id NNN-title)
+  - specs/009-fix-ci-pipeline/plan.md            ✅ updated (Complexity Tracking row removed)
+  - docs/tradeoffs.md (TR-014)                   ✅ updated (deviation resolved)
   - CLAUDE.md, README.md                         ✅ no change needed
 
-Follow-up TODOs:
-  - The spec-kit plugin's own /speckit-specify instructions still describe NNN-short-name
-    branches; the repository script is authoritative and now creates feature/NNN-short-name.
+Follow-up TODOs: none
 -->
 
 # live-qso-map Constitution
@@ -115,8 +115,10 @@ contest. A viewer's choices must come back by themselves, without anyone setting
 - Platform-specific code MUST be gated with `cfg` and MUST have a working path on every
   configured target. A new dependency MUST build for every configured target.
 - The pipeline MUST run the quality gates (`cargo fmt --check`, `cargo clippy`, `cargo test`, the
-  frontend and tool tests) on every commit to the main branch. It MUST build release binaries for
-  the configured targets only for release tags (`vX.Y.Z`).
+  frontend and tool tests) on every commit to the main branch. It MUST publish release binaries
+  for the configured targets only for release tags (`vX.Y.Z`). A manually started rehearsal MAY
+  build and test them on any branch, provided it publishes nothing and receives no publishing
+  secrets.
 
 Rationale: contributors work on whatever machine they have, while stations run the tool on PCs,
 Raspberry Pis and servers. Keeping cross-compilation in one reproducible place avoids
@@ -176,4 +178,4 @@ multi-platform builds run only when a release is cut.
   interface rules in `docs/http-api.md`.
   Unjustified violations block the merge.
 
-**Version**: 1.6.0 | **Ratified**: 2026-10-08 | **Last Amended**: 2026-10-11
+**Version**: 1.7.0 | **Ratified**: 2026-10-08 | **Last Amended**: 2026-10-12
