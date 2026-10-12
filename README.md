@@ -276,7 +276,7 @@ rights are needed.
 cargo fmt --check
 cargo clippy --all-targets -- -D warnings
 cargo test
-node --test web/                                              # frontend logic, no npm packages
+node --test 'web/*.test.js'                                   # frontend logic, no npm packages; quoted so Node expands it
 cargo test --release --test load_ws -- --ignored --nocapture  # load test (SC-004)
 ```
 
@@ -297,6 +297,7 @@ variables:
 |----------|----------|
 | Project rules | [`.specify/memory/constitution.md`](.specify/memory/constitution.md) |
 | Rust conventions | [`docs/rust-guidelines.md`](docs/rust-guidelines.md) |
+| CI setup, triggers, protection of `main` | [`docs/ci.md`](docs/ci.md) |
 | Specification, plan and tasks | [`specs/001-live-qso-map/`](specs/001-live-qso-map/) |
 | Debugging an unknown logger | `tools/udp_capture.py` records raw datagrams |
 | Simulating QARTest QSOs | `scripts/simulate_qartest_qso.py CALL ...` sends one `contactinfo` per callsign |

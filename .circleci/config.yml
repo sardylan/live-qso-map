@@ -1,4 +1,16 @@
 ---
+# Pinned downloads (FR-016, research R11). Each one goes through `fetch-verified`, which checks
+# the SHA-256 below before the file is used. Checked on 2026-10-12.
+#
+# | Download                                              | Version | SHA-256 source                  |
+# |-------------------------------------------------------|---------|---------------------------------|
+# | rustup-init x86_64-unknown-linux-gnu                  | 1.29.1  | published rustup-init.sha256    |
+# | rustup-init aarch64-apple-darwin                      | 1.29.1  | published rustup-init.sha256    |
+# | rustup-init.exe x86_64-pc-windows-msvc                | 1.29.1  | published rustup-init.exe.sha256 |
+# | cross-x86_64-unknown-linux-musl.tar.gz                | 0.2.5   | none published: computed 2026-10-12 |
+# | cargo-deny-0.20.2-x86_64-unknown-linux-musl.tar.gz    | 0.20.2  | published .sha256               |
+# | gh_2.102.0_linux_amd64.tar.gz                         | 2.102.0 | gh_2.102.0_checksums.txt        |
+# | go-containerregistry_Linux_x86_64.tar.gz (crane)      | 0.22.1  | checksums.txt                   |
 version: 2.1
 
 orbs:
@@ -10,6 +22,15 @@ parameters:
   rust-version:
     type: string
     default: "1.99"
+  # Manual release rehearsal (FR-011): builds and tests everything a release does, publishes
+  # nothing. Start it with `circleci pipeline run … --param rehearsal=true` (docs/ci.md).
+  rehearsal:
+    type: boolean
+    default: false
+  # Set by the weekly schedule trigger (FR-026): the gates on the newest stable Rust.
+  newest-toolchain:
+    type: boolean
+    default: false
 
 executors:
   rust:
@@ -39,13 +60,50 @@ executors:
       - image: cibuilds/github:0.13.0
 
 commands:
-  install-rustup:
-    description: Install the Rust toolchain used by the project
+  fetch-verified:
+    description: Download a file and stop unless its SHA-256 matches the pinned value
+    parameters:
+      url:
+        type: string
+      sha256:
+        type: string
+      dest:
+        type: string
+      shell:
+        type: string
+        default: /bin/bash -eo pipefail
     steps:
+      - run:
+          name: Fetch << parameters.dest >>
+          shell: << parameters.shell >>
+          command: |
+            curl -fsSL -o "<< parameters.dest >>" "<< parameters.url >>"
+            if command -v sha256sum >/dev/null 2>&1; then
+              echo "<< parameters.sha256 >>  << parameters.dest >>" | sha256sum -c -
+            else
+              echo "<< parameters.sha256 >>  << parameters.dest >>" | shasum -a 256 -c -
+            fi
+
+  install-rustup:
+    description: Install the pinned Rust toolchain with a verified rustup-init
+    parameters:
+      triple:
+        type: string
+        default: x86_64-unknown-linux-gnu
+      sha256:
+        type: string
+        default: dda7234360b7f578ca8b0ddcb80145646fa61a67c1720a5abc7051b35c9fcb71
+    steps:
+      - fetch-verified:
+          url: https://static.rust-lang.org/rustup/archive/1.29.1/<< parameters.triple >>/rustup-init
+          sha256: << parameters.sha256 >>
+          dest: rustup-init
       - run:
           name: Install Rust
           command: |
-            curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain << pipeline.parameters.rust-version >>
+            chmod +x rustup-init
+            ./rustup-init -y --profile minimal --default-toolchain << pipeline.parameters.rust-version >>
+            rm rustup-init
             echo 'source "$HOME/.cargo/env"' >> "$BASH_ENV"
 
   with-cargo-cache:
@@ -102,7 +160,7 @@ jobs:
       - checkout
       - run:
           name: Frontend tests
-          command: node --test web/
+          command: node --test 'web/*.test.js'
 
   test-tools:
     executor: python
@@ -110,7 +168,7 @@ jobs:
       - checkout
       - run:
           name: Python tool tests
-          command: python3 -m unittest tools/test_entity_extents.py
+          command: python3 -m unittest discover -s tools -p 'test_*.py'
 
   # Release gate (FR-002): the tag must be "v" + the Cargo.toml version.
   check-version:
@@ -163,7 +221,9 @@ jobs:
     executor: macos
     steps:
       - checkout
-      - install-rustup
+      - install-rustup:
+          triple: aarch64-apple-darwin
+          sha256: ec1b9233e7f72990ecd8e62063fa7f6c3dfc2bec8e97f88bff165f9100ac696a
       - run:
           name: Build
           command: |
@@ -181,12 +241,17 @@ jobs:
       RUSTUP_TOOLCHAIN: << pipeline.parameters.rust-version >>
     steps:
       - checkout
+      - fetch-verified:
+          url: https://static.rust-lang.org/rustup/archive/1.29.1/x86_64-pc-windows-msvc/rustup-init.exe
+          sha256: 6f4bef66261261fcb43131be8720bab817d403a09edec7455c371974b90bdb7e
+          dest: rustup-init.exe
+          shell: bash.exe
       - run:
           name: Install Rust
           shell: bash.exe
           command: |
-            curl -sSfLo rustup-init.exe https://win.rustup.rs/x86_64
             ./rustup-init.exe -y --profile minimal --default-toolchain << pipeline.parameters.rust-version >>
+            rm rustup-init.exe
       - run:
           name: Build
           shell: bash.exe
@@ -356,6 +421,10 @@ jobs:
 
 workflows:
   test_and_build:
+    when:
+      and:
+        - not: << pipeline.parameters.rehearsal >>
+        - not: << pipeline.parameters.newest-toolchain >>
     jobs:
       # Tests run on every branch and on release tags (v2.0.0).
       - lint:
