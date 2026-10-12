@@ -123,22 +123,36 @@ commands:
             echo "release version ${version}, package version ${deb}"
 
   with-cargo-cache:
-    description: Restore the Cargo registry and target directory, run the steps, then save them
+    description: >-
+      Restore the Cargo registry, git checkouts and target directory, run the steps, then save
+      them under a new key (FR-019, FR-021, research R13). Keys carry the job, the pinned Rust
+      version and the architecture; every run saves, so the next one restores the newest output.
     parameters:
       key:
         type: string
+      cargo-home:
+        type: string
+        default: /usr/local/cargo
+      shell:
+        type: string
+        default: /bin/bash -eo pipefail
       steps:
         type: steps
     steps:
       - restore_cache:
           keys:
-            - cargo-v1-<< parameters.key >>-{{ checksum "Cargo.lock" }}
-            - cargo-v1-<< parameters.key >>-
+            - cargo-v2-<< parameters.key >>-<< pipeline.parameters.rust-version >>-{{ arch }}-{{ checksum "Cargo.lock" }}-
+            - cargo-v2-<< parameters.key >>-<< pipeline.parameters.rust-version >>-{{ arch }}-
       - steps: << parameters.steps >>
+      - run:
+          name: Prune incremental build data
+          shell: << parameters.shell >>
+          command: rm -rf target/*/incremental target/*/*/incremental
       - save_cache:
-          key: cargo-v1-<< parameters.key >>-{{ checksum "Cargo.lock" }}
+          key: cargo-v2-<< parameters.key >>-<< pipeline.parameters.rust-version >>-{{ arch }}-{{ checksum "Cargo.lock" }}-{{ epoch }}
           paths:
-            - /usr/local/cargo/registry
+            - << parameters.cargo-home >>/registry
+            - << parameters.cargo-home >>/git
             - target
 
 jobs:
@@ -254,10 +268,16 @@ jobs:
       - install-rustup:
           triple: aarch64-apple-darwin
           sha256: ec1b9233e7f72990ecd8e62063fa7f6c3dfc2bec8e97f88bff165f9100ac696a
+      - with-cargo-cache:
+          key: build-macos
+          cargo-home: ~/.cargo
+          steps:
+            - run:
+                name: Build
+                command: cargo build --release --locked
       - run:
-          name: Build
+          name: Collect the binary
           command: |
-            cargo build --release --locked
             mkdir -p ws/bin/aarch64-apple-darwin
             cp target/release/live-qso-map ws/bin/aarch64-apple-darwin/
       - persist_to_workspace:
@@ -282,18 +302,50 @@ jobs:
           command: |
             ./rustup-init.exe -y --profile minimal --default-toolchain << pipeline.parameters.rust-version >>
             rm rustup-init.exe
+      - with-cargo-cache:
+          key: build-windows
+          cargo-home: ~/.cargo
+          shell: bash.exe
+          steps:
+            - run:
+                name: Build
+                shell: bash.exe
+                command: |
+                  export PATH="$USERPROFILE/.cargo/bin:$PATH"
+                  cargo build --release --locked --target x86_64-pc-windows-msvc
       - run:
-          name: Build
+          name: Collect the binary
           shell: bash.exe
           command: |
-            export PATH="$USERPROFILE/.cargo/bin:$PATH"
-            cargo build --release --locked --target x86_64-pc-windows-msvc
             mkdir -p ws/bin/x86_64-pc-windows-msvc
             cp target/x86_64-pc-windows-msvc/release/live-qso-map.exe ws/bin/x86_64-pc-windows-msvc/
       - persist_to_workspace:
           root: ws
           paths:
             - bin/x86_64-pc-windows-msvc
+
+  # cargo-deb, built once per release (and cached across releases), for the three package-deb
+  # jobs (FR-020).
+  cargo-deb:
+    executor: rust
+    steps:
+      - restore_cache:
+          keys:
+            - cargo-deb-3.8.0-<< pipeline.parameters.rust-version >>-{{ arch }}
+      - run:
+          name: Install cargo-deb 3.8.0
+          command: |
+            [ -x "$HOME/cargo-deb/bin/cargo-deb" ] || cargo install cargo-deb --version 3.8.0 --locked --root "$HOME/cargo-deb"
+            mkdir -p ws/tools
+            cp "$HOME/cargo-deb/bin/cargo-deb" ws/tools/
+      - save_cache:
+          key: cargo-deb-3.8.0-<< pipeline.parameters.rust-version >>-{{ arch }}
+          paths:
+            - ~/cargo-deb
+      - persist_to_workspace:
+          root: ws
+          paths:
+            - tools/cargo-deb
 
   # Debian package per Linux target from the cross-built binary (contracts/debian-package.md).
   package-deb:
@@ -307,8 +359,8 @@ jobs:
           at: ./ws
       - set-release-version
       - run:
-          name: Install cargo-deb
-          command: cargo install cargo-deb --version 3.8.0 --locked
+          name: Use the shared cargo-deb
+          command: echo 'export PATH="$PWD/ws/tools:$PATH"' >> "$BASH_ENV"
       - run:
           name: Package
           command: |
@@ -588,6 +640,9 @@ workflows:
       - build-windows:
           filters: *release-tags
           requires: [check-version, lint, test-rust, test-web, test-tools]
+      - cargo-deb:
+          filters: *release-tags
+          requires: [check-version]
       - package-deb:
           filters: *release-tags
           name: package-deb-<< matrix.target >>
@@ -597,7 +652,7 @@ workflows:
                 - x86_64-unknown-linux-musl
                 - aarch64-unknown-linux-musl
                 - armv7-unknown-linux-musleabihf
-          requires: [build-linux-<< matrix.target >>]
+          requires: [build-linux-<< matrix.target >>, cargo-deb]
       - test-deb:
           filters: *release-tags
           name: test-deb-debian-12-amd64
@@ -667,6 +722,7 @@ workflows:
                 - armv7-unknown-linux-musleabihf
       - build-macos
       - build-windows
+      - cargo-deb
       - package-deb:
           name: package-deb-<< matrix.target >>
           matrix:
@@ -675,7 +731,7 @@ workflows:
                 - x86_64-unknown-linux-musl
                 - aarch64-unknown-linux-musl
                 - armv7-unknown-linux-musleabihf
-          requires: [build-linux-<< matrix.target >>]
+          requires: [build-linux-<< matrix.target >>, cargo-deb]
       - test-deb:
           name: test-deb-debian-12-amd64
           image: "debian:12"

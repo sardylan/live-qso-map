@@ -334,14 +334,14 @@ tagged without typing the version twice.
 
 ### Implementation for User Story 4
 
-- [ ] T044 [US4] Rewrite `with-cargo-cache` in `.circleci/config.yml` per `contracts/pipeline.md` "Commands":
+- [X] T044 [US4] Rewrite `with-cargo-cache` in `.circleci/config.yml` per `contracts/pipeline.md` "Commands":
   - **Keys:** `cargo-v2-<key>-<< pipeline.parameters.rust-version >>-{{ arch }}-{{ checksum "Cargo.lock" }}-{{ epoch }}`; restore by the two prefixes.
   - **Paths:** `/usr/local/cargo/registry`, `/usr/local/cargo/git`, `target`.
   - **Before saving:** run `rm -rf target/*/incremental target/debug/incremental`.
 
   Validate.
-- [ ] T045 [US4] Add caches to `build-macos` (`$HOME/.cargo/registry`, `$HOME/.cargo/git`, `target`) and `build-windows` (`$USERPROFILE/.cargo/registry`, `…/git`, `target`) in `.circleci/config.yml`, with the same key scheme. The key parameter becomes a path list. Validate.
-- [ ] T046 [US4] Add the job `cargo-deb` in `.circleci/config.yml`:
+- [X] T045 [US4] Add caches to `build-macos` (`$HOME/.cargo/registry`, `$HOME/.cargo/git`, `target`) and `build-windows` (`$USERPROFILE/.cargo/registry`, `…/git`, `target`) in `.circleci/config.yml`, with the same key scheme. The key parameter becomes a path list. Validate.
+- [X] T046 [US4] Add the job `cargo-deb` in `.circleci/config.yml`:
   - restores the cache `cargo-deb-3.8.0-<< pipeline.parameters.rust-version >>`;
   - runs `cargo install cargo-deb --version 3.8.0 --locked` only if the binary is missing;
   - saves the cache, and persists `tools/cargo-deb` to the workspace.
