@@ -26,11 +26,13 @@ HTTP/WebSocket interface rules (binding): `docs/http-api.md`.
 - in memory, the latest score only, lost on restart; no new browser keys (007-contest-score-layout)
 - Rust (edition 2024, latest stable toolchain; see `docs/rust-guidelines.md` §2) + none new (clap gains `wrap_help` and `unicode`; existing `toml` writes the export); CI-only release tools cargo-deb 3.8.0, cross, docker buildx, zip (008-platform-packaging)
 - none new; Debian `/etc/live-qso-map/` and `/var/lib/live-qso-map/`, the same paths in the container (volume), the program's folder on Windows and macOS (008-platform-packaging)
+- CircleCI config 2.1, POSIX `sh` CI scripts, one Rust integration test + no new crates; CI-only tools pinned and SHA-256 verified; maintainer-only cargo-release 1.1.6 (009-fix-ci-pipeline)
+- `CHANGELOG.md`, `release.toml`, `deny.toml`, `deploy/github/main-ruleset.json`; CircleCI context `live-qso-map-release` (009-fix-ci-pipeline)
 
 ### Recent Changes
 
+- 009-fix-ci-pipeline: Added CircleCI config 2.1 and POSIX `sh` CI scripts + no new crates; CI-only tools cross 0.2.5, cargo-deb 3.8.0, cargo-deny 0.20.2, gh 2.102.0, crane 0.22.1 (pinned, SHA-256 verified); maintainer-only cargo-release 1.1.6
 - 008-platform-packaging: Added Rust (edition 2024, latest stable toolchain; see `docs/rust-guidelines.md` §2) + none new (clap gains `wrap_help` and `unicode`; existing `toml` writes the export); CI-only release tools cargo-deb 3.8.0, cross, docker buildx, zip
 - 007-contest-score-layout: Added Rust (edition 2024, latest stable toolchain); browser ES modules + none new (existing `quick-xml` reads the score message)
-- 006-recent-box-config: Added Rust (edition 2024, latest stable toolchain); browser ES modules + none new
 
 <!-- SPECKIT END -->
