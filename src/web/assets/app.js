@@ -558,6 +558,8 @@ function render() {
   map.getSource('qso-lines').setData(lineFeatures(next, nextQth));
   if (qthChanged) map.getSource('qth').setData(houseFeature(nextQth));
   current = next;
+  // How many markers are drawn, for the browser tests (feature 012, US3 scenarios 1 and 5).
+  document.getElementById('map').dataset.markers = String(next.size);
   qth = nextQth;
   // The sun mode follows the house marker: a new position may change the theme (FR-003).
   if (qthChanged) updateTheme();
