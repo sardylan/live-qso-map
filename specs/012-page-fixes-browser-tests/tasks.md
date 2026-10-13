@@ -113,7 +113,7 @@ build and a local Chrome, with a report, a log and screenshots.
 
 ### Tests for User Story 3 (write first, confirm they FAIL)
 
-- [ ] T009 [US3] Write failing node tests in `web/browser-lib.test.js` for a new `tests/browser/lib.mjs` (import `../tests/browser/lib.mjs`):
+- [X] T009 [US3] Write failing node tests in `web/browser-lib.test.js` for a new `tests/browser/lib.mjs` (import `../tests/browser/lib.mjs`):
   - **`parseArgs(argv, env, platform)`:**
     - gives the defaults of contracts/browser-test.md (binary `target/release/live-qso-map`, `.exe` on `win32`; out `target/browser-test`; headless);
     - accepts `--binary`, `--chrome`, `--out`, `--headed`;
@@ -134,8 +134,8 @@ build and a local Chrome, with a report, a log and screenshots.
 
 ### Implementation for User Story 3
 
-- [ ] T010 [US3] Implement `tests/browser/lib.mjs` with the functions of T009, pure and with no imports beyond `node:path`. Make T009 pass.
-- [ ] T011 [US3] Implement `tests/browser/cdp.mjs`, the DevTools Protocol driver (research R2, R7), with Node built-ins only.
+- [X] T010 [US3] Implement `tests/browser/lib.mjs` with the functions of T009, pure and with no imports beyond `node:path`. Make T009 pass.
+- [X] T011 [US3] Implement `tests/browser/cdp.mjs`, the DevTools Protocol driver (research R2, R7), with Node built-ins only.
   - **`launchChrome({ chrome, profileDir, headed, ci, port })`:**
     - starts Chrome with `--remote-debugging-port`, a fresh `--user-data-dir`, `--no-first-run`, `--no-default-browser-check`, `--window-size=1400,900`, `--enable-unsafe-swiftshader` and `--use-angle=swiftshader`;
     - adds `--headless=new` unless headed, and `--no-sandbox` only when `ci`;
@@ -147,7 +147,7 @@ build and a local Chrome, with a report, a log and screenshots.
     - `emulateDark(on)` (`Emulation.setEmulatedMedia`), `press(key)` (`Input.dispatchKeyEvent`, key down and up), `close()`, which kills Chrome.
 
   Domains to enable: Runtime, Log, Network, Page.
-- [ ] T012 [US3] Implement `tests/browser/run.mjs`, the runner (contracts/browser-test.md, research R3–R6, R8).
+- [X] T012 [US3] Implement `tests/browser/run.mjs`, the runner (contracts/browser-test.md, research R3–R6, R8).
   - **Arguments:** parse them with `lib.parseArgs`. Exit 2 when the binary or Chrome isn't found, or when Chrome doesn't answer on its debugging port within 10 s ("Chrome did not start: <path>").
   - **The program:**
     - pick free HTTP and UDP ports by binding port 0 (`net`, `dgram`);
@@ -168,7 +168,7 @@ build and a local Chrome, with a report, a log and screenshots.
   - **Files:** write `report.json` and `console.log` (data-model "Browser test run").
   - **Output:** print one line per step and `browser tests: pass|fail`. Exit 0 or 1.
   - **Cleanup:** always stop Chrome and the program, also on `SIGINT` and `SIGTERM`.
-- [ ] T013 [US3] **Verify** locally: `cargo build --release && node tests/browser/run.mjs` passes all nine steps, in under 2 minutes, with screenshots in `target/browser-test/`. Then do quickstart §3 steps 1–2: remove one `.route(...)` for a module in `src/web/mod.rs`, rebuild, and check that step 01 fails and names the 404. Restore it (don't commit the break).
+- [X] T013 [US3] **Verify** locally: `cargo build --release && node tests/browser/run.mjs` passes all nine steps, in under 2 minutes, with screenshots in `target/browser-test/`. Then do quickstart §3 steps 1–2: remove one `.route(...)` for a module in `src/web/mod.rs`, rebuild, and check that step 01 fails and names the 404. Restore it (don't commit the break).
 
 **Checkpoint**: the browser tests run on a developer machine and catch the 3.0.0 bug.
 
