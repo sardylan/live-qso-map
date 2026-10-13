@@ -52,7 +52,19 @@ updates the existing map entry in place. QARTest's QSO id even follows callsign 
    - Online sources: **QRZ.com**, **HamQTH** and **QRZCQ**.
    - Country data: the AD1C [cty.dat](https://www.country-files.com/). Sardinia, Sicily and Italy
      are separate entities.
-3. **Nothing found**: the QSO is still kept, but it isn't drawn.
+   - **Compound callsigns** (`IS0/DL1ABC`, `IS0ABC/P`, `K1ABC/6`): if no online source knows the
+     callsign as logged, it is looked up once more without the prefix or suffix (`DL1ABC`,
+     `IS0ABC`, `K1ABC`). Maritime and aeronautical mobile (`/MM`, `/AM`) are never retried.
+3. **Positions that can't be right are ignored**:
+   - an online position outside the callsign's country (for `IS0/DL1ABC`, outside Sardinia; a
+     country inside another one, like Sardinia in Italy, counts as outside);
+   - 0°/0° from any source, and the `AA00` locator except for stations in Antarctica.
+
+   The QSO then uses the next source, or the country centre. The QSO's field
+   `APP_LIVEQSOMAP_POS_REJECTED` lists what was ignored and why, for example
+   `qrz:outside-entity` or `logger:placeholder`, with `@base` when the answer came from the
+   base callsign.
+4. **Nothing found**: the QSO is still kept, but it isn't drawn.
 
 Notes:
 
