@@ -1,7 +1,7 @@
 ---
 maturity: growing
 type: tradeoffs
-updated: 2026-10-12
+updated: 2026-10-13
 ---
 
 # Tradeoffs
@@ -27,6 +27,7 @@ we deliberately gave up. Records the *why*, not just the *what*.
 | TR-012 | accepted | Checkout through the CircleCI GitHub App with one only-build-prs trigger | 2026-10-12 |
 | TR-013 | accepted | The version lives in Cargo.toml and the tag follows it; two-step release with cargo-release | 2026-10-12 |
 | TR-014 | accepted | A manual release rehearsal instead of pre-release tags | 2026-10-12 |
+| TR-015 | accepted | Positions are judged against entity rectangles, excluding only fully nested ones | 2026-10-13 |
 
 ## Decisions
 
@@ -600,6 +601,47 @@ In the context of a never-exercised release path, facing the cost of failed real
 
 - Positive: release problems surface before a version is tagged.
 - Negative / debt accepted: costs CI credits per rehearsal. The Principle V deviation was resolved by the constitution amendment to 1.7.0 (2026-10-12).
+
+## TR-015: Positions are judged against entity rectangles, excluding only fully nested ones
+
+- Status: accepted
+- Date: 2026-10-13
+- Phase: plan
+- Deciders: project owner
+- Links: specs/010-portable-callsigns/research.md#r5-entity-areas-with-nesting; specs/010-portable-callsigns/spec.md (FR-003); src/web/entity_extents.json
+<!-- key: 5986164d6d55 -->
+
+### Context & problem
+
+Feature 010 accepts an online position only if it lies inside the callsign's entity. The only offline area data is one rectangle per entity, bundled for the map's auto-zoom (feature 004), and rectangles overlap. Italy's contains Sardinia's, while neighbours such as Germany and Poland overlap along their border. The clarified rule is that a locator in Cagliari is not inside Italy.
+
+### Decision drivers
+
+- Keep nested entities separate (HR-6): Sardinia, Corsica, San Marino and the like are not their host country
+- Never reject a station's own country because of a neighbour's overlapping rectangle
+- No new data files or generators in this feature (Principle III)
+
+### Options considered
+
+| Option | Pros | Cons / what it sacrifices |
+|--------|------|---------------------------|
+| Entity rectangle minus rectangles fully nested inside it (chosen) | Uses existing data; separates Sardinia, Corsica, San Marino, Vatican, Monaco, Slovenia from Italy, Luxembourg from France; neighbours stay apart | Sicily's rectangle is not fully inside Italy's, so northern Sicily still counts as Italy; borders stay coarse |
+| Smallest rectangle containing the point wins | Simple | Assigns eastern Germany to Poland (smaller, overlapping rectangle) |
+| Overlap threshold (a smaller rectangle that is mostly inside counts as nested) | Would catch Sicily | Also makes Belgium swallow southern Netherlands (about 29% overlap) |
+| Entity outlines (simplified polygons) | Correct borders, Sicily included | Larger bundled data and a new generator; out of this feature's scope |
+
+### Decision
+
+We chose the entity rectangle minus the rectangles fully nested inside it, precomputed when the rectangles are loaded.
+
+### Y-statement
+
+In the context of judging online positions against the callsign's entity, facing overlapping rectangles, we chose "rectangle minus fully nested rectangles" over the smallest containing rectangle, an overlap threshold or entity outlines, to keep nested entities separate without hurting neighbours or adding data, accepting that Sicily is only partly separated from Italy and that borders stay coarse.
+
+### Consequences
+
+- Positive: Cagliari is not Italy; Germany and Poland, the Netherlands and Belgium stay apart; no new data.
+- Negative / debt accepted: northern Sicily counts as Italy for I/ callsigns. Revisit with entity outlines, a follow-up recorded in spec 010 next to the sub-area positions.
 
 ## Archive
 
