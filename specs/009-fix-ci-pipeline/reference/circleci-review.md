@@ -294,7 +294,7 @@ is a supported version.
 **Fix:** delete the `-rc` tag after a successful promotion (Docker Hub API), or push the
 candidate to a separate staging repository.
 
-**Resolution (feature 009):** `docker-promote` deletes the `-rc` tag through the Docker Hub API after re-tagging with crane, and fails if it is still there (T032).
+**Resolution (feature 009):** `docker-promote` deletes the `-rc` tag through the Docker Hub API after re-tagging with crane, and fails if it is still there (T032). Verified by the 2.0.1 release: only `2.0.1` and `latest` remain.
 
 ## 11. macOS binary not signed or notarized
 
@@ -456,3 +456,24 @@ The ruleset on `main` is applied (id `24935176`). PR #2 was `CLEAN` with the fiv
 | Project-level environment variables | `GITHUB_TOKEN` only (created 2024-12-01). `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` **don't exist**, so the 008 release chain would also have failed at `docker-image` (login). They are created directly in the context by T029. |
 
 `circleci project envvar list` answered this time (earlier in the analysis it returned 403).
+
+## First release: 2.0.1 (2026-10-13, task T062)
+
+Cut with the two documented steps:
+1. **Prepare:** `cargo release patch --no-tag --no-push --no-publish --execute` on
+   `release/next`, then PR #4, merged with the five gates green.
+2. **Tag:** `cargo release tag` and `cargo release push` pushed `v2.0.1` on `1fd23fb`.
+
+| Item | Result |
+|------|--------|
+| Release run `7e8b4d01-12bd-4d87-98be-e016fee10e73` | **succeeded on the first attempt**, all 29 jobs, including `publish-github-release` and `docker-promote`, which had never run before |
+| `check-version` | version, changelog section and the three secrets from the tag-only context: passed |
+| Package tests | 8 of 8, amd64 and arm64, on Debian 12 and 13 and Ubuntu 22.04 and 24.04 |
+| GitHub release `v2.0.1` | Latest, not a draft. 9 files: 3 `.deb`, 3 Linux `.tar.gz`, the Windows and macOS zips, `SHA256SUMS`. The notes are the 2.0.1 section of `CHANGELOG.md` |
+| Docker Hub | `2.0.1` and `latest`, same digest `sha256:0a2a0e35700843a57106a58d48afc81ed5be1ed3e6722a65998b7aa4366cb66e`, amd64 and arm64; `2.0.1-rc` deleted |
+| `v2.0.0` | untouched (`210528a`), no release |
+| Gate run on `main` after the merge | `a4398bd4`, succeeded |
+
+**Not yet checked live:** keeping hand-edited notes when `publish-github-release` is re-run
+(SC-008). The command logic is guarded by `tools/test_ci_config.py`.
+
