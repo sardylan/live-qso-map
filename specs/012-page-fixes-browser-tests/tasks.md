@@ -227,8 +227,10 @@ merge.
   - `python3 -m unittest discover -s tools -p 'test_*.py'`;
   - `RUSTDOCFLAGS="-D warnings -A rustdoc::bare_urls" cargo doc --locked --no-deps`;
   - and `node tests/browser/run.mjs` once more against a release build.
-- [ ] T021 Mark the tasks done, commit per phase, push `feature/012-page-fixes-browser-tests` and open the pull request. Merge it once the five gates are green; delete the branch afterwards (constitution, Development Workflow).
-- [ ] T022 With the maintainer's go-ahead, release 3.0.1 (FR-015, quickstart §5).
+- [X] T021 Mark the tasks done, commit per phase, push `feature/012-page-fixes-browser-tests` and open the pull request. Merge it once the five gates are green; delete the branch afterwards (constitution, Development Workflow).
+  *(Done 2026-10-13: PR #11 merged with rebase, branch deleted.)*
+- [X] T022 With the maintainer's go-ahead, release 3.0.1 (FR-015, quickstart §5).
+  *(Done 2026-10-13: PR #12, tag `v3.0.1` on `c58a284`; `browser-test` passed before `publish-github-release`; 3.0.1 published.)*
   - **Prepare:** `cargo release patch --no-tag --no-push --no-publish --execute` on `release/next`, then a PR.
   - **Tag:** after the merge, `cargo release tag --execute` and `cargo release push --execute`.
   - **Check:** `browser-test` passes before `publish-github-release`, and 3.0.1 is published (SC-007).

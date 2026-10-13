@@ -386,7 +386,8 @@ with a known advisory fails `audit`; `quickstart.md` §7.
 - [X] T053 [US5] Add `{ "context": "ci/circleci: audit", "integration_id": 302869 }` to `deploy/github/main-ruleset.json`. [ext] After `audit` has reported once on the pull request, apply the update with `gh api -X PUT repos/sardylan/live-qso-map/rulesets/<id> --input deploy/github/main-ruleset.json`.
 - [X] T054 [US5] [ext] Create the weekly schedule trigger (Monday 04:00 UTC, `main`, `{"newest-toolchain": true}`) with the `circleci api` command in `contracts/ci-service-setup.md`. Use the UI fallback if the API refuses it, and note which one worked in `docs/ci.md`.
 - [X] T055 [P] [US5] Add the sections "Weekly newest-toolchain run" (what runs, where failures show, how to raise the pin per `docs/rust-guidelines.md` §2.2) and "Audit gate" (`deny.toml`, how to handle a new advisory or licence) to `docs/ci.md`.
-- [ ] T056 [US5] **Verify**:
+- [X] T056 [US5] **Verify**:
+  *(2026-10-14: the first check is done, rehearsals ran the eight `test-deb` and two `image-test` jobs green. The second (quickstart §7, the weekly run) isn't recorded, and the third (a known advisory failing `audit` on a scratch PR) has not been run.)*
   - a rehearsal (`quickstart.md` §4) now includes eight `test-deb` jobs and two `image-test` jobs, all green;
   - `quickstart.md` §7: only `lint-stable` and `test-rust-stable` run, and the commit's `ci/circleci: lint` status is unchanged;
   - on a scratch pull request, adding a dependency with a known RustSec advisory (for example an old `time` 0.1) makes `audit` fail. Close it without merging.
