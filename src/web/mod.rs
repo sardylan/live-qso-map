@@ -38,6 +38,10 @@ const AUTOZOOM_JS: &str = include_str!("assets/autozoom.js");
 const AUTOZOOM_GEO_JS: &str = include_str!("assets/autozoom-geo.js");
 const RECENT_JS: &str = include_str!("assets/recent.js");
 const SCORE_JS: &str = include_str!("assets/score.js");
+const THEMES_JS: &str = include_str!("assets/themes.js");
+const SUN_JS: &str = include_str!("assets/sun.js");
+const PANEL_JS: &str = include_str!("assets/panel.js");
+const LEGEND_JS: &str = include_str!("assets/legend.js");
 
 #[derive(Clone)]
 struct AppState {
@@ -97,6 +101,10 @@ pub async fn serve(
         )
         .route("/recent.js", get(|| asset("text/javascript", RECENT_JS)))
         .route("/score.js", get(|| asset("text/javascript", SCORE_JS)))
+        .route("/themes.js", get(|| asset("text/javascript", THEMES_JS)))
+        .route("/sun.js", get(|| asset("text/javascript", SUN_JS)))
+        .route("/panel.js", get(|| asset("text/javascript", PANEL_JS)))
+        .route("/legend.js", get(|| asset("text/javascript", LEGEND_JS)))
         .route("/ws", get(ws_handler))
         .route("/healthz", get(healthz))
         .fallback(not_found)
