@@ -25,23 +25,31 @@
     <div id="score" class="score" aria-live="polite">Score —</div>
     <div id="recent" class="recent" hidden aria-label="Last QSOs"></div>
   </div>
-  <!-- Top right: every viewer setting (feature 007, FR-010). -->
-  <div id="settings" class="settings">
-    <label>Map: last
-      <select id="limit">
-        <option value="10">10</option>
-        <option value="20">20</option>
-        <option value="50">50</option>
-        <option value="100">100</option>
-        <option value="200">200</option>
-        <option value="500">500</option>
-        <option value="all">All</option>
-      </select>
-      QSOs
-    </label>
-    <div class="box-settings">
-      <label><input type="checkbox" id="recent-shown"> Last QSOs</label>
-      <label>Box: last
+  <!-- Every viewer setting, in a side panel opened by the gear button (feature 011, FR-005). -->
+  <aside id="panel" class="panel" role="dialog" aria-modal="false" aria-labelledby="panel-title" hidden>
+    <div class="panel-head">
+      <h2 id="panel-title">Settings</h2>
+      <button type="button" id="panel-close" class="panel-close" aria-label="Close settings">✕</button>
+    </div>
+    <fieldset id="group-map">
+      <legend>Map</legend>
+      <label>Last
+        <select id="limit">
+          <option value="10">10</option>
+          <option value="20">20</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+          <option value="200">200</option>
+          <option value="500">500</option>
+          <option value="all">All</option>
+        </select>
+        QSOs
+      </label>
+    </fieldset>
+    <fieldset id="group-box">
+      <legend>Last QSOs box</legend>
+      <label><input type="checkbox" id="recent-shown"> Shown</label>
+      <label>Size
         <select id="recent-size">
           <option value="3">3</option>
           <option value="5">5</option>
@@ -50,14 +58,20 @@
           <option value="20">20</option>
         </select>
       </label>
-      <label>Newest:
+      <label>Newest
         <select id="recent-order">
           <option value="bottom">bottom</option>
           <option value="top">top</option>
         </select>
       </label>
-    </div>
-  </div>
+    </fieldset>
+    <fieldset id="group-appearance">
+      <legend>Appearance</legend>
+    </fieldset>
+    <fieldset id="group-legend">
+      <legend>Legend</legend>
+    </fieldset>
+  </aside>
   <script type="module" src="app.js"></script>
 </body>
 </html>

@@ -49,6 +49,7 @@ import {
   globeZoomForCap,
 } from './autozoom-geo.js';
 import { createConnection, onOpen, onClose, onHello as handshake, loadLimit, saveLimit } from './connection.js';
+import * as panelState from './panel.js';
 
 const OVERLAYS = ['qso-lines', 'qth', 'qso-markers'];
 const QTH_POPUP = 'qth';
@@ -57,8 +58,9 @@ const PANELS = [
   '#legend',
   '#recent',
   '#score',
-  '#settings',
+  '#panel',
   '.maplibregl-ctrl-top-left',
+  '.maplibregl-ctrl-top-right',
   '.maplibregl-ctrl-bottom-left',
   '.maplibregl-ctrl-bottom-right',
   '#status',
@@ -279,6 +281,62 @@ class AutoZoomControl {
   onRemove() {
     this.container.remove();
   }
+}
+
+/** The gear button that opens and closes the settings panel (feature 011, FR-005). */
+class SettingsControl {
+  onAdd() {
+    this.container = element('div', 'maplibregl-ctrl maplibregl-ctrl-group settings-control');
+    this.button = element('button', null, '⚙');
+    this.button.type = 'button';
+    this.button.setAttribute('aria-label', 'Settings');
+    this.button.setAttribute('aria-controls', 'panel');
+    this.button.setAttribute('aria-expanded', 'false');
+    this.button.title = 'Settings';
+    this.button.addEventListener('click', () => applyPanel(panelState.toggle(settingsPanel, Date.now())));
+    this.container.append(this.button);
+    return this.container;
+  }
+
+  onRemove() {
+    this.container.remove();
+  }
+}
+
+const settingsPanel = panelState.createPanel();
+let settingsControl = null;
+// How often an idle open panel is checked for its 5-minute auto-close (FR-007).
+const PANEL_TICK_MS = 15_000;
+
+/** Shows or hides the panel after a state change, and moves focus (FR-008). */
+function applyPanel(result) {
+  if (!result) return;
+  const panel = document.getElementById('panel');
+  panel.hidden = !result.open;
+  if (settingsControl) settingsControl.button.setAttribute('aria-expanded', String(result.open));
+  if (result.open) {
+    const first = panel.querySelector('select, input, button:not(.panel-close)');
+    if (first) first.focus();
+  } else if (result.focusGear && settingsControl) {
+    settingsControl.button.focus();
+  }
+  // The panel covers part of the map: auto-zoom keeps clear of it while it is open.
+  autozoom.change();
+}
+
+function setupPanel() {
+  const panel = document.getElementById('panel');
+  document.getElementById('panel-close').addEventListener('click', () => applyPanel(panelState.close(settingsPanel)));
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape' || !settingsPanel.open) return;
+    const inside = panel.contains(document.activeElement);
+    const onGear = settingsControl && document.activeElement === settingsControl.button;
+    if (inside || onGear) applyPanel(panelState.close(settingsPanel));
+  });
+  for (const kind of ['pointerdown', 'keydown', 'focusin', 'input', 'wheel']) {
+    panel.addEventListener(kind, () => panelState.activity(settingsPanel, Date.now()));
+  }
+  setInterval(() => applyPanel(panelState.tick(settingsPanel, Date.now())), PANEL_TICK_MS);
 }
 
 /** Opens a marker's popup from the box, panning only when the marker is hidden (FR-022a). */
@@ -532,6 +590,8 @@ function createMap(hello) {
   map.addControl(projectionControl, 'top-left');
   autoZoomControl = new AutoZoomControl();
   map.addControl(autoZoomControl, 'top-left');
+  settingsControl = new SettingsControl();
+  map.addControl(settingsControl, 'top-right');
   updateScale();
   map.on('load', () => {
     map.setProjection({ type: shown });
@@ -698,6 +758,7 @@ function setupSelector() {
 
 if (hasWebGL(() => document.createElement('canvas'))) {
   setupSelector();
+  setupPanel();
   connect();
   window.addEventListener('resize', () => autozoom.change());
   setInterval(() => runActions(autozoom.tick(Date.now())), 250);

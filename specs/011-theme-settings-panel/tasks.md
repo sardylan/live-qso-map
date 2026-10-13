@@ -61,7 +61,7 @@ stays visible, and nothing else covers it.
 
 ### Tests for User Story 2 (write first, confirm they FAIL)
 
-- [ ] T004 [P] [US2] Write failing tests in the new `web/panel.test.js`, for a new `src/web/assets/panel.js` (`createPanel()`, `toggle`, `close`, `activity(now)`, `tick(now)`, `isOpen`). Cover:
+- [X] T004 [P] [US2] Write failing tests in the new `web/panel.test.js`, for a new `src/web/assets/panel.js` (`createPanel()`, `toggle`, `close`, `activity(now)`, `tick(now)`, `isOpen`). Cover:
   - it starts closed;
   - the gear toggles it;
   - close (✕ or Escape) closes it;
@@ -72,15 +72,15 @@ stays visible, and nothing else covers it.
 
 ### Implementation for User Story 2
 
-- [ ] T005 [US2] Implement `src/web/assets/panel.js`, a pure state machine with an injected clock. Make T004 pass.
-- [ ] T006 [US2] In `src/web/assets/index.html`, remove `#settings` and add the panel per `contracts/page-ui.md`:
+- [X] T005 [US2] Implement `src/web/assets/panel.js`, a pure state machine with an injected clock. Make T004 pass.
+- [X] T006 [US2] In `src/web/assets/index.html`, remove `#settings` and add the panel per `contracts/page-ui.md`:
   - the `<aside id="panel">` with a ✕ button;
   - `<fieldset>` groups Map ("Last" N `<select id="limit">`), Last QSOs box (the existing three
     controls, same ids), Appearance (empty for now) and Legend (empty for now).
 
   Style the panel in `src/web/assets/app.css`: right edge, 320 px wide; full width under 600 px;
   CSS variables only; a slide-in transition.
-- [ ] T007 [US2] In `src/web/assets/app.js`:
+- [X] T007 [US2] In `src/web/assets/app.js`:
   - add a `SettingsControl`, a MapLibre control in `top-right` with a gear button (`aria-label`,
     `aria-expanded`, `aria-controls="panel"`);
   - wire it to `panel.js`: gear toggles; ✕ and Escape close; a 15 s interval calls
