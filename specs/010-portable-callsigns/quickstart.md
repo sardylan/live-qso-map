@@ -29,7 +29,7 @@ and at each QSO's fields:
 | `IS0/DL0AAA` | — | Sardinia reference point, precision "country" | — |
 | `DL0AAA` | `LAT` `N000 00.000`, `LON` `E000 00.000` | Germany reference point | `logger:placeholder` |
 | `DL0AAA` | `GRIDSQUARE` `AA00AA` | Germany reference point | `logger:placeholder` |
-| `KC4AAA` | `GRIDSQUARE` `AA00AA` | the South Pole (the locator) | — |
+| `LU1ZAA` | `GRIDSQUARE` `AA00AA` | the South Pole (the locator) | — |
 | `DL0AAA` | `GRIDSQUARE` `JN18` (France) | France: the logger locator is trusted | — |
 
 ## 3. With a real provider (optional)

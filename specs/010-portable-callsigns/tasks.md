@@ -32,7 +32,7 @@ run it, and confirm it fails first. Use `cargo test`.
 
 ## Phase 1: Setup
 
-- [ ] T001 Create `tests/fixtures/cty-portable.dat`, holding entity blocks copied **verbatim** from `./cty.dat`: Fed. Rep. of Germany, France, Italy, Sardinia, Sicily, United States, Antarctica. Add a row to `tests/fixtures/README.md` naming the source and date, like the existing excerpt row.
+- [X] T001 Create `tests/fixtures/cty-portable.dat`, holding entity blocks copied **verbatim** from `./cty.dat`: Fed. Rep. of Germany, France, Italy, Sardinia, Sicily, United States, Antarctica. Add a row to `tests/fixtures/README.md` naming the source and date, like the existing excerpt row.
 
 ---
 
@@ -40,7 +40,7 @@ run it, and confirm it fails first. Use `cargo test`.
 
 **Entity areas with nesting (research R5), used by every story.**
 
-- [ ] T002 Write failing unit tests in `src/entity_extents.rs`:
+- [X] T002 Write failing unit tests in `src/entity_extents.rs`:
   - `contains(bounds, lat, lon)` handles normal and 180°-crossing rectangles (`3D2`);
   - `nested("I")` holds `IS`, but not `IT9`, `DL` or `F`;
   - `nested("DL")` doesn't hold `SP`;
@@ -50,7 +50,7 @@ run it, and confirm it fails first. Use `cargo test`.
   - the embedded table nests the expected pairs: `I` ⊃ `IS`, `T7`, `HV`, `TK`; `F` ⊃ `LX`;
     `G` ⊃ `GW`; and none for `DL`. Totals aren't asserted, because they change whenever the
     bundled rectangles are regenerated.
-- [ ] T003 Implement it in `src/entity_extents.rs`:
+- [X] T003 Implement it in `src/entity_extents.rs`:
   - promote `contains` out of the test module;
   - precompute `nested: HashMap<String, Vec<String>>` in `ExtentTable::parse`, using
     wrap-aware full containment;
@@ -61,7 +61,7 @@ run it, and confirm it fails first. Use `cargo test`.
 
 **Candidate filtering in `resolve_remote` (research R4, R6, R7), used by every story.**
 
-- [ ] T004 Write failing unit tests in `src/enrich/resolve.rs`, using a fake `accept` filter:
+- [X] T004 Write failing unit tests in `src/enrich/resolve.rs`, using a fake `accept` filter:
   - a rejected candidate loses its position, and its location fields (`GRIDSQUARE`, `LAT`,
     `LON`, `QTH`, `STATE`, `CNTY`, `COUNTRY`, `DXCC`, `CQZ`, `ITUZ`, `CONT`, `IOTA`) aren't
     merged later, while `NAME` is;
@@ -73,7 +73,7 @@ run it, and confirm it fails first. Use `cargo test`.
   - the new `select(candidates, order)` reproduces today's results: the most precise wins, ties
     go by configured order, and fields are merged from the winner first, never overwriting.
     Port the existing selection tests to it.
-- [ ] T005 Change `resolve_remote` in `src/enrich/resolve.rs` to take
+- [X] T005 Change `resolve_remote` in `src/enrich/resolve.rs` to take
   `accept: &dyn Fn(&Position) -> Verdict`, and to return
   `Lookup { candidates: Vec<LookupCandidate>, rejections: Vec<(PositionSource, RejectReason)>, known_online: bool }`
   without choosing a winner.
@@ -90,10 +90,10 @@ run it, and confirm it fails first. Use `cargo test`.
     accept-all filter for now and calls `select(&lookup.candidates, order)`.
 
   Make T004 pass, and keep every existing test green.
-- [ ] T006 Write a failing test, then implement `rejection_note(entries: &[(&str, bool, RejectReason)]) -> Option<String>` in `src/enrich/acceptance.rs`:
+- [X] T006 Write a failing test, then implement `rejection_note(entries: &[(&str, bool, RejectReason)]) -> Option<String>` in `src/enrich/acceptance.rs`:
   - the format is `source[@base]:reason`, comma-separated (research R7);
   - it returns `None` for an empty list.
-- [ ] T007 Give `Lookups` an `areas: Arc<ExtentTable>` field in `src/enrich/mod.rs`, passed from `ExtentTable::embedded()` in `src/pipeline.rs`. Update the test helper `lookups()` in `src/enrich/mod.rs` to use the embedded table.
+- [X] T007 Give `Lookups` an `areas: Arc<ExtentTable>` field in `src/enrich/mod.rs`, passed from `ExtentTable::embedded()` in `src/pipeline.rs`. Update the test helper `lookups()` in `src/enrich/mod.rs` to use the embedded table.
 
 **Checkpoint**: areas, filtering and notes exist and are tested, with no behaviour change yet:
 `cargo test` is green.
@@ -216,7 +216,7 @@ The country data's answer for the base call is ignored, and `/MM` and `/AM` are 
     `qrz:outside-entity`.
   - **Row 12:** online 0°/0° gives `qrz:placeholder`.
   - **Row 13:** online `AA00AA` gives `qrz:placeholder`.
-  - **Row 14:** `KC4AAA` (Antarctica) with `AA00AA` keeps it.
+  - **Row 14:** `LU1ZAA` (Antarctica, prefix `LU1Z`) with `AA00AA` keeps it. `KC4AAA` is Antarctic only through a cty.dat exact-call entry, which the fixture doesn't carry.
   - **Row 15:** logger LAT/LON 0/0 gives `logger:placeholder`, the lookups run, and the online
     German locator is used.
   - **Row 16:** logger `GRIDSQUARE` `AA00` gives `logger:placeholder`; with no online answer,

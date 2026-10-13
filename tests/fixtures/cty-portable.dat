@@ -1,0 +1,20 @@
+Antarctica:               13:  74:  SA:  -90.00:     0.00:     0.0:  CE9:
+    3Y[73],AX0(39)[69],AY1Z[73],AY2Z[73],AY3Z[73],AY4Z[73],AY5Z[73],AY6Z[73],
+    AY7Z[73],AY8Z[73],AY9Z[73],FT0Y(30)[70],FT1Y(30)[70],FT2Y(30)[70],
+    FT3Y(30)[70],FT4Y(30)[70],FT5Y(30)[70],FT6Y(30)[70],FT7Y(30)[70],
+    FT8Y(30)[70],LU1Z[73],LU2Z[73],LU3Z[73],LU4Z[73],LU5Z[73],LU6Z[73],
+    LU7Z[73],LU8Z[73],LU9Z[73],RI1AN(29)[69],VI0(39)[69],VK0(39)[69],
+    ZL5(30)[71],ZM5(30)[71],ZS7(38)[67];
+Fed. Rep. of Germany:     14:  28:  EU:   51.00:   -10.00:    -1.0:  DL:
+    DA,DB,DC,DD,DE,DF,DG,DH,DI,DJ,DK,DL,DM,DN,DO,DP,DQ,DR,Y2,Y3,Y4,Y5,Y6,Y7,Y8,
+    Y9;
+France:                   14:  27:  EU:   46.00:    -2.00:    -1.0:  F:
+    F,HW,HX,HY,TH,TM,TO,TP,TQ,TV,TX;
+Italy:                    15:  28:  EU:   42.82:   -12.58:    -1.0:  I:
+    4U,I;
+Sardinia:                 15:  28:  EU:   40.15:    -9.27:    -1.0:  IS:
+    IM0,IS0,IW0U,IW0V,IW0W,IW0X,IW0Y,IW0Z;
+Sicily:                   15:  28:  EU:   37.50:   -14.00:    -1.0:  *IT9:
+    IB9,ID9,IE9,IF9,II9,IJ9,IO9,IP9,IQ9,IR9,IT9,IU9,IW9,IY9;
+United States:            05:  08:  NA:   37.60:    91.87:     5.0:  K:
+    AA,AB,AC,AD,AE,AF,AG,AI,AJ,AK,K,N,W;

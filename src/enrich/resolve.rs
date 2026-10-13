@@ -2,6 +2,7 @@
 
 use crate::adif::AdifRecord;
 use crate::adif::write::{format_lat, format_lon, parse_lat, parse_lon};
+use crate::enrich::acceptance::{RejectReason, Verdict};
 use crate::enrich::station::locator_position;
 use crate::maidenhead;
 use crate::pipeline::LookupSource;
@@ -19,15 +20,44 @@ pub fn logger_position(record: &AdifRecord) -> Option<Position> {
     locator_position(record.get_non_empty("GRIDSQUARE")?, PositionSource::Logger)
 }
 
-/// Queries every source concurrently, each bounded by `timeout`, and keeps the most precise
-/// position; ties go to the source listed first in `order` (R11). Non-position fields are
-/// merged from the winner first, then the others in `order`, never overwriting.
+/// Fields that say where a station is. They are dropped from a candidate whose position was
+/// rejected, so they can't contradict the position used (feature 010, FR-004).
+pub const LOCATION_FIELDS: [&str; 12] = [
+    "GRIDSQUARE",
+    "LAT",
+    "LON",
+    "QTH",
+    "STATE",
+    "CNTY",
+    "COUNTRY",
+    "DXCC",
+    "CQZ",
+    "ITUZ",
+    "CONT",
+    "IOTA",
+];
+
+/// The answers to one round of lookups.
+#[derive(Debug, Default)]
+pub struct Lookup {
+    /// Every answer, in the configured order. A rejected one has no position and no location
+    /// fields, but keeps its other fields (feature 010, FR-004).
+    pub candidates: Vec<LookupCandidate>,
+    /// The rejected positions, in the configured order.
+    pub rejections: Vec<(PositionSource, RejectReason)>,
+    /// Whether an online source (anything but the country data) knew the callsign.
+    pub known_online: bool,
+}
+
+/// Queries every source concurrently, each bounded by `timeout`, and judges every position
+/// with `accept` (feature 010). It doesn't choose a winner: see [`select`].
 pub async fn resolve_remote(
     call: &str,
     sources: &[LookupSource],
     order: &[PositionSource],
     timeout: Duration,
-) -> (Option<Position>, AdifRecord) {
+    accept: &(dyn Fn(&Position) -> Verdict + Sync),
+) -> Lookup {
     let handles: Vec<_> = sources
         .iter()
         .map(|source| {
@@ -46,14 +76,45 @@ pub async fn resolve_remote(
             Err(e) => tracing::warn!(call, "lookup task failed: {e}"),
         }
     }
+    candidates.sort_by_key(|c| rank(order, c.source));
 
-    let rank = |source: PositionSource| {
-        order
-            .iter()
-            .position(|s| *s == source)
-            .unwrap_or(order.len())
-    };
-    candidates.sort_by_key(|c| rank(c.source));
+    let known_online = candidates.iter().any(|c| c.source != PositionSource::Cty);
+    let mut rejections = Vec::new();
+    for candidate in &mut candidates {
+        let Some(position) = candidate.position else {
+            continue;
+        };
+        if let Verdict::Reject(reason) = accept(&position) {
+            rejections.push((candidate.source, reason));
+            candidate.position = None;
+            for name in LOCATION_FIELDS {
+                candidate.fields.remove(name);
+            }
+        }
+    }
+    Lookup {
+        candidates,
+        rejections,
+        known_online,
+    }
+}
+
+fn rank(order: &[PositionSource], source: PositionSource) -> usize {
+    order
+        .iter()
+        .position(|s| *s == source)
+        .unwrap_or(order.len())
+}
+
+/// Keeps the most precise position; ties go to the source listed first in `order` (R11).
+/// Non-position fields are merged from the winner first, then the others in `order`, never
+/// overwriting.
+pub fn select(
+    candidates: &[LookupCandidate],
+    order: &[PositionSource],
+) -> (Option<Position>, AdifRecord) {
+    let mut candidates: Vec<&LookupCandidate> = candidates.iter().collect();
+    candidates.sort_by_key(|c| rank(order, c.source));
     let winner = candidates
         .iter()
         .enumerate()
@@ -69,7 +130,7 @@ pub async fn resolve_remote(
         }
     };
     if let Some((index, _)) = winner {
-        merge(&candidates[index]);
+        merge(candidates[index]);
     }
     for candidate in &candidates {
         merge(candidate);
@@ -94,6 +155,7 @@ pub fn write_position_fields(record: &mut AdifRecord, position: &Position) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::enrich::acceptance::{RejectReason, Verdict};
     use crate::position::{Position, PositionSource, Precision};
 
     fn record(fields: &[(&str, &str)]) -> AdifRecord {
@@ -218,8 +280,17 @@ mod tests {
         Arc::new(|_call: String| Box::pin(async { Ok(None) }))
     }
 
+    async fn lookup_with(
+        sources: &[LookupSource],
+        accept: &(dyn Fn(&Position) -> Verdict + Sync),
+    ) -> Lookup {
+        resolve_remote("K1ABC", sources, &ORDER, Duration::from_millis(200), accept).await
+    }
+
+    /// Resolve with an accept-all filter, then select: the behaviour before feature 010.
     async fn run(sources: &[LookupSource]) -> (Option<Position>, AdifRecord) {
-        resolve_remote("K1ABC", sources, &ORDER, Duration::from_millis(200)).await
+        let lookup = lookup_with(sources, &|_| Verdict::Accept).await;
+        select(&lookup.candidates, &ORDER)
     }
 
     const NOW: Duration = Duration::ZERO;
@@ -379,5 +450,122 @@ mod tests {
         });
         run(&[source.clone(), source]).await;
         assert_eq!(seen.load(Ordering::SeqCst), 2);
+    }
+
+    // --- acceptance filter (feature 010, T004) ----------------------------------------------
+
+    fn reject_qrz(position: &Position) -> Verdict {
+        if position.source == PositionSource::Qrz {
+            Verdict::Reject(RejectReason::OutsideEntity)
+        } else {
+            Verdict::Accept
+        }
+    }
+
+    #[tokio::test]
+    async fn rejected_candidates_lose_position_and_location_fields_only() {
+        let location = [
+            ("GRIDSQUARE", "JO62"),
+            ("LAT", "N052 30.000"),
+            ("LON", "E013 24.000"),
+            ("QTH", "Berlin"),
+            ("STATE", "BE"),
+            ("CNTY", "X"),
+            ("COUNTRY", "Germany"),
+            ("DXCC", "230"),
+            ("CQZ", "14"),
+            ("ITUZ", "28"),
+            ("CONT", "EU"),
+            ("IOTA", "EU-001"),
+            ("NAME", "Joe"),
+            ("EMAIL", "joe@example.org"),
+        ];
+        let lookup = lookup_with(
+            &[
+                fake(
+                    PositionSource::Qrz,
+                    Some(Precision::Locator6),
+                    NOW,
+                    &location,
+                ),
+                fake(PositionSource::Cty, Some(Precision::Country), NOW, &[]),
+            ],
+            &reject_qrz,
+        )
+        .await;
+        assert_eq!(
+            lookup.rejections,
+            vec![(PositionSource::Qrz, RejectReason::OutsideEntity)]
+        );
+        let (position, fields) = select(&lookup.candidates, &ORDER);
+        assert_eq!(
+            position.unwrap().source,
+            PositionSource::Cty,
+            "the rejected one can't win"
+        );
+        for (name, _) in &location[..12] {
+            assert_eq!(fields.get(name), None, "{name} must not be merged");
+        }
+        assert_eq!(fields.get("NAME"), Some("Joe"));
+        assert_eq!(fields.get("EMAIL"), Some("joe@example.org"));
+    }
+
+    #[tokio::test]
+    async fn rejections_follow_the_configured_order() {
+        let lookup = lookup_with(
+            &[
+                fake(PositionSource::QrzCq, Some(Precision::Locator6), NOW, &[]),
+                fake(PositionSource::Qrz, Some(Precision::Locator6), NOW, &[]),
+                fake(PositionSource::HamQth, Some(Precision::Locator6), NOW, &[]),
+            ],
+            &|_| Verdict::Reject(RejectReason::Placeholder),
+        )
+        .await;
+        let sources: Vec<_> = lookup.rejections.iter().map(|(s, _)| *s).collect();
+        assert_eq!(
+            sources,
+            vec![
+                PositionSource::Qrz,
+                PositionSource::HamQth,
+                PositionSource::QrzCq
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn known_online_means_a_non_cty_candidate() {
+        let only_cty = lookup_with(
+            &[
+                empty(),
+                failing(),
+                fake(PositionSource::Cty, Some(Precision::Country), NOW, &[]),
+            ],
+            &|_| Verdict::Accept,
+        )
+        .await;
+        assert!(!only_cty.known_online);
+        let online_without_position = lookup_with(
+            &[fake(PositionSource::HamQth, None, NOW, &[("NAME", "Ann")])],
+            &|_| Verdict::Accept,
+        )
+        .await;
+        assert!(
+            online_without_position.known_online,
+            "a record without a position is known"
+        );
+        let rejected = lookup_with(
+            &[fake(
+                PositionSource::Qrz,
+                Some(Precision::Locator6),
+                NOW,
+                &[],
+            )],
+            &reject_qrz,
+        )
+        .await;
+        assert!(
+            rejected.known_online,
+            "a rejected record is still a known callsign"
+        );
     }
 }
