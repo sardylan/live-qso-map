@@ -29,10 +29,10 @@ node tests/browser/run.mjs --chrome /path/to/chrome --binary /path/to/live-qso-m
 
 ## 3. Prove that the gate stops a broken page
 
-1. Remove one `.route(...)` line from `src/web/mod.rs` (locally; for the rehearsal, as a temporary commit, task T017).
+1. Remove one `.route(...)` line from `src/web/mod.rs` (locally; for the rehearsal, on the throwaway branch `feature/012-broken-page-rehearsal`, task T017).
 2. Build and run step 2 above: `load` fails and names the 404.
 3. Start a rehearsal (`docs/ci.md` §7): `browser-test` fails, and `rehearsal-summary` doesn't run.
-4. Restore the line (`git revert` of the temporary commit). Both pass.
+4. Restore the line locally, and delete the throwaway branch. The good build passes both.
 
 ## 4. Look at the fixes by hand (optional)
 

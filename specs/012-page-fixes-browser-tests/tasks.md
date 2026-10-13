@@ -159,7 +159,11 @@ build and a local Chrome, with a report, a log and screenshots.
     - **Waits and failures:** wait with `lib.waitFor`. Fail a step when a fatal event (`lib.classifyEvent`) arrived during it.
     - **Screenshots:** take one `NN-<step>.png` per step after its condition holds.
     - **QSOs:** send them as UDP datagrams built with `lib.qsoAdif`.
-    - **Step 04:** read `#map`'s `data-view` before and after each theme switch, and fail if it moved (more than 0.01° or 0.01 zoom).
+    - **Step 04:** for each theme:
+      1. wait until `#map`'s `data-view` reads the same twice, 1 s apart (`lib.waitFor`, 10 s limit);
+      2. switch the theme and wait for `data-theme`;
+      3. wait for `data-view` to be stable again the same way;
+      4. fail if it moved by more than 0.01° or 0.01 zoom.
     - **Step 08:** stop the program (phase A), check the banner, then start phase B with `--bands hf`.
   - **Files:** write `report.json` and `console.log` (data-model "Browser test run").
   - **Output:** print one line per step and `browser tests: pass|fail`. Exit 0 or 1.
@@ -200,11 +204,11 @@ merge.
 - [ ] T016 [US2] Document the browser tests (FR-014):
   - **`docs/ci.md`:** a section after "Audit gate": when they run, what they block, the artifacts (`browser-test/` on the job's Artifacts tab), how to bump the Chrome pin, how to run them locally, and that "Rerun workflow from failed" runs `browser-test` again (it keeps no cache). Also add the job to the rehearsal list in §7.
   - **`docs/releasing.md`:** `browser-test` must be green before `publish-github-release`, and where to look when it fails.
-- [ ] T017 [US2] **Verify** in rehearsal runs on the pushed branch (`docs/ci.md` §7, `--param rehearsal=true`):
-  1. **Broken page:** push a temporary commit that removes the `/legend.js` route from `src/web/mod.rs` and start a rehearsal. `browser-test` fails, step 01 names the 404, and `rehearsal-summary` doesn't run (SC-002).
-  2. **Good page:** revert that commit with `git revert`, push, and start another rehearsal. `browser-test` passes, `rehearsal-summary` runs, and the artifacts hold the screenshots and `report.json`. Note the `browser-test` job's duration; it must be under 5 minutes (SC-003).
+- [ ] T017 [US2] **Verify** in rehearsal runs (`docs/ci.md` §7, `--param rehearsal=true`):
+  1. **Broken page:** create a throwaway branch `feature/012-broken-page-rehearsal` from the feature branch. On it, commit the removal of the `/legend.js` route from `src/web/mod.rs`, push it, and start a rehearsal on it. `browser-test` fails, step 01 names the 404, and `rehearsal-summary` doesn't run (SC-002). Then delete the throwaway branch locally and on GitHub. It is never merged, and no pull request is opened for it.
+  2. **Good page:** start a rehearsal on `feature/012-page-fixes-browser-tests`. `browser-test` passes, `rehearsal-summary` runs, and the artifacts hold the screenshots and `report.json`. Note the `browser-test` job's duration; it must be under 5 minutes (SC-003).
 
-  Both commits stay in the branch history; the PR is merged with rebase as usual.
+  The feature branch never holds the break, so every commit merged to `main` passes `cargo test` (constitution I).
 
 **Checkpoint**: no release can be published past a broken page.
 
