@@ -155,7 +155,7 @@ The country data's answer for the base call is ignored, and `/MM` and `/AM` are 
 
 ### Tests for User Story 2 (write first, confirm they FAIL)
 
-- [ ] T012 [P] [US2] Write failing unit tests for `base_call` and `retry_allowed` in the new `src/enrich/callsign.rs`:
+- [X] T012 [P] [US2] Write failing unit tests for `base_call` and `retry_allowed` in the new `src/enrich/callsign.rs`:
   - every row of research R2's table;
   - lowercase input, surrounding spaces, empty parts (`IS0//DL0AAA`), and `/QRPP`, `/LH`,
     `/B`;
@@ -163,7 +163,7 @@ The country data's answer for the base call is ignored, and `/MM` and `/AM` are 
   - `/MM` and `/AM` aren't retried.
 
   Add `pub mod callsign;` in `src/enrich/mod.rs`.
-- [ ] T013 [P] [US2] Write failing integration tests in `tests/portable_callsigns.rs`:
+- [X] T013 [P] [US2] Write failing integration tests in `tests/portable_callsigns.rs`:
   - **Row 3:** `IS0/DL0AAA` is unknown, the base is at a German home: Sardinia reference,
     `qrz@base:outside-entity`. `CALL` stays `IS0/DL0AAA`, and the entity is Sardinia, never the
     base call's Germany.
@@ -177,8 +177,8 @@ The country data's answer for the base call is ignored, and `/MM` and `/AM` are 
 
 ### Implementation for User Story 2
 
-- [ ] T014 [US2] Implement `base_call` and `retry_allowed` in `src/enrich/callsign.rs` (research R2). Move the suffix constants `IGNORED_SUFFIXES` and `NO_ENTITY_SUFFIXES` there as `pub(crate)`, and import them in `src/enrich/cty.rs`. Make T012 pass, and keep every `cty.rs` test green.
-- [ ] T015 [US2] Add the second round in `enrich()` in `src/enrich/mod.rs` (research R3):
+- [X] T014 [US2] Implement `base_call` and `retry_allowed` in `src/enrich/callsign.rs` (research R2). Move the suffix constants `IGNORED_SUFFIXES` and `NO_ENTITY_SUFFIXES` there as `pub(crate)`, and import them in `src/enrich/cty.rs`. Make T012 pass, and keep every `cty.rs` test green.
+- [X] T015 [US2] Add the second round in `enrich()` in `src/enrich/mod.rs` (research R3):
   1. when `!round1.known_online && retry_allowed(call)` and `base_call(call)` is `Some(base)`,
      call `resolve_remote(base, …)` with the same filter;
   2. drop the second round's candidates whose source is `Cty`, from both `candidates` and

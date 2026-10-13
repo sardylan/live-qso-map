@@ -6,6 +6,7 @@ use std::path::Path;
 use std::time::{Duration, SystemTime};
 
 use crate::adif::AdifRecord;
+use crate::enrich::callsign::{IGNORED_SUFFIXES, NO_ENTITY_SUFFIXES};
 use crate::errors::{Error, Result};
 use crate::position::{LookupCandidate, Position, PositionSource, Precision};
 
@@ -222,9 +223,6 @@ fn split_overrides(alias: &str) -> (&str, Overrides) {
     };
     (call, overrides)
 }
-
-const IGNORED_SUFFIXES: &[&str] = &["P", "M", "QRP", "QRPP", "A", "B", "LH"];
-const NO_ENTITY_SUFFIXES: &[&str] = &["MM", "AM"];
 
 /// The callsign (or prefix) whose longest prefix decides the entity.
 fn effective_call(call: &str) -> Option<String> {

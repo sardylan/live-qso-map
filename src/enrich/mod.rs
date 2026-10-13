@@ -1,6 +1,7 @@
 //! Enrichment workers: station position, remote position, then publish (plan "Summary").
 
 pub mod acceptance;
+pub mod callsign;
 pub mod cty;
 pub mod provider;
 pub mod resolve;
@@ -82,7 +83,7 @@ pub async fn enrich(event: QsoEvent, config: &Config, lookups: &Lookups) -> Enri
             let online = position.source != PositionSource::Cty;
             acceptance::check(position, prefix, online, &lookups.areas)
         };
-        let lookup = resolve::resolve_remote(
+        let round1 = resolve::resolve_remote(
             &call,
             &lookups.sources,
             &lookups.order,
@@ -90,10 +91,38 @@ pub async fn enrich(event: QsoEvent, config: &Config, lookups: &Lookups) -> Enri
             &accept,
         )
         .await;
-        for (source, reason) in &lookup.rejections {
+        for (source, reason) in &round1.rejections {
             rejections.push((source.as_str(), false, *reason));
         }
-        let (position, fields) = resolve::select(&lookup.candidates, &lookups.order);
+        let mut candidates = round1.candidates;
+        // No online service knows the call as logged: retry once with the base callsign
+        // (research R3). The country data's answer for the base call is dropped: the entity
+        // stays the logged call's.
+        if !round1.known_online
+            && callsign::retry_allowed(&call)
+            && let Some(base) = callsign::base_call(&call)
+        {
+            let round2 = resolve::resolve_remote(
+                &base,
+                &lookups.sources,
+                &lookups.order,
+                config.lookup.timeout,
+                &accept,
+            )
+            .await;
+            for (source, reason) in &round2.rejections {
+                if *source != PositionSource::Cty {
+                    rejections.push((source.as_str(), true, *reason));
+                }
+            }
+            candidates.extend(
+                round2
+                    .candidates
+                    .into_iter()
+                    .filter(|c| c.source != PositionSource::Cty),
+            );
+        }
+        let (position, fields) = resolve::select(&candidates, &lookups.order);
         for (name, value) in fields.iter() {
             record.set_if_absent(name, value);
         }

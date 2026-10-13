@@ -222,3 +222,102 @@ async fn row_18_entity_without_a_rectangle_accepts_the_online_position() -> Test
     service.shutdown().await;
     Ok(())
 }
+
+// --- User Story 2 -------------------------------------------------------------------------
+
+const KANSAS_CITY: (f64, f64) = (39.1, -94.6);
+
+#[tokio::test]
+async fn row_3_unknown_prefixed_call_retries_the_base_and_judges_it() -> TestResult {
+    let (service, calls) = service(HashMap::from([("DL0AAA", german_home())])).await?;
+    let q = enriched(&service, "IS0/DL0AAA", 3, "").await?;
+    assert_reference(&q)?;
+    assert_eq!(
+        q.record.get("APP_LIVEQSOMAP_POS_REJECTED"),
+        Some("qrz@base:outside-entity")
+    );
+    assert_eq!(
+        calls.load(Ordering::SeqCst),
+        2,
+        "logged call, then base call"
+    );
+    assert_eq!(q.record.get("CALL"), Some("IS0/DL0AAA"));
+    assert_eq!(
+        entity_of(&q),
+        Some(("IS", "Sardinia")),
+        "never the base call's Germany"
+    );
+    assert_eq!(q.record.get("COUNTRY"), Some("Sardinia"));
+    service.shutdown().await;
+    Ok(())
+}
+
+#[tokio::test]
+async fn row_4_unknown_prefixed_call_uses_a_base_locator_inside_the_entity() -> TestResult {
+    let (service, _) = service(HashMap::from([(
+        "DL0AAA",
+        (CAGLIARI, vec![("NAME", "Hans")]),
+    )]))
+    .await?;
+    let q = enriched(&service, "IS0/DL0AAA", 4, "").await?;
+    let remote = q.remote.ok_or("no position")?;
+    assert_eq!(remote.source, PositionSource::Qrz);
+    assert_eq!(remote.precision, Precision::Locator6);
+    assert_eq!(q.record.get("NAME"), Some("Hans"));
+    assert_eq!(q.record.get("APP_LIVEQSOMAP_POS_REJECTED"), None);
+    service.shutdown().await;
+    Ok(())
+}
+
+#[tokio::test]
+async fn row_7_portable_call_with_its_own_record_is_not_retried() -> TestResult {
+    let (service, calls) = service(HashMap::from([
+        ("IS0AAA/P", (CAGLIARI, vec![("NAME", "Portable")])),
+        ("IS0AAA", (CAGLIARI, vec![("NAME", "Home")])),
+    ]))
+    .await?;
+    let q = enriched(&service, "IS0AAA/P", 7, "").await?;
+    assert_eq!(q.record.get("NAME"), Some("Portable"));
+    assert_eq!(calls.load(Ordering::SeqCst), 1, "no second lookup");
+    service.shutdown().await;
+    Ok(())
+}
+
+#[tokio::test]
+async fn row_8_unknown_portable_call_uses_the_base_record() -> TestResult {
+    let (service, calls) = service(HashMap::from([(
+        "IS0AAA",
+        (CAGLIARI, vec![("NAME", "Home")]),
+    )]))
+    .await?;
+    let q = enriched(&service, "IS0AAA/P", 8, "").await?;
+    let remote = q.remote.ok_or("no position")?;
+    assert_eq!(remote.source, PositionSource::Qrz);
+    assert_eq!(q.record.get("NAME"), Some("Home"));
+    assert_eq!(calls.load(Ordering::SeqCst), 2);
+    assert_eq!(q.record.get("CALL"), Some("IS0AAA/P"));
+    assert_eq!(entity_of(&q), Some(("IS", "Sardinia")));
+    service.shutdown().await;
+    Ok(())
+}
+
+#[tokio::test]
+async fn row_9_call_area_suffix_uses_the_base_record() -> TestResult {
+    let (service, _) = service(HashMap::from([("K0AAA", (KANSAS_CITY, vec![]))])).await?;
+    let q = enriched(&service, "K0AAA/6", 9, "").await?;
+    let remote = q.remote.ok_or("no position")?;
+    assert_eq!(remote.source, PositionSource::Qrz);
+    assert_eq!(q.record.get("APP_LIVEQSOMAP_POS_REJECTED"), None);
+    service.shutdown().await;
+    Ok(())
+}
+
+#[tokio::test]
+async fn row_10_maritime_mobile_is_never_retried() -> TestResult {
+    let (service, calls) = service(HashMap::from([("DL0AAA", german_home())])).await?;
+    let q = enriched(&service, "DL0AAA/MM", 10, "").await?;
+    assert_eq!(q.remote, None, "no entity, no position");
+    assert_eq!(calls.load(Ordering::SeqCst), 1, "no base-call lookup");
+    service.shutdown().await;
+    Ok(())
+}
