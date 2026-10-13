@@ -335,7 +335,7 @@ behaviour are found only when someone bumps the pin, or on a developer machine.
 **Fix:** add a scheduled pipeline (for example weekly) that runs `lint` and `test-rust`
 with `rust-version` overridden to `stable`, so problems appear before the pin is moved.
 
-**Resolution (feature 009):** `newest_toolchain` workflow, started by a weekly schedule with `newest-toolchain: true`; jobs `lint-stable` and `test-rust-stable` (T052, schedule in T054).
+**Resolution (feature 009):** `newest_toolchain` workflow, started by a weekly schedule with `newest-toolchain: true`; jobs `lint-stable` and `test-rust-stable` (T052). The schedule trigger `04b1cb13…` (Monday 04:00 UTC, `main`) was created on 2026-10-13 (T054); manual run `ac823b8e` green.
 
 ## 14. Tag regex rejects pre-release tags
 
