@@ -90,6 +90,43 @@ async fn every_page_receives_hello_snapshot_and_live_upserts() {
     service.shutdown().await;
 }
 
+/// Every module and stylesheet in `src/web/assets/` is served, byte for byte. The page tests
+/// import the files from disk, so a module the server doesn't route passes them and still
+/// breaks the page: `app.js` fails to load when one of its imports is missing (3.0.0).
+#[tokio::test]
+async fn every_page_asset_on_disk_is_served() {
+    let service = start(test_config(), None).await.unwrap();
+    live_qso_map::install_crypto_provider();
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/web/assets");
+    let mut checked = 0;
+    for entry in std::fs::read_dir(&dir).unwrap() {
+        let path = entry.unwrap().path();
+        let name = path.file_name().unwrap().to_string_lossy().to_string();
+        let content_type = match path.extension().and_then(|e| e.to_str()) {
+            Some("js") => "text/javascript",
+            Some("css") => "text/css",
+            _ => continue,
+        };
+        let response = reqwest::get(format!("http://{}/{name}", service.http_addr))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), 200, "/{name} is not served");
+        let header = response.headers()["content-type"]
+            .to_str()
+            .unwrap()
+            .to_string();
+        assert!(header.starts_with(content_type), "/{name}: {header}");
+        let body = response.text().await.unwrap();
+        assert_eq!(
+            body,
+            std::fs::read_to_string(&path).unwrap(),
+            "/{name} differs"
+        );
+        checked += 1;
+    }
+    assert!(checked >= 16, "only {checked} assets found");
+}
+
 #[tokio::test]
 async fn static_assets_are_served() {
     let service = start(test_config(), None).await.unwrap();
