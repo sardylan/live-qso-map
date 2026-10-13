@@ -136,6 +136,35 @@ impl History {
             .collect()
     }
 
+    /// The newest `n` QSOs (all when `None`) whose `BAND` is one of `bands`, oldest first
+    /// (feature 011, FR-013). QSOs without a `BAND` are left out. `bands` of `None` means every QSO,
+    /// as [`History::latest`].
+    pub fn latest_matching(
+        &self,
+        n: Option<usize>,
+        bands: Option<&[String]>,
+    ) -> Vec<Arc<EnrichedQso>> {
+        let Some(bands) = bands else {
+            return self.latest(n);
+        };
+        let matches = |q: &EnrichedQso| {
+            q.record
+                .get("BAND")
+                .is_some_and(|band| bands.iter().any(|b| b.eq_ignore_ascii_case(band.trim())))
+        };
+        let mut newest: Vec<Arc<EnrichedQso>> = self
+            .ordered
+            .iter()
+            .rev()
+            .filter_map(|(_, id)| self.by_id.get(id))
+            .filter(|q| matches(q))
+            .take(n.unwrap_or(usize::MAX))
+            .cloned()
+            .collect();
+        newest.reverse();
+        newest
+    }
+
     pub fn get(&self, id: &str) -> Option<Arc<EnrichedQso>> {
         self.by_id.get(id).cloned()
     }
@@ -394,5 +423,39 @@ mod tests {
             unbounded.remove(&format!("Q{i}"), 1);
         }
         assert!(matches!(unbounded.upsert(qso("Q0", 1, 0)), Upsert::Stale));
+    }
+
+    // --- latest on chosen bands (feature 011, T020) ----------------------------------------
+
+    fn on_band(id: &str, ts: i64, band: Option<&str>) -> EnrichedQso {
+        let mut q = qso(id, 1, ts);
+        if let Some(band) = band {
+            q.record.set("BAND", band);
+        }
+        q
+    }
+
+    #[test]
+    fn latest_matching_keeps_only_the_chosen_bands() {
+        let mut h = History::new(0);
+        for (id, ts, band) in [
+            ("A", 10, Some("40m")),
+            ("B", 20, Some("30M")),
+            ("C", 30, Some("40M")),
+            ("D", 40, None),
+            ("E", 50, Some("20m")),
+            ("F", 60, Some("30m")),
+        ] {
+            h.upsert(on_band(id, ts, band));
+        }
+        let bands = vec!["40m".to_string(), "20m".to_string()];
+        assert_eq!(ids(&h.latest_matching(Some(2), Some(&bands))), ["C", "E"]);
+        assert_eq!(ids(&h.latest_matching(None, Some(&bands))), ["A", "C", "E"]);
+        assert_eq!(
+            ids(&h.latest_matching(Some(3), None)),
+            ids(&h.latest(Some(3))),
+            "no band list means every QSO"
+        );
+        assert!(h.latest_matching(Some(0), Some(&bands)).is_empty());
     }
 }

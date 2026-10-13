@@ -22,6 +22,54 @@ pub const GROUPS: &[(&str, &[&str])] = &[
     ("ehf", &["6mm", "4mm", "2.5mm", "2mm", "1mm", "submm"]),
 ];
 
+/// Display names of the band groups, for the page (feature 011).
+const LABELS: &[(&str, &str)] = &[
+    ("lf-mf", "LF/MF"),
+    ("hf", "HF"),
+    ("hf-contest", "HF contest"),
+    ("warc", "WARC"),
+    ("vhf", "VHF"),
+    ("uhf", "UHF"),
+    ("shf", "SHF"),
+    ("ehf", "EHF"),
+];
+
+/// The display name of a band group, e.g. "HF contest" for `hf-contest`.
+pub fn group_label(name: &str) -> Option<&'static str> {
+    LABELS
+        .iter()
+        .find(|(n, _)| *n == name)
+        .map(|(_, label)| *label)
+}
+
+/// A band group as the page offers it: only its considered bands, in frequency order.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConsideredGroup {
+    pub name: &'static str,
+    pub label: &'static str,
+    pub bands: Vec<&'static str>,
+}
+
+/// Every band group with at least one considered band, in the order of [`GROUPS`], each keeping
+/// only its considered bands (feature 011, FR-012). `None` means every band is considered.
+pub fn considered_groups(filter: Option<&BandSet>) -> Vec<ConsideredGroup> {
+    GROUPS
+        .iter()
+        .filter_map(|(name, bands)| {
+            let bands: Vec<&'static str> = bands
+                .iter()
+                .copied()
+                .filter(|band| filter.is_none_or(|f| f.contains(band)))
+                .collect();
+            (!bands.is_empty()).then(|| ConsideredGroup {
+                name,
+                label: group_label(name).unwrap_or(name),
+                bands,
+            })
+        })
+        .collect()
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Target {
     Band(&'static str),
@@ -253,5 +301,52 @@ mod tests {
         assert!(!set.contains("40m"));
         assert_eq!(set.to_string(), "160m 20m 2m");
         assert_eq!(names(&set), ["160m", "20m", "2m"]);
+    }
+
+    // --- groups for the page (feature 011, T020) --------------------------------------------
+
+    #[test]
+    fn every_group_has_a_label() {
+        for (name, _) in GROUPS {
+            assert!(group_label(name).is_some(), "{name}");
+        }
+        assert_eq!(group_label("hf-contest"), Some("HF contest"));
+        assert_eq!(group_label("lf-mf"), Some("LF/MF"));
+        assert_eq!(group_label("nope"), None);
+    }
+
+    #[test]
+    fn considered_groups_keep_only_considered_bands() {
+        let hf = resolve_strs(&["hf"]).unwrap();
+        let groups = considered_groups(Some(&hf));
+        let names: Vec<&str> = groups.iter().map(|g| g.name).collect();
+        assert_eq!(
+            names,
+            ["hf", "hf-contest", "warc"],
+            "vhf and the others have no HF band"
+        );
+        let warc = groups.iter().find(|g| g.name == "warc").unwrap();
+        assert_eq!(warc.bands, ["30m", "17m", "12m"]);
+        assert_eq!(warc.label, "WARC");
+
+        let contest = resolve_strs(&["hf-contest", "-160m"]).unwrap();
+        let groups = considered_groups(Some(&contest));
+        let names: Vec<&str> = groups.iter().map(|g| g.name).collect();
+        assert_eq!(names, ["hf", "hf-contest"]);
+        assert_eq!(
+            groups[1].bands,
+            ["80m", "40m", "20m", "15m", "10m"],
+            "frequency order (HR-2)"
+        );
+    }
+
+    #[test]
+    fn with_every_band_considered_every_group_is_complete() {
+        let groups = considered_groups(None);
+        assert_eq!(groups.len(), GROUPS.len());
+        for (group, (name, bands)) in groups.iter().zip(GROUPS) {
+            assert_eq!(group.name, *name);
+            assert_eq!(group.bands, *bands);
+        }
     }
 }

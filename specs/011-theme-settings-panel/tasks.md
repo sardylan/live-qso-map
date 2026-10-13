@@ -182,14 +182,14 @@ map and the box, and "last N" counts only shown QSOs, computed by the server (pr
 
 ### Tests for User Story 4 (write first, confirm they FAIL)
 
-- [ ] T020 [P] [US4] Write failing Rust tests:
+- [X] T020 [P] [US4] Write failing Rust tests:
   - **`src/band_filter.rs`:** `group_label(name)` for every group, and `considered_groups(filter)`
     for a filter of `hf`. It keeps `hf`, `hf-contest` and `warc` with their considered bands
     only, in frequency order, and drops `vhf`.
   - **`src/history.rs`:** `latest_matching(n, bands)` gives the newest `n` QSOs whose `BAND` is
     in `bands` (case-insensitive), skips QSOs without a `BAND`, and gives the same result as
     `latest` for `None`.
-- [ ] T021 [P] [US4] Write failing Rust tests in `src/web/protocol.rs` and `src/web/session.rs`:
+- [X] T021 [P] [US4] Write failing Rust tests in `src/web/protocol.rs` and `src/web/session.rs`:
   - `hello` has `protocol: 4` and `band_groups` (shape per `contracts/websocket-protocol.md`);
   - `ClientMessage::parse` accepts `set_limit` with and without `bands`, and with `bands: null`;
   - after `set_limit { limit: 10, bands: ["40m"] }`, the session's snapshot holds only 40 m QSOs,
@@ -211,15 +211,15 @@ map and the box, and "last N" counts only shown QSOs, computed by the server (pr
   - a correction moving a QSO onto a hidden band removes it from what is drawn;
   - "last N" counts only shown QSOs;
   - `null` shows everything.
-- [ ] T024 [US4] Update `tests/ws_protocol.rs` (a failing test first):
+- [X] T024 [US4] Update `tests/ws_protocol.rs` (a failing test first):
   - `protocol: 4` and `band_groups` in `hello`;
   - `set_limit` with `bands` gives a filtered snapshot;
   - a page sending no `bands` still gets every QSO.
 
 ### Implementation for User Story 4
 
-- [ ] T025 [US4] Implement `group_label`, `considered_groups` (`src/band_filter.rs`) and `History::latest_matching` (`src/history.rs`). Make T020 pass.
-- [ ] T026 [US4] In `src/web/protocol.rs` and `src/web/session.rs`: `PROTOCOL_VERSION = 4`; `hello.band_groups` from `considered_groups`; `ClientMessage::SetLimit { limit, bands: Option<Vec<String>> }` with `#[serde(default)]`; the session stores the cleaned band list and builds snapshots with `latest_matching`. Make T021 and T024 pass.
+- [X] T025 [US4] Implement `group_label`, `considered_groups` (`src/band_filter.rs`) and `History::latest_matching` (`src/history.rs`). Make T020 pass.
+- [X] T026 [US4] In `src/web/protocol.rs` and `src/web/session.rs`: `PROTOCOL_VERSION = 4`; `hello.band_groups` from `considered_groups`; `ClientMessage::SetLimit { limit, bands: Option<Vec<String>> }` with `#[serde(default)]`; the session stores the cleaned band list and builds snapshots with `latest_matching`. Make T021 and T024 pass.
 - [ ] T027 [US4] Implement `src/web/assets/legend.js`. Make T022 pass.
 - [ ] T028 [US4] Implement `setShownBands` and the band filtering of the drawing helpers in `src/web/assets/map-state.js`. Make T023 pass, and keep the existing map-state tests green.
 - [ ] T029 [US4] Wire it up:
