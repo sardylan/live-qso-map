@@ -407,7 +407,7 @@ with a known advisory fails `audit`; `quickstart.md` §7.
 
 ## Phase 10: First release, 2.0.1 (after the merge)
 
-- [ ] T062 [US6] [ext] Cut 2.0.1 with `docs/releasing.md`:
+- [X] T062 [US6] [ext] Cut 2.0.1 with `docs/releasing.md`:
   1. on `main`, the prepare step (patch);
   2. the release pull request is green and merged;
   3. the tag step pushes `v2.0.1`.

@@ -268,7 +268,9 @@ Feature: `009-fix-ci-pipeline` · Spec: [spec.md](spec.md) · Date: 2026-10-12
 - **Risk**: Docker Hub's OpenAPI doesn't list the tag `DELETE` endpoint, although the
   access-token documentation says tags support delete. If the first release shows the endpoint
   doesn't work, `docs/ci.md` gives the manual removal (Docker Hub UI), and the step is revisited.
-  The release itself is already complete at that point.
+  The release itself is already complete at that point. **Resolved 2026-10-13:** the 2.0.1
+  release deleted `2.0.1-rc` through this endpoint with a personal access token (Read, Write,
+  Delete).
 - **Arm machine image**: `ubuntu-2204:current` is the confirmed Arm Gen1 image. `ubuntu-2604` is
   listed for Arm only on Gen2 (beta), so it isn't used.
 - **Alternatives**:
