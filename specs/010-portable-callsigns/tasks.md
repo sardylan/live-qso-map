@@ -204,14 +204,14 @@ The country data's answer for the base call is ignored, and `/MM` and `/AM` are 
 
 ### Tests for User Story 3 (write first, confirm they FAIL)
 
-- [ ] T016 [P] [US3] Write failing unit tests for the placeholder rule in `src/enrich/acceptance.rs`:
+- [X] T016 [P] [US3] Write failing unit tests for the placeholder rule in `src/enrich/acceptance.rs`:
   - exactly 0°/0° gives `Verdict::Reject(Placeholder)` for every entity and for no entity;
   - `1e-9`/`0.0` and `JJ00` (centre 0.5N 1E) are not placeholders;
   - a point inside square `AA00`, including −90°/−180°, gives `Verdict::Reject(Placeholder)`
     for `DL` and for no entity, but `Verdict::Accept` for `CE9`;
   - `-89.98`/`-179.96` (the centre of `AA00AA`) is caught;
   - the rule applies with `online == false` too.
-- [ ] T017 [P] [US3] Write failing integration tests in `tests/portable_callsigns.rs`:
+- [X] T017 [P] [US3] Write failing integration tests in `tests/portable_callsigns.rs`:
   - **Row 11:** plain `DL0AAA` online in France gets Germany's reference point and
     `qrz:outside-entity`.
   - **Row 12:** online 0°/0° gives `qrz:placeholder`.
@@ -224,8 +224,8 @@ The country data's answer for the base call is ignored, and `/MM` and `/AM` are 
 
 ### Implementation for User Story 3
 
-- [ ] T018 [US3] Add the placeholder rule to `check` in `src/enrich/acceptance.rs`, before the area rule (research R4 steps 1–2). Make T016 pass.
-- [ ] T019 [US3] In `enrich()` in `src/enrich/mod.rs`, check the logger position with `check(…, online = false)`. On rejection, note `logger:placeholder`, treat the position as absent, and run the lookups (FR-012). Make T017 pass (row 11 already passes with US1's filter), and keep everything else green.
+- [X] T018 [US3] Add the placeholder rule to `check` in `src/enrich/acceptance.rs`, before the area rule (research R4 steps 1–2). Make T016 pass.
+- [X] T019 [US3] In `enrich()` in `src/enrich/mod.rs`, check the logger position with `check(…, online = false)`. On rejection, note `logger:placeholder`, treat the position as absent, and run the lookups (FR-012). Make T017 pass (row 11 already passes with US1's filter), and keep everything else green.
 
 **Checkpoint**: no QSO is drawn at 0°/0°, and no non-Antarctic QSO at `AA00AA`.
 

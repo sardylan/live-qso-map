@@ -321,3 +321,103 @@ async fn row_10_maritime_mobile_is_never_retried() -> TestResult {
     service.shutdown().await;
     Ok(())
 }
+
+// --- User Story 3 -------------------------------------------------------------------------
+
+const PARIS: (f64, f64) = (48.86, 2.35);
+/// The centre of locator AA00AA, at the South Pole.
+const AA00AA: (f64, f64) = (-89.979_166, -179.958_333);
+
+#[tokio::test]
+async fn row_11_plain_call_with_a_locator_outside_its_entity_gets_the_reference() -> TestResult {
+    let (service, _) = service(HashMap::from([("DL0AAA", (PARIS, vec![]))])).await?;
+    let q = enriched(&service, "DL0AAA", 11, "").await?;
+    assert_reference(&q)?;
+    assert_eq!(
+        q.record.get("APP_LIVEQSOMAP_POS_REJECTED"),
+        Some("qrz:outside-entity")
+    );
+    assert_eq!(entity_of(&q), Some(("DL", "Fed. Rep. of Germany")));
+    service.shutdown().await;
+    Ok(())
+}
+
+#[tokio::test]
+async fn row_12_online_zero_zero_is_a_placeholder() -> TestResult {
+    let (service, _) = service(HashMap::from([("DL0AAA", ((0.0, 0.0), vec![]))])).await?;
+    let q = enriched(&service, "DL0AAA", 12, "").await?;
+    assert_reference(&q)?;
+    assert_eq!(
+        q.record.get("APP_LIVEQSOMAP_POS_REJECTED"),
+        Some("qrz:placeholder")
+    );
+    service.shutdown().await;
+    Ok(())
+}
+
+#[tokio::test]
+async fn row_13_online_aa00aa_is_a_placeholder() -> TestResult {
+    let (service, _) = service(HashMap::from([("DL0AAA", (AA00AA, vec![]))])).await?;
+    let q = enriched(&service, "DL0AAA", 13, "").await?;
+    assert_reference(&q)?;
+    assert_eq!(
+        q.record.get("APP_LIVEQSOMAP_POS_REJECTED"),
+        Some("qrz:placeholder")
+    );
+    service.shutdown().await;
+    Ok(())
+}
+
+#[tokio::test]
+async fn row_14_aa00aa_is_valid_for_an_antarctic_station() -> TestResult {
+    let (service, _) = service(HashMap::from([("LU1ZAA", (AA00AA, vec![]))])).await?;
+    let q = enriched(&service, "LU1ZAA", 14, "").await?;
+    assert_eq!(entity_of(&q), Some(("CE9", "Antarctica")));
+    assert_eq!(q.remote.ok_or("no position")?.source, PositionSource::Qrz);
+    assert_eq!(q.record.get("APP_LIVEQSOMAP_POS_REJECTED"), None);
+    service.shutdown().await;
+    Ok(())
+}
+
+#[tokio::test]
+async fn row_15_logger_zero_zero_is_ignored_and_the_lookups_run() -> TestResult {
+    let (service, calls) = service(HashMap::from([("DL0AAA", german_home())])).await?;
+    let q = enriched(
+        &service,
+        "DL0AAA",
+        15,
+        "<LAT:11>N000 00.000 <LON:11>E000 00.000 ",
+    )
+    .await?;
+    assert_eq!(calls.load(Ordering::SeqCst), 1, "the lookups ran");
+    assert_eq!(q.remote.ok_or("no position")?.source, PositionSource::Qrz);
+    assert_eq!(
+        q.record.get("APP_LIVEQSOMAP_POS_REJECTED"),
+        Some("logger:placeholder")
+    );
+    assert_ne!(
+        q.record.get("LAT"),
+        Some("N000 00.000"),
+        "the placeholder doesn't stay in the record"
+    );
+    assert_eq!(
+        q.record.get("LAT"),
+        Some("N052 31.200"),
+        "the position used"
+    );
+    service.shutdown().await;
+    Ok(())
+}
+
+#[tokio::test]
+async fn row_16_logger_aa00_with_no_online_answer_gets_the_reference() -> TestResult {
+    let (service, _) = service(HashMap::new()).await?;
+    let q = enriched(&service, "DL0AAA", 16, "<GRIDSQUARE:4>AA00 ").await?;
+    assert_reference(&q)?;
+    assert_eq!(
+        q.record.get("APP_LIVEQSOMAP_POS_REJECTED"),
+        Some("logger:placeholder")
+    );
+    service.shutdown().await;
+    Ok(())
+}

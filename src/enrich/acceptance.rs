@@ -31,16 +31,31 @@ impl RejectReason {
     }
 }
 
+/// The cty.dat primary prefix of Antarctica, where locator square `AA00` (the South Pole) can
+/// be a real position.
+const ANTARCTICA: &str = "CE9";
+
 /// Judges one position for a QSO whose callsign belongs to `entity` (a cty.dat primary prefix)
-/// (research R4). `online` is true for online providers: only their positions must lie inside
-/// the entity's area, nested entities excluded. The logger's and the country data's positions
-/// are trusted (FR-012). An unknown entity or area accepts the position.
+/// (research R4), in this order:
+/// 1. exactly 0°/0° is a placeholder, from any source;
+/// 2. a position inside locator square `AA00` is a placeholder, except for Antarctica;
+/// 3. for online providers (`online`), a position outside the entity's area, nested entities
+///    excluded, is rejected. The logger's and the country data's positions are trusted
+///    (FR-012), and an unknown entity or area accepts the position.
 pub fn check(
     position: &Position,
     entity: Option<&str>,
     online: bool,
     areas: &ExtentTable,
 ) -> Verdict {
+    if position.lat == 0.0 && position.lon == 0.0 {
+        return Verdict::Reject(RejectReason::Placeholder);
+    }
+    let in_aa00 =
+        (-90.0..-89.0).contains(&position.lat) && (-180.0..-178.0).contains(&position.lon);
+    if in_aa00 && entity != Some(ANTARCTICA) {
+        return Verdict::Reject(RejectReason::Placeholder);
+    }
     if online
         && let Some(prefix) = entity
         && areas.inside(prefix, position.lat, position.lon) == Some(false)
@@ -121,6 +136,75 @@ mod tests {
         assert_eq!(
             check(&at(BERLIN.0, BERLIN.1), Some("??"), true, &areas),
             Verdict::Accept
+        );
+    }
+
+    // --- placeholders (User Story 3, T016) --------------------------------------------------
+
+    const PLACEHOLDER: Verdict = Verdict::Reject(RejectReason::Placeholder);
+
+    #[test]
+    fn exactly_zero_zero_is_a_placeholder_from_any_source() {
+        let areas = areas();
+        for (entity, online) in [
+            (Some("DL"), true),
+            (None, true),
+            (Some("DL"), false),
+            (None, false),
+        ] {
+            assert_eq!(
+                check(&at(0.0, 0.0), entity, online, &areas),
+                PLACEHOLDER,
+                "{entity:?} {online}"
+            );
+        }
+        assert_eq!(
+            check(&at(0.0, 0.0), Some("CE9"), true, &areas),
+            PLACEHOLDER,
+            "not even Antarctica"
+        );
+    }
+
+    #[test]
+    fn near_zero_positions_are_not_placeholders() {
+        let areas = areas();
+        assert_eq!(check(&at(1e-9, 0.0), None, false, &areas), Verdict::Accept);
+        assert_eq!(
+            check(&at(0.5, 1.0), None, false, &areas),
+            Verdict::Accept,
+            "centre of JJ00"
+        );
+    }
+
+    #[test]
+    fn square_aa00_is_a_placeholder_except_for_antarctica() {
+        let areas = areas();
+        let aa00aa = at(-89.979_166, -179.958_333);
+        let corner = at(-90.0, -180.0);
+        let aa00 = at(-89.5, -179.0);
+        for position in [aa00aa, corner, aa00] {
+            assert_eq!(check(&position, Some("DL"), true, &areas), PLACEHOLDER);
+            assert_eq!(check(&position, None, true, &areas), PLACEHOLDER);
+            assert_eq!(
+                check(&position, Some("DL"), false, &areas),
+                PLACEHOLDER,
+                "logger too"
+            );
+            assert_eq!(
+                check(&position, Some("CE9"), true, &areas),
+                Verdict::Accept,
+                "Antarctica"
+            );
+        }
+        assert_eq!(
+            check(&at(-89.0, -179.0), None, false, &areas),
+            Verdict::Accept,
+            "AA01 is not AA00"
+        );
+        assert_eq!(
+            check(&at(-89.5, -178.0), None, false, &areas),
+            Verdict::Accept,
+            "BA00 is not AA00"
         );
     }
 
