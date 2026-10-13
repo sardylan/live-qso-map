@@ -16,7 +16,7 @@ use crate::entity_extents::ExtentTable;
 use crate::history::{EnrichedQso, QsoEntity, qso_timestamp};
 use crate::ingest::QsoEvent;
 use crate::pipeline::{LookupSource, Pipeline};
-use crate::position::PositionSource;
+use crate::position::{Position, PositionSource};
 
 /// Lookup sources plus their tie-break order (the configured providers, then `cty`), and the
 /// country data that names each QSO's entity (feature 005).
@@ -57,43 +57,64 @@ impl Lookups {
 }
 
 /// Builds the enriched QSO for one event: station position, then the logger's remote position,
-/// else the best lookup result (FR-011 – FR-019).
+/// else the best acceptable lookup result (FR-011 – FR-019; feature 010).
 pub async fn enrich(event: QsoEvent, config: &Config, lookups: &Lookups) -> EnrichedQso {
     let mut record = event.record;
     let station = station::apply_station(&mut record, &config.station);
-    let mut remote = resolve::logger_position(&record);
-    if remote.is_none() && !lookups.sources.is_empty() {
-        let call = record.get("CALL").unwrap_or_default().trim().to_string();
-        let lookup = resolve::resolve_remote(
-            &call,
-            &lookups.sources,
-            &lookups.order,
-            config.lookup.timeout,
-            &|_| acceptance::Verdict::Accept,
-        )
-        .await;
-        let (position, fields) = resolve::select(&lookup.candidates, &lookups.order);
-        for (name, value) in fields.iter() {
-            record.set_if_absent(name, value);
-        }
-        remote = position;
-    }
-    match &remote {
-        Some(position) => resolve::write_position_fields(&mut record, position),
-        None => tracing::warn!(
-            call = record.get("CALL").unwrap_or_default(),
-            "no position found; the QSO is kept but not drawn"
-        ),
-    }
-    // The entity always comes from cty.dat, whatever gave the position (feature 005, FR-002).
+    let call = record.get("CALL").unwrap_or_default().trim().to_string();
+    // The entity always comes from cty.dat for the call as logged, whatever gave the position
+    // (feature 005, FR-002); feature 010 judges remote positions against it.
     let entity = lookups.country.as_ref().and_then(|country| {
-        let info = country.entity_info(record.get("CALL")?)?;
+        let info = country.entity_info(&call)?;
         Some(QsoEntity {
             prefix: info.prefix.to_string(),
             name: info.name.to_string(),
             cq_zone: info.cq_zone,
         })
     });
+    let prefix = entity.as_ref().map(|e| e.prefix.as_str());
+    // (source, found through the base callsign, reason), in the order they happened.
+    let mut rejections: Vec<(&'static str, bool, acceptance::RejectReason)> = Vec::new();
+
+    let mut remote = resolve::logger_position(&record);
+    if remote.is_none() && !lookups.sources.is_empty() {
+        let accept = |position: &Position| {
+            let online = position.source != PositionSource::Cty;
+            acceptance::check(position, prefix, online, &lookups.areas)
+        };
+        let lookup = resolve::resolve_remote(
+            &call,
+            &lookups.sources,
+            &lookups.order,
+            config.lookup.timeout,
+            &accept,
+        )
+        .await;
+        for (source, reason) in &lookup.rejections {
+            rejections.push((source.as_str(), false, *reason));
+        }
+        let (position, fields) = resolve::select(&lookup.candidates, &lookups.order);
+        for (name, value) in fields.iter() {
+            record.set_if_absent(name, value);
+        }
+        remote = position;
+    }
+    for (source, base, reason) in &rejections {
+        tracing::warn!(
+            call,
+            source,
+            reason = reason.as_str(),
+            round = if *base { "base" } else { "logged" },
+            "position rejected"
+        );
+    }
+    if let Some(note) = acceptance::rejection_note(&rejections) {
+        record.set("APP_LIVEQSOMAP_POS_REJECTED", note);
+    }
+    match &remote {
+        Some(position) => resolve::write_position_fields(&mut record, position),
+        None => tracing::warn!(call, "no position found; the QSO is kept but not drawn"),
+    }
     let sort_ts = record
         .get("QSO_DATE")
         .zip(record.get("TIME_ON"))

@@ -109,14 +109,14 @@ rejected, and the entity's reference point is used. Rejections are noted and log
 
 ### Tests for User Story 1 (write first, confirm they FAIL)
 
-- [ ] T008 [P] [US1] Write failing unit tests for `check(position, entity_prefix, online, areas) -> Verdict` in `src/enrich/acceptance.rs`:
+- [X] T008 [P] [US1] Write failing unit tests for `check(position, entity_prefix, online, areas) -> Verdict` in `src/enrich/acceptance.rs`:
   - a Sardinian point for `IS` gives `Verdict::Accept`; for `I` it gives
     `Verdict::Reject(OutsideEntity)`;
   - a German point for `IS` is rejected;
   - a Roman point for `I` is accepted;
   - with `online == false` (logger, cty), there is no area rejection;
   - an unknown entity is accepted.
-- [ ] T009 [P] [US1] Write failing integration tests in the new `tests/portable_callsigns.rs`, with `tests/fixtures/cty-portable.dat` and fake providers:
+- [X] T009 [P] [US1] Write failing integration tests in the new `tests/portable_callsigns.rs`, with `tests/fixtures/cty-portable.dat` and fake providers:
   - **Row 1:** `IS0/DL0AAA` online in Sardinia keeps that locator.
   - **Row 2:** `IS0/DL0AAA` online at a German home gets Sardinia's reference point, precision
     "country", and `APP_LIVEQSOMAP_POS_REJECTED=qrz:outside-entity`. No `QTH`/`COUNTRY` from
@@ -131,8 +131,8 @@ rejected, and the entity's reference point is used. Rejections are noted and log
 
 ### Implementation for User Story 1
 
-- [ ] T010 [US1] Implement `check(…) -> Verdict` for the area rule in `src/enrich/acceptance.rs` (research R4 step 3), using `ExtentTable::inside`. Make T008 pass.
-- [ ] T011 [US1] Wire it into `enrich()` in `src/enrich/mod.rs`:
+- [X] T010 [US1] Implement `check(…) -> Verdict` for the area rule in `src/enrich/acceptance.rs` (research R4 step 3), using `ExtentTable::inside`. Make T008 pass.
+- [X] T011 [US1] Wire it into `enrich()` in `src/enrich/mod.rs`:
   1. compute the logged call's entity **before** the lookups (move the existing
      `entity_info` call up);
   2. pass a filter that applies `check` with `online = (candidate source != Cty)`;
