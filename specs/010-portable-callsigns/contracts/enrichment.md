@@ -46,6 +46,9 @@ the note.
 - **Removed from a rejected candidate before merging:** `GRIDSQUARE`, `LAT`, `LON`, `QTH`,
   `STATE`, `CNTY`, `COUNTRY`, `DXCC`, `CQZ`, `ITUZ`, `CONT`, `IOTA`.
 - **Kept and merged as today, without overwriting:** every other field (`NAME`, …).
+- **A rejected logger placeholder:** its `LAT`, `LON` and `GRIDSQUARE` are removed from the record
+  (rows 15–16). Otherwise they would stay next to the position actually used, which is never
+  overwritten (FR-017). The rejection note records that the logger sent a placeholder.
 - **`APP_LIVEQSOMAP_POS_REJECTED`:**
   - grammar: `entry ("," entry)*`, where `entry = source ["@base"] ":" reason`;
   - `source` is one of `logger`, `qrz`, `hamqth`, `qrzcq`, `cty`;

@@ -78,6 +78,18 @@ pub async fn enrich(event: QsoEvent, config: &Config, lookups: &Lookups) -> Enri
     let mut rejections: Vec<(&'static str, bool, acceptance::RejectReason)> = Vec::new();
 
     let mut remote = resolve::logger_position(&record);
+    // A placeholder from the logger (0°/0°, AA00) is no position: drop it and its fields, and
+    // look the call up as if the logger had sent nothing (FR-008, FR-012).
+    if let Some(position) = remote
+        && let acceptance::Verdict::Reject(reason) =
+            acceptance::check(&position, prefix, false, &lookups.areas)
+    {
+        rejections.push((position.source.as_str(), false, reason));
+        for name in ["LAT", "LON", "GRIDSQUARE"] {
+            record.remove(name);
+        }
+        remote = None;
+    }
     if remote.is_none() && !lookups.sources.is_empty() {
         let accept = |position: &Position| {
             let online = position.source != PositionSource::Cty;
