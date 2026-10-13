@@ -26,9 +26,14 @@ export function onClose(connection, rand = Math.random) {
   return delay;
 }
 
-/** Messages to send after every (re)connect, once the server said hello. */
+/**
+ * Messages to send after every (re)connect, once the server said hello. `bands` (feature 011,
+ * protocol 4) is sent once the page has a band choice: a list, or `null` for every band.
+ */
 export function onHello(connection) {
-  return [{ type: 'set_limit', limit: connection.limit }];
+  const message = { type: 'set_limit', limit: connection.limit };
+  if (connection.bands !== undefined) message.bands = connection.bands;
+  return [message];
 }
 
 export function loadLimit(storage) {

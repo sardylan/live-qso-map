@@ -11,6 +11,7 @@ import {
   setLimit,
   setMapLimit,
   serverLimit,
+  setShownBands,
 } from '../src/web/assets/map-state.js';
 
 const bands = [
@@ -259,4 +260,35 @@ test('after applyRemove the same id comes back as new', () => {
   applyRemove(s, 'Q01');
   applyUpsert(s, qso(1, { rev: 1, call: 'BACK' }));
   assert.equal(visible(s)[0].call, 'BACK');
+});
+
+test('with bands set, only QSOs on those bands are drawn and listed', () => {
+  const s = state(5);
+  applySnapshot(s, [
+    qso(1, { band: '40M' }),
+    qso(2, { band: '20m' }),
+    qso(3, { band: undefined }),
+    qso(4, { band: '40m' }),
+  ]);
+  setShownBands(s, ['40m']);
+  assert.deepEqual(held(s).map((q) => q.id), ['Q01', 'Q04'], 'case-insensitive; no BAND is hidden');
+  assert.deepEqual(visible(s).map((q) => q.id), ['Q01', 'Q04']);
+  assert.equal(markers(s).size, 2);
+  setShownBands(s, null);
+  assert.deepEqual(held(s).map((q) => q.id), ['Q01', 'Q02', 'Q03', 'Q04'], 'null shows everything');
+});
+
+test('a correction onto a hidden band removes the QSO from what is drawn', () => {
+  const s = state();
+  applySnapshot(s, [qso(1), qso(2)]);
+  setShownBands(s, ['40m']);
+  applyUpsert(s, qso(2, { rev: 2, band: '20m' }));
+  assert.deepEqual(visible(s).map((q) => q.id), ['Q01']);
+});
+
+test('"last N" counts only the shown QSOs', () => {
+  const s = state(2);
+  applySnapshot(s, [qso(1), qso(2), qso(3, { band: '20m' }), qso(4, { band: '20m' })]);
+  setShownBands(s, ['40m']);
+  assert.deepEqual(visible(s).map((q) => q.id), ['Q01', 'Q02']);
 });

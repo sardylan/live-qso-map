@@ -14,6 +14,7 @@ import {
   setLimit,
   setMapLimit,
   serverLimit,
+  setShownBands,
 } from './map-state.js';
 import { markerFeatures, lineFeatures } from './layers.js';
 import { currentQth, houseFeature, HOUSE_SVG } from './qth.js';
@@ -57,6 +58,7 @@ import {
 } from './autozoom-geo.js';
 import { createConnection, onOpen, onClose, onHello as handshake, loadLimit, saveLimit } from './connection.js';
 import * as panelState from './panel.js';
+import { offeredGroups, chosenBands, loadLegend, saveLegend, toggleGroup } from './legend.js';
 
 const OVERLAYS = ['qso-lines', 'qth', 'qso-markers'];
 const QTH_POPUP = 'qth';
@@ -133,6 +135,11 @@ const darkQuery = typeof window.matchMedia === 'function' ? window.matchMedia('(
 const THEME_TICK_MS = 60_000;
 // The globe's atmosphere (feature 011, FR-010): on unless the viewer switched it off.
 let atmosphere = loadAtmosphere(localStore());
+// The Legend group (feature 011, US4): the groups from `hello`, every considered band (`hello.bands`,
+// frequency order) and the viewer's choice, `all` or group names.
+let bandGroups = [];
+let helloBands = [];
+let legendChoice = 'all';
 
 function element(tag, className, text) {
   const node = document.createElement(tag);
@@ -744,6 +751,58 @@ function showLegend(bands) {
   box.hidden = bands.length === 0;
 }
 
+/** The bands the Legend choice shows, or `null` for every band. */
+function shownBands() {
+  return chosenBands(legendChoice, bandGroups, helloBands.map((b) => b.band));
+}
+
+/** Tells the server the window and the bands; the session keeps both until the next one. */
+function sendSetLimit() {
+  if (!socket || socket.readyState !== WebSocket.OPEN) return;
+  socket.send(JSON.stringify({ type: 'set_limit', limit: serverLimit(connection.limit), bands: shownBands() }));
+}
+
+/** The Legend group's checkboxes, rebuilt from `hello.band_groups` on every hello. */
+function renderLegendGroup() {
+  const all = document.getElementById('legend-all');
+  all.checked = legendChoice === 'all';
+  const box = document.getElementById('legend-groups');
+  box.replaceChildren();
+  for (const group of bandGroups) {
+    const label = element('label');
+    const input = element('input');
+    input.type = 'checkbox';
+    input.value = group.name;
+    input.checked = legendChoice !== 'all' && legendChoice.includes(group.name);
+    input.addEventListener('change', () => changeLegend(group.name));
+    label.append(input, document.createTextNode(` ${group.text}`));
+    box.append(label);
+  }
+  // An older server offers no groups: the group then has nothing to choose.
+  document.getElementById('group-legend').hidden = bandGroups.length === 0;
+}
+
+/** Applies the Legend choice to the legend and the map state (FR-013). */
+function applyLegend() {
+  const bands = shownBands();
+  if (state) setShownBands(state, bands);
+  const wanted = bands === null ? null : new Set(bands);
+  showLegend(wanted === null ? helloBands : helloBands.filter((b) => wanted.has(b.band)));
+}
+
+function changeLegend(name) {
+  legendChoice = toggleGroup(legendChoice, name);
+  saveLegend(localStore(), legendChoice);
+  renderLegendGroup();
+  applyLegend();
+  if (state) {
+    render();
+    renderRecent();
+    autozoom.change();
+  }
+  sendSetLimit();
+}
+
 function onHello(hello) {
   helloStation = hello.station ?? null;
   entity = hello.entity ?? null;
@@ -751,15 +810,20 @@ function onHello(hello) {
   // The theme first, so the map starts with the right style (no light flash at night).
   updateTheme();
   if (!map) createMap(hello);
-  showLegend(hello.bands);
+  helloBands = hello.bands;
+  bandGroups = offeredGroups(hello.band_groups);
+  legendChoice = loadLegend(localStore(), bandGroups.map((g) => g.name));
+  renderLegendGroup();
   if (hello.recent && Array.isArray(hello.recent.columns)) recentConfig = hello.recent;
   state = createState({ bands: hello.bands, fallbackColor: hello.fallback_color, limit: connection.limit });
+  applyLegend();
   renderRecent();
   // The service may have restarted and lost its score: show none until it sends one (R7).
   scoreState = null;
   renderScore();
   // Ask for at least 20 QSOs, so the box has its rows whatever the map shows (TR-006).
-  for (const message of handshake({ limit: serverLimit(connection.limit) })) {
+  // The band choice too, so a reconnected session gets the same filtered snapshot (FR-013).
+  for (const message of handshake({ limit: serverLimit(connection.limit), bands: shownBands() })) {
     socket.send(JSON.stringify(message));
   }
 }
@@ -835,6 +899,8 @@ function setupSelector() {
     applySky();
   });
 
+  document.getElementById('legend-all').addEventListener('change', () => changeLegend('all'));
+
   const select = document.getElementById('limit');
   select.value = connection.limit === null ? 'all' : String(connection.limit);
   select.addEventListener('change', () => {
@@ -847,9 +913,7 @@ function setupSelector() {
       renderRecent();
       autozoom.change();
     }
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({ type: 'set_limit', limit: serverLimit(connection.limit) }));
-    }
+    sendSetLimit();
   });
 
   // The box's show/hide switch, in the settings panel since feature 007 (FR-010), with the
