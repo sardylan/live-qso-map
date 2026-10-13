@@ -110,7 +110,8 @@ A rehearsal runs everything a release builds and tests, but publishes nothing:
 - the five builds;
 - the three Debian packages, and their install/upgrade/remove tests;
 - the Windows and macOS archives;
-- the container image smoke test.
+- the container image smoke test;
+- the browser tests (section 11).
 
 It receives no secrets, and it never starts by itself. Run one before tagging whenever the release
 path changed: executors, cross images, packaging or the image.
@@ -228,7 +229,44 @@ circleci api -X POST api/v2/projects/e4ace6e1-9360-4882-9faf-21f77e871b0e/pipeli
   in `deny.toml`. If it isn't, replace the dependency.
 - **A documentation warning:** fix the doc comment.
 
-## 11. Local reproduction
+## 11. Browser tests
+
+`browser-test` opens the release's map page in a real browser before anything is published
+(feature 012). It runs `node tests/browser/run.mjs` against the x86_64 release binary:
+- **Session:** QSOs over UDP, the settings panel, the three themes, a reload, a restart of the
+  program and a band-group choice (`tests/browser/README.md`).
+- **Failures:** a failed request to the program, a script error, a missing control, or a missed
+  time limit. Base-map tiles and map-library warnings never fail it.
+
+**When:** on release tags and in the rehearsal (section 7) only. Pull requests, `main` pushes and
+the weekly run (section 9) never run it.
+
+**What it blocks:** `publish-github-release` requires it, and `docker-promote` requires
+`publish-github-release`. A failure therefore stops both the GitHub release and the Docker Hub
+tags. The `-rc` image may already be pushed; it is never promoted.
+
+**Where to look:** the job's Artifacts tab, folder `browser-test/`:
+- `report.json`: steps, results and times;
+- `console.log`: every console message, exception and failed request, with `FATAL` on the ones
+  that failed the run;
+- `program-a.log` and `program-b.log`: the program's own output;
+- one screenshot per tested state, plus `NN-<step>-failed.png` for the failed step.
+
+The job stores the artifacts first and fails afterwards, so they are there for a failed run too.
+"Rerun workflow from failed" runs `browser-test` again: it keeps no cache.
+
+**Its pins:** the image `cimg/node:24.21.0-browsers`, which holds Chrome's libraries but not
+Chrome, and Chrome for Testing 154.0.8037.92 with its SHA-256. To bump Chrome:
+1. pick a version at least two weeks old from
+   `https://googlechromelabs.github.io/chrome-for-testing/known-good-versions-with-downloads.json`;
+2. download its `linux64` `chrome-linux64.zip` and compute its SHA-256;
+3. update the URL and the hash in the `browser-test` job and in `tools/test_ci_config.py`;
+4. run a rehearsal.
+
+**Locally:** `cargo build --release`, then `node tests/browser/run.mjs`. You need Node 22+ and
+Chrome or Chromium; `--headed` shows the window. It isn't one of the merge gates.
+
+## 12. Local reproduction
 
 Everything the gates run can be repeated on any host with `cargo`, `node` and `python3`:
 

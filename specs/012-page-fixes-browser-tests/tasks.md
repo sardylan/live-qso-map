@@ -184,12 +184,12 @@ merge.
 
 ### Tests for User Story 2 (write first, confirm they FAIL)
 
-- [ ] T014 [US2] Add failing tests to `tools/test_ci_config.py`, a class `BrowserTests` (contracts/pipeline.md):
+- [X] T014 [US2] Add failing tests to `tools/test_ci_config.py`, a class `BrowserTests` (contracts/pipeline.md):
   - **The job:**
     - a job `browser-test` exists, using the image `cimg/node:24.21.0-browsers`;
     - it `fetch-verified`s `https://storage.googleapis.com/chrome-for-testing-public/154.0.8037.92/linux64/chrome-linux64.zip` with SHA-256 `ff43322f335e436b2f4dcdfeeec5db032299e335a7e8c1c618b326e100ce8732`;
     - it runs `node tests/browser/run.mjs` with `--binary ws/bin/x86_64-unknown-linux-musl/live-qso-map`;
-    - it has a `store_artifacts` of `target/browser-test` with `when: always`;
+    - it keeps `target/browser-test` as artifacts whatever the result: the test step records the runner's exit code, `store_artifacts` follows, and a last step exits with that code (implemented this way because `when: always` is documented for `run` steps only);
     - neither workflow gives the `browser-test` entry a `context:` (FR-013).
   - **Release workflow:** the job uses `filters: *release-tags` and requires `build-linux-x86_64-unknown-linux-musl`, and `publish-github-release` requires `browser-test`.
   - **Rehearsal workflow:** the job is present there, and `rehearsal-summary` requires it.
@@ -197,11 +197,11 @@ merge.
 
 ### Implementation for User Story 2
 
-- [ ] T015 [US2] Add the `browser-test` job to `.circleci/config.yml` per contracts/pipeline.md.
+- [X] T015 [US2] Add the `browser-test` job to `.circleci/config.yml` per contracts/pipeline.md.
   - **Workflows:** add it to the release workflow (with `filters: *release-tags`, after the x86_64 build) and to the rehearsal workflow; add it to the `requires` of `publish-github-release` and of `rehearsal-summary`.
-  - **Artifacts:** add `when: always` on the `store_artifacts` step.
+  - **Artifacts:** the test step saves the exit code (`|| status=$?`), `store_artifacts` follows, and a last step `exit "$(cat browser-test-status)"` fails the job.
   - **Checks:** run `circleci config validate`, and make T014 pass.
-- [ ] T016 [US2] Document the browser tests (FR-014):
+- [X] T016 [US2] Document the browser tests (FR-014):
   - **`docs/ci.md`:** a section after "Audit gate": when they run, what they block, the artifacts (`browser-test/` on the job's Artifacts tab), how to bump the Chrome pin, how to run them locally, and that "Rerun workflow from failed" runs `browser-test` again (it keeps no cache). Also add the job to the rehearsal list in §7.
   - **`docs/releasing.md`:** `browser-test` must be green before `publish-github-release`, and where to look when it fails.
 - [ ] T017 [US2] **Verify** in rehearsal runs (`docs/ci.md` §7, `--param rehearsal=true`):
