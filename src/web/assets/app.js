@@ -37,6 +37,9 @@ import {
   saveRecentOrder,
   basemapFor,
   DEFAULT_STYLE_URL,
+  loadAtmosphere,
+  saveAtmosphere,
+  skyFor,
 } from './view.js';
 import { PALETTES, applyPalette, resolveTheme, loadTheme, saveTheme, themeStatus } from './themes.js';
 import { solarElevation } from './sun.js';
@@ -128,6 +131,8 @@ let activeStyleUrl = null;
 const darkQuery = typeof window.matchMedia === 'function' ? window.matchMedia('(prefers-color-scheme: dark)') : null;
 // The automatic theme is re-checked this often (FR-003: within 60 s).
 const THEME_TICK_MS = 60_000;
+// The globe's atmosphere (feature 011, FR-010): on unless the viewer switched it off.
+let atmosphere = loadAtmosphere(localStore());
 
 function element(tag, className, text) {
   const node = document.createElement(tag);
@@ -488,6 +493,7 @@ function showProjection(next) {
   if (next === shown) return;
   shown = next;
   if (loaded) map.setProjection({ type: shown });
+  applySky();
   if (projectionControl) projectionControl.update();
   updateScale();
 }
@@ -632,6 +638,7 @@ function applyOverlayTheme() {
   if (!loaded || !currentTheme) return;
   const palette = PALETTES[currentTheme];
   map.setPaintProperty('qso-lines', 'line-color', palette.line);
+  applySky();
   const { dimOpacity } = basemapFor(basemap, palette, DEFAULT_STYLE_URL);
   if (dimOpacity > 0) {
     if (!map.getLayer('theme-dim')) {
@@ -649,6 +656,12 @@ function applyOverlayTheme() {
   }
 }
 
+/** The sky and atmosphere for the theme and the projection on screen (FR-010, FR-011). */
+function applySky() {
+  if (!loaded || !currentTheme) return;
+  map.setSky(skyFor(PALETTES[currentTheme], { atmosphere, projection: shown }));
+}
+
 /** Everything the page adds to a style, again after every style switch. */
 function onStyleLoad() {
   map.setProjection({ type: shown });
@@ -657,6 +670,7 @@ function onStyleLoad() {
   current = new Map();
   qth = null;
   applyOverlayTheme();
+  applySky();
   render();
   autozoom.change();
 }
@@ -813,6 +827,14 @@ function setupAppearance() {
 }
 
 function setupSelector() {
+  const atmosphereBox = document.getElementById('atmosphere');
+  atmosphereBox.checked = atmosphere;
+  atmosphereBox.addEventListener('change', () => {
+    atmosphere = atmosphereBox.checked;
+    saveAtmosphere(localStore(), atmosphere);
+    applySky();
+  });
+
   const select = document.getElementById('limit');
   select.value = connection.limit === null ? 'all' : String(connection.limit);
   select.addEventListener('change', () => {

@@ -211,3 +211,44 @@ test('an operator base map keeps its style and is dimmed', () => {
     dimOpacity: 0.35,
   });
 });
+
+// --- atmosphere (feature 011, User Story 3, T016) -----------------------------------------
+
+import { loadAtmosphere, saveAtmosphere, skyFor } from '../src/web/assets/view.js';
+
+function atmosphereStore(initial = {}) {
+  const data = { ...initial };
+  return {
+    getItem: (k) => (k in data ? data[k] : null),
+    setItem: (k, v) => {
+      data[k] = String(v);
+    },
+    data,
+  };
+}
+
+test('the atmosphere is on by default and its choice is saved', () => {
+  assert.equal(loadAtmosphere(atmosphereStore()), true);
+  const store = atmosphereStore();
+  saveAtmosphere(store, false);
+  assert.equal(store.data['lqm.atmosphere'], 'off');
+  assert.equal(loadAtmosphere(store), false);
+  saveAtmosphere(store, true);
+  assert.equal(store.data['lqm.atmosphere'], 'on');
+  assert.equal(loadAtmosphere(atmosphereStore({ 'lqm.atmosphere': 'maybe' })), true, 'unknown value');
+  assert.equal(loadAtmosphere(null), true);
+  const throwing = { getItem: () => { throw new Error('denied'); }, setItem: () => { throw new Error('denied'); } };
+  assert.equal(loadAtmosphere(throwing), true);
+  assert.doesNotThrow(() => saveAtmosphere(throwing, false));
+});
+
+test('the sky shows the atmosphere only on the globe, with the theme colours', () => {
+  const palette = { sky: '#0b1426', horizon: '#1b2a4a', fog: '#0e1a30' };
+  const globe = skyFor(palette, { atmosphere: true, projection: 'globe' });
+  assert.equal(globe['atmosphere-blend'], 1);
+  assert.equal(globe['sky-color'], '#0b1426');
+  assert.equal(globe['horizon-color'], '#1b2a4a');
+  assert.equal(globe['fog-color'], '#0e1a30');
+  assert.equal(skyFor(palette, { atmosphere: false, projection: 'globe' })['atmosphere-blend'], 0);
+  assert.equal(skyFor(palette, { atmosphere: true, projection: 'mercator' })['atmosphere-blend'], 0, 'flat map');
+});
