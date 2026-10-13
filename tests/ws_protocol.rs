@@ -39,7 +39,7 @@ async fn every_page_receives_hello_snapshot_and_live_upserts() {
         let hello = next_json(ws, Duration::from_secs(2)).await.unwrap();
         assert_eq!(hello["type"], "hello");
         assert_eq!(hello["default_limit"], 20);
-        assert_eq!(hello["protocol"], 3);
+        assert_eq!(hello["protocol"], 4);
         // test_config(): IS0MZK at JM49NH.
         assert_eq!(hello["station"]["callsign"], "IS0MZK");
         assert_eq!(hello["station"]["locator"], "JM49NH");
@@ -140,9 +140,9 @@ async fn static_assets_are_served() {
         "sha512-KIMsMWIdnoG9OwZa+oaIafmbDonqck1UCmq+/zcUi2aaZ97N9QE6TqpTM+n36EO40HGh64hU/375zxtjx7WTyQ=="
     ));
     assert!(!index.to_lowercase().contains("leaflet"));
-    // Feature 007 layout: one settings panel holding the box switch, and the bottom-left column.
+    // Feature 011 layout: one gear-opened side panel holding the box switch; feature 007 column.
     for id in [
-        r#"id="settings""#,
+        r#"id="panel""#,
         r#"id="recent-shown""#,
         r#"id="corner-bl""#,
         r#"id="score""#,
@@ -341,7 +341,7 @@ async fn a_page_gets_the_station_and_qsos_that_share_it() {
 
     let mut ws = connect(service.http_addr).await;
     let hello = next_json(&mut ws, Duration::from_secs(2)).await.unwrap();
-    assert_eq!(hello["protocol"], 3);
+    assert_eq!(hello["protocol"], 4);
     let station = hello["station"]["position"].clone();
     assert_eq!(station["source"], "config");
     let snapshot = next_json(&mut ws, Duration::from_secs(2)).await.unwrap();
@@ -517,5 +517,64 @@ async fn the_band_filter_does_not_hide_the_score() {
     send_udp(service.udp_addr, &score_packet(3)).await;
     let m = next_json(&mut ws, Duration::from_secs(2)).await.unwrap();
     assert_score(&m, (90, 6, 10));
+    service.shutdown().await;
+}
+
+/// Like `batch`, with every third QSO on 40 m and the others on 20 m (feature 011).
+fn mixed_batch(count: usize) -> Vec<u8> {
+    let mut out = String::new();
+    for i in 0..count {
+        let call = format!("K{}Y{:04}", i % 10, i);
+        let time = format!("{:02}{:02}{:02}", 10 + i / 3600, (i / 60) % 60, i % 60);
+        let band = if i % 3 == 0 { "40m" } else { "20m" };
+        out.push_str(&format!(
+            "<CALL:{}>{call} <QSO_DATE:8>20261013 <TIME_ON:6>{time} <BAND:3>{band} <MODE:2>CW <GRIDSQUARE:4>FN{}{} <EOR>",
+            call.len(),
+            i % 10,
+            (i / 10) % 10
+        ));
+    }
+    out.into_bytes()
+}
+
+#[tokio::test]
+async fn pages_can_ask_for_the_last_n_on_chosen_bands() {
+    let service = start(test_config(), None).await.unwrap();
+    send_udp(service.udp_addr, &mixed_batch(45)).await;
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
+    while service.history_len() < 45 && tokio::time::Instant::now() < deadline {
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+
+    let mut page = connect(service.http_addr).await;
+    let hello = next_json(&mut page, Duration::from_secs(3)).await.unwrap();
+    assert_eq!(hello["protocol"], 4);
+    let group = &hello["band_groups"].as_array().unwrap()[2];
+    assert_eq!(group["name"], "hf-contest");
+    assert_eq!(group["label"], "HF contest");
+    next_json(&mut page, Duration::from_secs(3)).await.unwrap(); // first snapshot
+
+    let text = serde_json::json!({"type": "set_limit", "limit": 10, "bands": ["40m"]}).to_string();
+    page.send(Message::Text(text.into())).await.unwrap();
+    let snapshot = next_json(&mut page, Duration::from_secs(2)).await.unwrap();
+    assert_eq!(snapshot["type"], "snapshot");
+    let bands: Vec<&str> = snapshot["qsos"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|q| q["band"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        bands.len(),
+        10,
+        "15 QSOs are on 40 m: the newest 10 of them"
+    );
+    assert!(bands.iter().all(|b| *b == "40m"), "{bands:?}");
+
+    // A page sending no bands still gets every QSO.
+    let mut old = connect(service.http_addr).await;
+    next_json(&mut old, Duration::from_secs(3)).await.unwrap();
+    let snapshot = next_json(&mut old, Duration::from_secs(3)).await.unwrap();
+    assert_eq!(ids(&snapshot).len(), 20);
     service.shutdown().await;
 }

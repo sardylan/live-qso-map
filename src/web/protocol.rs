@@ -12,7 +12,7 @@ use crate::pipeline::ScoreState;
 use crate::position::Position;
 use crate::recent_columns::Column;
 
-pub const PROTOCOL_VERSION: u32 = 3;
+pub const PROTOCOL_VERSION: u32 = 4;
 pub const DEFAULT_LIMIT: usize = 20;
 /// Limits a page may select; `None` means All.
 pub const LIMITS: [Option<usize>; 7] = [
@@ -115,6 +115,8 @@ pub enum ServerMessage {
         limits: Vec<Option<usize>>,
         default_limit: usize,
         bands: Vec<BandColor>,
+        /// The band groups with at least one considered band (feature 011, FR-012).
+        band_groups: Vec<BandGroupView>,
         fallback_color: String,
         basemap: BaseMap,
         station: Option<StationView>,
@@ -167,6 +169,10 @@ impl ServerMessage {
                 .into_iter()
                 .filter(|b| filter.is_none_or(|f| f.contains(&b.band)))
                 .collect(),
+            band_groups: crate::band_filter::considered_groups(filter)
+                .into_iter()
+                .map(BandGroupView::from)
+                .collect(),
             fallback_color: map.fallback_color.clone(),
             basemap: map.basemap(),
             station: station.station.clone(),
@@ -179,11 +185,33 @@ impl ServerMessage {
     }
 }
 
+/// A band group in `hello` (feature 011, contracts/websocket-protocol.md).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct BandGroupView {
+    pub name: &'static str,
+    pub label: &'static str,
+    /// Only the considered bands, in frequency order (HR-2).
+    pub bands: Vec<&'static str>,
+}
+
+impl From<crate::band_filter::ConsideredGroup> for BandGroupView {
+    fn from(group: crate::band_filter::ConsideredGroup) -> Self {
+        Self {
+            name: group.name,
+            label: group.label,
+            bands: group.bands,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ClientMessage {
     SetLimit {
         limit: Option<usize>,
+        /// Only QSOs on these bands in the snapshot; absent or null: every band (feature 011).
+        #[serde(default)]
+        bands: Option<Vec<String>>,
     },
     #[serde(other)]
     Unknown,
@@ -293,17 +321,24 @@ mod tests {
 
     #[test]
     fn hello_shape() {
-        let v = serde_json::to_value(ServerMessage::hello(
+        let mut v = serde_json::to_value(ServerMessage::hello(
             &map_config(),
             None,
             &HelloStation::default(),
         ))
         .unwrap();
+        // Every band considered: every group, with all its bands (feature 011).
+        let groups = v.as_object_mut().unwrap().remove("band_groups").unwrap();
+        assert_eq!(groups.as_array().unwrap().len(), 8);
+        assert_eq!(
+            groups[2],
+            json!({"name": "hf-contest", "label": "HF contest", "bands": ["160m", "80m", "40m", "20m", "15m", "10m"]})
+        );
         assert_eq!(
             v,
             json!({
                 "type": "hello",
-                "protocol": 3,
+                "protocol": 4,
                 "limits": [10, 20, 50, 100, 200, 500, null],
                 "default_limit": 20,
                 "bands": [
@@ -383,11 +418,31 @@ mod tests {
     fn client_messages() {
         assert_eq!(
             ClientMessage::parse(r#"{"type":"set_limit","limit":100}"#),
-            ClientMessage::SetLimit { limit: Some(100) }
+            ClientMessage::SetLimit {
+                limit: Some(100),
+                bands: None
+            }
         );
         assert_eq!(
             ClientMessage::parse(r#"{"type":"set_limit","limit":null}"#),
-            ClientMessage::SetLimit { limit: None }
+            ClientMessage::SetLimit {
+                limit: None,
+                bands: None
+            }
+        );
+        assert_eq!(
+            ClientMessage::parse(r#"{"type":"set_limit","limit":20,"bands":["40m","20m"]}"#),
+            ClientMessage::SetLimit {
+                limit: Some(20),
+                bands: Some(vec!["40m".into(), "20m".into()])
+            }
+        );
+        assert_eq!(
+            ClientMessage::parse(r#"{"type":"set_limit","limit":20,"bands":null}"#),
+            ClientMessage::SetLimit {
+                limit: Some(20),
+                bands: None
+            }
         );
         assert_eq!(
             ClientMessage::parse(r#"{"type":"ping"}"#),
@@ -451,7 +506,7 @@ mod tests {
         assert_eq!(bands(&filtered), ["160m", "20m"]);
         assert_eq!(bands(&all), ["160m", "60m", "20m", "2m"]);
         for v in [&filtered, &all] {
-            assert_eq!(v["protocol"], 3);
+            assert_eq!(v["protocol"], 4);
             assert_eq!(v["basemap"], serde_json::to_value(map.basemap()).unwrap());
         }
     }
@@ -561,7 +616,7 @@ mod tests {
             v["recent"],
             json!({"columns": ["country", "call", "mode"], "header": false})
         );
-        assert_eq!(v["protocol"], 3);
+        assert_eq!(v["protocol"], 4);
     }
 
     #[test]
@@ -581,8 +636,8 @@ mod tests {
         let v = serde_json::to_value(QsoView::from(&q)).unwrap();
         assert_eq!(v["entity"], serde_json::Value::Null);
         assert_eq!(
-            PROTOCOL_VERSION, 3,
-            "an added field does not bump the protocol"
+            PROTOCOL_VERSION, 4,
+            "protocol 4: hello.band_groups and set_limit.bands"
         );
     }
 
@@ -637,5 +692,27 @@ mod tests {
             panic!("expected a score");
         };
         assert_eq!(age_s, 0);
+    }
+
+    #[test]
+    fn hello_band_groups_follow_the_considered_bands() {
+        let hf = crate::band_filter::parse_setting(&["hf".to_string()]).unwrap();
+        let v = serde_json::to_value(ServerMessage::hello(
+            &map_config(),
+            hf.as_ref(),
+            &HelloStation::default(),
+        ))
+        .unwrap();
+        let names: Vec<&str> = v["band_groups"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|g| g["name"].as_str().unwrap())
+            .collect();
+        assert_eq!(names, ["hf", "hf-contest", "warc"]);
+        assert_eq!(
+            v["band_groups"][2],
+            json!({"name": "warc", "label": "WARC", "bands": ["30m", "17m", "12m"]})
+        );
     }
 }

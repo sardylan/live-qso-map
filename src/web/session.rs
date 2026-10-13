@@ -13,9 +13,28 @@ use crate::web::protocol::{
     ClientMessage, DEFAULT_LIMIT, HelloStation, QsoView, ServerMessage, is_allowed_limit,
 };
 
+/// Keeps the valid band names, in canonical form; unknown names are dropped (logged at debug
+/// level), and a list left empty means every band (contracts/websocket-protocol.md).
+fn clean_bands(bands: Option<Vec<String>>) -> Option<Vec<String>> {
+    let bands = bands?;
+    let valid: Vec<String> = bands
+        .iter()
+        .filter_map(|b| {
+            let canonical = crate::band::canonical_band(b);
+            if canonical.is_none() {
+                tracing::debug!(band = %b, "ignoring an unknown band in set_limit");
+            }
+            canonical.map(str::to_string)
+        })
+        .collect();
+    (!valid.is_empty()).then_some(valid)
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Session {
     limit: Option<usize>,
+    /// The bands the page shows, canonical names; `None` for every band (feature 011).
+    bands: Option<Vec<String>>,
 }
 
 impl Default for Session {
@@ -28,6 +47,7 @@ impl Session {
     pub fn new() -> Self {
         Self {
             limit: Some(DEFAULT_LIMIT),
+            bands: None,
         }
     }
 
@@ -64,11 +84,12 @@ impl Session {
 
     pub fn on_client(&mut self, message: ClientMessage, history: &History) -> Vec<ServerMessage> {
         match message {
-            ClientMessage::SetLimit { limit } if is_allowed_limit(limit) => {
+            ClientMessage::SetLimit { limit, bands } if is_allowed_limit(limit) => {
                 self.limit = limit;
+                self.bands = clean_bands(bands);
                 vec![self.snapshot(history)]
             }
-            ClientMessage::SetLimit { limit } => {
+            ClientMessage::SetLimit { limit, .. } => {
                 tracing::debug!(
                     ?limit,
                     "ignoring set_limit with a value outside the allowed set"
@@ -90,7 +111,7 @@ impl Session {
         ServerMessage::Snapshot {
             limit: self.limit,
             qsos: history
-                .latest(self.limit)
+                .latest_matching(self.limit, self.bands.as_deref())
                 .iter()
                 .map(|q| QsoView::from(q.as_ref()))
                 .collect(),
@@ -279,14 +300,23 @@ mod tests {
         let p = pipeline_with(150, 16);
         let mut session = Session::new();
         let msgs = session.on_client(
-            ClientMessage::SetLimit { limit: Some(100) },
+            ClientMessage::SetLimit {
+                limit: Some(100),
+                bands: None,
+            },
             &p.lock_history(),
         );
         assert_eq!(msgs.len(), 1);
         assert_eq!(snapshot_len(&msgs[0]), (Some(100), 100));
         assert_eq!(session.limit(), Some(100));
 
-        let msgs = session.on_client(ClientMessage::SetLimit { limit: None }, &p.lock_history());
+        let msgs = session.on_client(
+            ClientMessage::SetLimit {
+                limit: None,
+                bands: None,
+            },
+            &p.lock_history(),
+        );
         assert_eq!(snapshot_len(&msgs[0]), (None, 150));
     }
 
@@ -297,7 +327,10 @@ mod tests {
         assert!(
             session
                 .on_client(
-                    ClientMessage::SetLimit { limit: Some(7) },
+                    ClientMessage::SetLimit {
+                        limit: Some(7),
+                        bands: None
+                    },
                     &p.lock_history()
                 )
                 .is_empty()
@@ -310,7 +343,10 @@ mod tests {
         let p = pipeline_with(60, 16);
         let mut session = Session::new();
         session.on_client(
-            ClientMessage::SetLimit { limit: Some(50) },
+            ClientMessage::SetLimit {
+                limit: Some(50),
+                bands: None,
+            },
             &p.lock_history(),
         );
         let msgs = session.on_lagged(&p.lock_history(), None);
@@ -505,5 +541,95 @@ mod tests {
             panic!("expected a score, got {}", kind(&m));
         };
         assert_eq!((score, qsos, mults), (90, 6, 10));
+    }
+
+    // --- band filter (feature 011, T021) ----------------------------------------------------
+
+    fn qso_on(i: i64, band: &str) -> EnrichedQso {
+        let mut q = qso(i);
+        q.record.set("BAND", band);
+        q
+    }
+
+    fn snapshot_ids(msgs: &[ServerMessage]) -> Vec<String> {
+        let [ServerMessage::Snapshot { qsos, .. }] = msgs else {
+            panic!("expected one snapshot, got {msgs:?}");
+        };
+        qsos.iter().map(|q| q.id.clone()).collect()
+    }
+
+    fn mixed_pipeline() -> Pipeline {
+        let p = Pipeline::new(0, 16);
+        for i in 0..30 {
+            p.publish(qso_on(i, if i % 3 == 0 { "40m" } else { "30m" }));
+        }
+        p
+    }
+
+    #[test]
+    fn set_limit_with_bands_snapshots_only_those_bands() {
+        let p = mixed_pipeline();
+        let mut session = Session::new();
+        let msgs = session.on_client(
+            ClientMessage::SetLimit {
+                limit: Some(10),
+                bands: Some(vec!["40m".into()]),
+            },
+            &p.lock_history(),
+        );
+        let ids = snapshot_ids(&msgs);
+        assert_eq!(
+            ids.len(),
+            10,
+            "ten 40 m QSOs exist: last N counts only shown ones"
+        );
+        assert_eq!(ids.first().map(String::as_str), Some("Q0000"));
+        assert_eq!(ids.last().map(String::as_str), Some("Q0027"));
+    }
+
+    #[test]
+    fn unknown_bands_are_dropped_and_an_empty_list_means_every_band() {
+        let p = mixed_pipeline();
+        let mut session = Session::new();
+        let msgs = session.on_client(
+            ClientMessage::SetLimit {
+                limit: Some(10),
+                bands: Some(vec!["nope".into(), "40M".into()]),
+            },
+            &p.lock_history(),
+        );
+        assert_eq!(snapshot_ids(&msgs).len(), 10, "40M kept, nope dropped");
+        let msgs = session.on_client(
+            ClientMessage::SetLimit {
+                limit: Some(10),
+                bands: Some(vec!["nope".into()]),
+            },
+            &p.lock_history(),
+        );
+        let ids = snapshot_ids(&msgs);
+        assert_eq!(
+            ids.last().map(String::as_str),
+            Some("Q0029"),
+            "nothing valid left: every band"
+        );
+    }
+
+    #[test]
+    fn upserts_reach_the_page_whatever_its_bands() {
+        let mut session = Session::new();
+        let p = mixed_pipeline();
+        session.on_client(
+            ClientMessage::SetLimit {
+                limit: Some(10),
+                bands: Some(vec!["40m".into()]),
+            },
+            &p.lock_history(),
+        );
+        let change = HistoryChange::Upsert(Arc::new(qso_on(99, "30m")));
+        assert_eq!(
+            session.on_change(&change).len(),
+            1,
+            "the page filters what it draws"
+        );
     }
 }
