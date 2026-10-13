@@ -187,9 +187,8 @@ the legend, and look at the offered groups with the default bands.
 - **FR-002**: An automated check that runs on every change MUST fail when a page file in the
   source tree isn't served, or isn't served unchanged, and MUST name the file. (B1)
 - **FR-003**: In every theme, the on state of a toggle map button MUST be shown by more than a
-  background shade (for example an outline or a marker in the accent colour). Its text MUST keep
-  a 4.5:1 contrast, and the on state MUST stand out against both the off state and the map.
-  (B2)
+  background shade: an outline in the accent colour, with at least 3:1 contrast against the
+  button's on and off backgrounds (WCAG 1.4.11). Its text MUST keep a 4.5:1 contrast. (B2)
 - **FR-004**: The open settings panel MUST be opaque: nothing under it may show through. (B3)
 - **FR-005**: The Legend group MUST NOT offer two groups whose considered bands are the same.
   When two or more groups select the same bands, only the most specific one is offered: the
@@ -255,7 +254,8 @@ the legend, and look at the offered groups with the default bands.
 - **SC-004**: A failed browser test run leaves enough evidence (log, failed requests,
   screenshots) for the maintainer to find the cause without re-running it, in 100% of failures.
 - **SC-005**: In every theme, a viewer can tell at a glance whether Auto-zoom is on (on/off
-  difference visible beyond a shade change; text contrast at least 4.5:1).
+  an accent outline with at least 3:1 contrast against the button's backgrounds; text contrast at
+  least 4.5:1).
 - **SC-006**: With the default bands, the Legend group offers no two choices with the same bands:
   only "HF contest".
 - **SC-007**: Release 3.0.1 is published with every gate and the browser tests passing.

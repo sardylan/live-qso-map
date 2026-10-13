@@ -25,14 +25,14 @@ node tests/browser/run.mjs --chrome /path/to/chrome --binary /path/to/live-qso-m
 - **Files:** `target/browser-test/` holds:
   - `report.json`;
   - `console.log`, with no fatal entries;
-  - screenshots `01-load.png` … `09-legend-group.png`.
+  - screenshots `01-load.png` … `09-legend-group.png` (step 04 gives three: light, dim, dark).
 
 ## 3. Prove that the gate stops a broken page
 
-1. On a scratch branch, remove one `.route(...)` line from `src/web/mod.rs`.
+1. Remove one `.route(...)` line from `src/web/mod.rs` (locally; for the rehearsal, as a temporary commit, task T017).
 2. Build and run step 2 above: `load` fails and names the 404.
 3. Start a rehearsal (`docs/ci.md` §7): `browser-test` fails, and `rehearsal-summary` doesn't run.
-4. Restore the line. Both pass.
+4. Restore the line (`git revert` of the temporary commit). Both pass.
 
 ## 4. Look at the fixes by hand (optional)
 

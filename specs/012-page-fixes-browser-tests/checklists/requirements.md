@@ -46,3 +46,7 @@
   libraries but not Chrome, so the job adds a pinned, checksum-verified Chrome build (FR-006,
   Clarifications). The rehearsal is a run started by hand, not a tag (FR-008, User Story 2,
   Edge Cases, SC-002). All items pass.
+- Analyze remediation (2026-10-13): FR-003 and SC-005 made measurable (accent outline, 3:1 against
+  the button's backgrounds); tasks gained the broken-page rehearsal (SC-002), the job duration
+  (SC-003), the `data-view` map hook for "view unchanged" (US3 scenario 3), Chrome start timeout,
+  no `context:` check and the re-run note. All items pass.
