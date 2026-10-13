@@ -7,7 +7,8 @@
 // 2 = bad usage or a missing/unstartable program or browser. Node built-ins only.
 
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, openSync, writeFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, openSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { createServer } from 'node:net';
 import { createSocket } from 'node:dgram';
 import path from 'node:path';
@@ -60,6 +61,8 @@ if (!chrome || !existsSync(chrome)) usageExit('Chrome or Chromium not found: ins
 const out = path.resolve(options.out);
 rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
+// Chrome's throwaway profile lives outside the output folder, so it never becomes an artifact.
+const profileDir = mkdtempSync(path.join(tmpdir(), 'lqm-browser-test-'));
 
 // --- the program --------------------------------------------------------------------------
 
@@ -389,6 +392,9 @@ const started = new Date().toISOString();
 async function cleanup() {
   if (page) page.close();
   await stopProgram();
+  // Chrome may still hold its profile for a moment after being killed.
+  await sleep(500);
+  rmSync(profileDir, { recursive: true, force: true, maxRetries: 3 });
   try {
     udp.close();
   } catch {
@@ -420,7 +426,7 @@ try {
   try {
     page = await launchChrome({
       chrome,
-      profileDir: path.join(out, 'chrome-profile'),
+      profileDir,
       headed: options.headed,
       ci: process.env.CI === 'true',
       port: await freeTcpPort(),

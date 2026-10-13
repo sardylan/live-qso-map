@@ -11,6 +11,15 @@ which becomes the GitHub release notes (`docs/releasing.md`).
 - The map page loads again: 3.0.0 didn't serve four of its script modules (`themes.js`,
   `sun.js`, `panel.js`, `legend.js`), so the page stopped before drawing its controls, the
   settings button and the legend.
+- A map button that is on (Auto-zoom) has an accent outline, so it can be told apart in every
+  theme, Dim included.
+- The settings panel is opaque: the legend and the map credit no longer show through it.
+- The Legend group no longer offers two groups that select the same bands: with the default
+  bands it offers "HF contest" only.
+
+### Added
+- Every release is tested in a real browser (Chrome) before it is published: the map page of the
+  release build must load without errors and pass a short viewer session.
 
 ## [3.0.0] - 2026-10-13
 
