@@ -321,9 +321,17 @@ node --test 'web/*.test.js'                                   # frontend logic, 
 cargo test --release --test load_ws -- --ignored --nocapture  # load test (SC-004)
 ```
 
+**Browser tests**: `node tests/browser/run.mjs` opens the map page of a release build
+(`cargo build --release` first) in Chrome or Chromium and plays a short viewer session: QSOs, the
+settings panel, the themes, a reload, a restart and a band-group choice. It needs Node 22+ and a
+browser, and no npm packages; `--headed` shows the window. The report, the log and the
+screenshots go to `target/browser-test/`. CI runs it only for releases, before publishing
+(`tests/browser/README.md`, [`docs/ci.md`](docs/ci.md) section 11).
+
 **Releases**: pushing a `vX.Y.Z` tag that matches the `Cargo.toml` version runs the CircleCI
 release workflow. It builds every target, packages the `.deb` files, zips and Linux archives,
-tests the packages and the image, publishes the GitHub release with `SHA256SUMS`, and only then
+tests the packages, the image and the map page in a real browser, publishes the GitHub release
+with `SHA256SUMS`, and only then
 publishes the Docker Hub tags. The scripts in `scripts/` that it uses are POSIX `sh`, for CI
 only. The publishing secrets, the triggers and the protection of `main` are described in
 [`docs/ci.md`](docs/ci.md); cutting a release, step by step, in

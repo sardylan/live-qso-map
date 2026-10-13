@@ -204,7 +204,7 @@ merge.
 - [X] T016 [US2] Document the browser tests (FR-014):
   - **`docs/ci.md`:** a section after "Audit gate": when they run, what they block, the artifacts (`browser-test/` on the job's Artifacts tab), how to bump the Chrome pin, how to run them locally, and that "Rerun workflow from failed" runs `browser-test` again (it keeps no cache). Also add the job to the rehearsal list in §7.
   - **`docs/releasing.md`:** `browser-test` must be green before `publish-github-release`, and where to look when it fails.
-- [ ] T017 [US2] **Verify** in rehearsal runs (`docs/ci.md` §7, `--param rehearsal=true`):
+- [X] T017 [US2] **Verify** in rehearsal runs (`docs/ci.md` §7, `--param rehearsal=true`):
   1. **Broken page:** create a throwaway branch `feature/012-broken-page-rehearsal` from the feature branch. On it, commit the removal of the `/legend.js` route from `src/web/mod.rs`, push it, and start a rehearsal on it. `browser-test` fails, step 01 names the 404, and `rehearsal-summary` doesn't run (SC-002). Then delete the throwaway branch locally and on GitHub. It is never merged, and no pull request is opened for it.
   2. **Good page:** start a rehearsal on `feature/012-page-fixes-browser-tests`. `browser-test` passes, `rehearsal-summary` runs, and the artifacts hold the screenshots and `report.json`. Note the `browser-test` job's duration; it must be under 5 minutes (SC-003).
 
@@ -216,11 +216,11 @@ merge.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T018 [P] Update `README.md`: in the development or testing section, the browser tests (`node tests/browser/run.mjs`, what they need, where the output goes, that CI runs them only for releases).
-- [ ] T019 [P] Add entries under `## [Unreleased]` in `CHANGELOG.md`:
+- [X] T018 [P] Update `README.md`: in the development or testing section, the browser tests (`node tests/browser/run.mjs`, what they need, where the output goes, that CI runs them only for releases).
+- [X] T019 [P] Add entries under `## [Unreleased]` in `CHANGELOG.md`:
   - **Fixed:** the toggle on state is visible in every theme (B2); the settings panel is opaque (B3); the Legend group no longer offers two groups with the same bands (B4);
   - **Added:** release builds are tested in a real browser before publishing.
-- [ ] T020 Run the local gates:
+- [X] T020 Run the local gates:
   - `cargo fmt --check` and `cargo clippy --locked --all-targets -- -D warnings`;
   - `cargo test --locked`;
   - `node --test 'web/*.test.js'`;
