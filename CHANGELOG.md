@@ -7,6 +7,8 @@ which becomes the GitHub release notes (`docs/releasing.md`).
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-10-13
+
 ### Fixed
 - CI checks out the code over HTTPS through the CircleCI GitHub App; every earlier run had failed
   at checkout over SSH.
