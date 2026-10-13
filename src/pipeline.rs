@@ -506,6 +506,10 @@ mod tests {
     #[test]
     fn bands_log_line_lists_the_effective_set() {
         assert_eq!(bands_log_line(None), "bands considered: all");
+        assert_eq!(
+            bands_log_line(crate::config::Config::default().band_filter.as_ref()),
+            "bands considered: 160m 80m 40m 20m 15m 10m"
+        );
         let set = crate::band_filter::resolve(&["hf", "2m", "-60m"]).unwrap();
         assert_eq!(
             bands_log_line(Some(&set)),

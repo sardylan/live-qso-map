@@ -165,7 +165,17 @@ mod tests {
         ] {
             assert!(table.contains_key(key), "{key}");
         }
-        assert!(!table.contains_key("bands"), "no filter means no bands key");
+        let bands: Vec<&str> = table["bands"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap())
+            .collect();
+        assert_eq!(
+            bands,
+            ["160m", "80m", "40m", "20m", "15m", "10m"],
+            "the default is written out"
+        );
         let lookup = table["lookup"].as_table().unwrap();
         assert_eq!(lookup["timeout_secs"].as_integer(), Some(5));
         assert_eq!(
@@ -195,6 +205,24 @@ mod tests {
         );
         let station = table.get("station").and_then(|s| s.as_table());
         assert!(station.is_none_or(|s| s.is_empty()));
+    }
+
+    #[test]
+    fn every_band_is_written_as_all_and_reloads_the_same() {
+        let config = load(&["--bands", "all"], &[], None);
+        let text = rendered(&config);
+        let table: toml::Table = toml::from_str(&text).unwrap();
+        assert_eq!(
+            table["bands"].as_array().unwrap(),
+            &vec![toml::Value::from("all")]
+        );
+        assert_eq!(load(&[], &[], Some(&text)).band_filter, None);
+
+        let default = rendered(&load(&[], &[], None));
+        assert_eq!(
+            load(&[], &[], Some(&default)).band_filter,
+            load(&[], &[], None).band_filter
+        );
     }
 
     #[test]
