@@ -136,6 +136,7 @@ src/web/mod.rs                  # B1 (done): serves themes/sun/panel/legend
 src/band_filter.rs              # B4: considered_groups keeps the most specific of equal groups
 src/web/assets/themes.js        # B3: panelSolid in each palette, --panel-solid
 src/web/assets/app.css          # B2: accent outline on .toggle-control button.active; B3: .panel opaque
+src/web/assets/app.js           # data-view="<lat>,<lon>,<zoom>" on #map after each move, read by the browser tests (US3 scenario 3)
 tests/ws_protocol.rs            # B1 test (done); hello.band_groups with the default bands
 tests/browser/run.mjs           # new: runner entry (arguments, phases, steps, report)
 tests/browser/cdp.mjs           # new: DevTools Protocol driver (Chrome start, send, events, screenshots)

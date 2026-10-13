@@ -50,3 +50,6 @@
   the button's backgrounds); tasks gained the broken-page rehearsal (SC-002), the job duration
   (SC-003), the `data-view` map hook for "view unchanged" (US3 scenario 3), Chrome start timeout,
   no `context:` check and the re-run note. All items pass.
+- Analyze re-check (2026-10-13): the broken-page rehearsal moved to a throwaway branch that is
+  never merged (constitution I); step 04 compares the view only once it has been stable for 1 s;
+  the plan names `app.js`. All items pass.
