@@ -10,7 +10,17 @@ export function createState({ bands = [], fallbackColor = '#7f7f7f', limit = 20 
   for (const { band, color } of bands) colors[band.toLowerCase()] = color;
   // `limit` is the server window (the last snapshot's); `mapLimit` is the viewer's map "Last N"
   // (feature 006, research R1). They start equal.
-  return { bands: colors, bandOrder: bands.map((b) => b.band), fallbackColor, limit, mapLimit: limit, qsos: new Map() };
+  // `shownBands` is the Legend choice (feature 011): `null` for every band, else a set of
+  // lower-case band names.
+  return {
+    bands: colors,
+    bandOrder: bands.map((b) => b.band),
+    fallbackColor,
+    limit,
+    mapLimit: limit,
+    shownBands: null,
+    qsos: new Map(),
+  };
 }
 
 export function applySnapshot(state, qsos) {
@@ -53,9 +63,20 @@ export function serverLimit(mapLimit) {
   return mapLimit == null ? null : Math.max(mapLimit, 20);
 }
 
-/** Every QSO the page holds, ascending by sort key: what the box draws from. */
+/** Shows only QSOs on `bands` (case-insensitive), or every QSO for `null` (feature 011). */
+export function setShownBands(state, bands) {
+  state.shownBands = bands == null ? null : new Set(bands.map((band) => band.toLowerCase()));
+}
+
+function shown(state, qso) {
+  if (state.shownBands === null) return true;
+  // With a band choice, a QSO without a BAND is hidden (data-model "Legend choice").
+  return typeof qso.band === 'string' && state.shownBands.has(qso.band.toLowerCase());
+}
+
+/** Every shown QSO the page holds, ascending by sort key: what the box draws from. */
 export function held(state) {
-  return [...state.qsos.values()].sort(compare);
+  return [...state.qsos.values()].filter((qso) => shown(state, qso)).sort(compare);
 }
 
 /** The last `mapLimit` QSOs by sort key (all when null), ascending: what the map draws. */

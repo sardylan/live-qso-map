@@ -30,6 +30,14 @@ test('hello triggers set_limit with the current selection', () => {
   assert.deepEqual(onHello(c), [{ type: 'set_limit', limit: null }]);
 });
 
+test('hello re-sends the chosen bands, and null for every band (feature 011)', () => {
+  const c = createConnection(20);
+  c.bands = ['30m'];
+  assert.deepEqual(onHello(c), [{ type: 'set_limit', limit: 20, bands: ['30m'] }]);
+  c.bands = null;
+  assert.deepEqual(onHello(c), [{ type: 'set_limit', limit: 20, bands: null }]);
+});
+
 function memoryStorage(initial = {}) {
   const data = { ...initial };
   return {

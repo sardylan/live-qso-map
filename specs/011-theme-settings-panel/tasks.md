@@ -196,7 +196,7 @@ map and the box, and "last N" counts only shown QSOs, computed by the server (pr
     at most 10;
   - unknown band names are dropped, and an empty list behaves like `null`;
   - upserts are still forwarded for every band.
-- [ ] T022 [P] [US4] Write failing tests in the new `web/legend.test.js`, for a new `src/web/assets/legend.js`:
+- [X] T022 [P] [US4] Write failing tests in the new `web/legend.test.js`, for a new `src/web/assets/legend.js`:
   - `offeredGroups(hello.band_groups)` returns them as given, each with
     `text: "<label> (<n> bands)"`, singular for one band, for example "WARC (1 band)" (FR-012);
   - `chosenBands(choice, bandGroups, allBands)` gives the union in frequency order, or `null`
@@ -205,7 +205,7 @@ map and the box, and "last N" counts only shown QSOs, computed by the server (pr
     into `all`, and survive throwing storage;
   - `toggleGroup(choice, name)` makes "all" exclusive: ticking a group leaves `all`, and
     unticking the last group returns to `all`.
-- [ ] T023 [P] [US4] Add failing tests to `web/map-state.test.js` for `setShownBands(state, bands)` and the drawing helpers:
+- [X] T023 [P] [US4] Add failing tests to `web/map-state.test.js` for `setShownBands(state, bands)` and the drawing helpers:
   - with bands set, only QSOs on those bands, case-insensitive, are drawn and listed;
   - QSOs without a `BAND` are hidden;
   - a correction moving a QSO onto a hidden band removes it from what is drawn;
@@ -220,9 +220,9 @@ map and the box, and "last N" counts only shown QSOs, computed by the server (pr
 
 - [X] T025 [US4] Implement `group_label`, `considered_groups` (`src/band_filter.rs`) and `History::latest_matching` (`src/history.rs`). Make T020 pass.
 - [X] T026 [US4] In `src/web/protocol.rs` and `src/web/session.rs`: `PROTOCOL_VERSION = 4`; `hello.band_groups` from `considered_groups`; `ClientMessage::SetLimit { limit, bands: Option<Vec<String>> }` with `#[serde(default)]`; the session stores the cleaned band list and builds snapshots with `latest_matching`. Make T021 and T024 pass.
-- [ ] T027 [US4] Implement `src/web/assets/legend.js`. Make T022 pass.
-- [ ] T028 [US4] Implement `setShownBands` and the band filtering of the drawing helpers in `src/web/assets/map-state.js`. Make T023 pass, and keep the existing map-state tests green.
-- [ ] T029 [US4] Wire it up:
+- [X] T027 [US4] Implement `src/web/assets/legend.js`. Make T022 pass.
+- [X] T028 [US4] Implement `setShownBands` and the band filtering of the drawing helpers in `src/web/assets/map-state.js`. Make T023 pass, and keep the existing map-state tests green.
+- [X] T029 [US4] Wire it up:
   - **Panel:** add the Legend group to `src/web/assets/index.html` ("All considered bands" plus
     one checkbox per group, labelled with `offeredGroups(…).text` and built from
     `hello.band_groups` in `src/web/assets/app.js`).
