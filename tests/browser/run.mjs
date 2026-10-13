@@ -24,6 +24,7 @@ import {
   startStep,
   finishStep,
   skipRest,
+  addScreenshot,
   waitFor,
   qsoAdif,
 } from './lib.mjs';
@@ -224,7 +225,13 @@ function sameView(a, b) {
   return Math.abs(la - lb) <= 0.01 && Math.abs(oa - ob) <= 0.01 && Math.abs(za - zb) <= 0.01;
 }
 
-const shot = (name) => page.screenshot(path.join(out, `${name}.png`));
+let currentStep = null;
+
+/** Saves `<name>.png` and lists it on the running step (data-model Step.screenshot). */
+async function shot(name) {
+  await page.screenshot(path.join(out, `${name}.png`));
+  if (currentStep) addScreenshot(currentStep, `${name}.png`);
+}
 
 async function setTheme(choice) {
   await q(`(() => { const s = document.getElementById('theme'); s.value = '${choice}'; s.dispatchEvent(new Event('change')); })()`);
@@ -441,6 +448,7 @@ try {
 
   for (const [index, name] of STEPS.entries()) {
     const step = startStep(run, name);
+    currentStep = step;
     let error = null;
     try {
       await steps[name]();

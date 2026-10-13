@@ -9,6 +9,7 @@ import {
   startStep,
   finishStep,
   skipRest,
+  addScreenshot,
   waitFor,
   qsoAdif,
 } from '../tests/browser/lib.mjs';
@@ -133,4 +134,16 @@ test('the ADIF record has UTC date and time, and byte lengths', () => {
     '<CALL:6>DL1ABC <QSO_DATE:8>20261013 <TIME_ON:6>070509 <BAND:3>40m <MODE:2>CW <GRIDSQUARE:4>JN58 <EOR>',
   );
   assert.match(qsoAdif({ call: 'Ä1A', band: '2m', mode: 'FM', grid: 'JN61', at }), /<CALL:4>Ä1A /, 'bytes, not characters');
+});
+
+test('a step lists the screenshots taken during it (data-model Step.screenshot)', () => {
+  const run = createRun();
+  const themes = startStep(run, 'themes', 0);
+  addScreenshot(themes, '04-theme-light.png');
+  addScreenshot(themes, '04-theme-dim.png');
+  finishStep(run, themes, null, 10);
+  const escape = startStep(run, 'panel-escape', 10);
+  finishStep(run, escape, null, 20);
+  assert.deepEqual(run.steps[0].screenshots, ['04-theme-light.png', '04-theme-dim.png']);
+  assert.equal(run.steps[1].screenshots, undefined, 'no screenshot, no list');
 });

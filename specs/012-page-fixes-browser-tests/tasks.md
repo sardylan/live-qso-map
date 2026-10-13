@@ -269,3 +269,12 @@ Task: "T006 [US4] palette and CSS tests in web/themes.test.js"
 3. **US3:** the browser runner, proven locally against a good and a broken build.
 4. **US2:** the pipeline job, proven in a rehearsal.
 5. **Polish:** docs, changelog, gates, PR, merge, then release 3.0.1 with the maintainer.
+
+---
+
+## Phase 8: Convergence
+
+Appended by `/speckit-converge` on review of the current codebase against
+spec/plan/tasks. Complete with `/speckit-implement`.
+
+- [X] T023 [US3] Record each step's screenshots in `report.json` (data-model "Step": `screenshot`). In `tests/browser/lib.mjs`, add `addScreenshot(step, file)`, which appends the file name to a `screenshots` list on the step; test it first in `web/browser-lib.test.js`, including that a step without screenshots has none. In `tests/browser/run.mjs`, make `shot()` record each file on the running step: the theme step gets three, `04-theme-light.png` to `04-theme-dark.png`, and a failed step gets `NN-<step>-failed.png`. Check that a local run's `report.json` lists them. <!-- gap: data-model.md "Browser test run" Step.screenshot; FR-011 / SC-004 (evidence findable without re-running) -->
