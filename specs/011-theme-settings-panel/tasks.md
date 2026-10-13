@@ -272,16 +272,16 @@ band, and the export always writes `bands`.
 
 ## Phase 8: Polish & Cross-Cutting Concerns
 
-- [ ] T035 [P] Update `README.md`:
+- [X] T035 [P] Update `README.md`:
   - **"The map page":** the settings panel and its groups, the themes and the automatic modes,
     the atmosphere, the band-group choice;
   - **"Band selection":** the new default and `all`, with the upgrade note (FR-018).
-- [ ] T036 [P] Add entries under `## [Unreleased]` in `CHANGELOG.md`:
+- [X] T036 [P] Add entries under `## [Unreleased]` in `CHANGELOG.md`:
   - **Added:** themes (Light/Dim/Dark, automatic by device or by the sun at the station), the
     atmosphere, the settings panel, the band-group choice;
   - **Changed:** the default bands are now the six contest HF bands, with `bands = ["all"]` for
     every band; protocol 4.
-- [ ] T037 Run the local gates: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test --locked`, `node --test 'web/*.test.js'`, `python3 -m unittest discover -s tools -p 'test_*.py'`, the docs build and the audit (`docs/ci.md` section 11).
+- [X] T037 Run the local gates: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test --locked`, `node --test 'web/*.test.js'`, `python3 -m unittest discover -s tools -p 'test_*.py'`, the docs build and the audit (`docs/ci.md` section 11).
 - [ ] T038 Mark the tasks done, commit per phase, push `feature/011-theme-settings-panel`, and open the pull request. Merge it once the five gates are green; delete the branch afterwards (constitution, Development Workflow).
 
 ---

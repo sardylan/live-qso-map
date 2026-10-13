@@ -17,6 +17,17 @@ which becomes the GitHub release notes (`docs/releasing.md`).
 - Portable and compound callsigns unknown online are looked up again without their prefix or
   suffix (`IS0ABC/P` → `IS0ABC`).
 - The QSO field `APP_LIVEQSOMAP_POS_REJECTED` lists ignored positions and why.
+- Light, Dim and Dark themes for the page. They follow the device's preference (the default) or
+  the sun at the station, with Dim in civil twilight, or stay fixed.
+- An atmosphere around the globe, on by default.
+- A settings panel, opened with a gear at the top right, holding every viewer setting.
+- The legend, the map and the box can show only some band groups ("HF contest", "WARC", …).
+
+### Changed
+- With no `bands` setting, the service considers the six contest HF bands (160, 80, 40, 20, 15
+  and 10 m) instead of every band. Set `bands = ["all"]` (or `--bands all`) for every band.
+- `--save-config` always writes `bands`.
+- WebSocket protocol 4: `hello.band_groups`, and an optional `bands` in `set_limit`.
 
 ## [2.0.1] - 2026-10-13
 

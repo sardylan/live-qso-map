@@ -174,13 +174,13 @@ pub fn resolve(entries: &[&str]) -> Result<BandSet> {
     Ok(BandSet { bands: included })
 }
 
-/// The group considered when the `bands` setting is absent or empty (feature 011, FR-016).
+/// The group considered when the `bands` setting is absent or empty (feature 011, FR-015).
 pub const DEFAULT_GROUP: &str = "hf-contest";
 
-/// The setting value that considers every band, with no filter (feature 011).
+/// The setting value that considers every band, with no filter (feature 011, FR-016).
 pub const ALL: &str = "all";
 
-/// The bands considered with no setting: the six contest HF bands (feature 011, FR-016).
+/// The bands considered with no setting: the six contest HF bands (feature 011, FR-015).
 pub fn default_set() -> BandSet {
     let bands = SelectionEntry {
         exclude: false,

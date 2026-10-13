@@ -83,10 +83,33 @@ checked with Subresource Integrity. It is laid out for windows 1024 px wide or w
 | Corner | Holds |
 |--------|-------|
 | top left | zoom, **Globe/Flat**, **Auto-zoom** |
-| top right | the viewer's settings: "Map: last N QSOs", the **Last QSOs** checkbox, "Box: last N", "Newest" |
+| top right | the gear that opens the settings panel |
 | bottom right | the band legend |
 | bottom left | the contest score line, with the last-QSO box under it when shown |
 
+- **Settings panel**: the gear at the top right opens a panel on the right edge (full width on
+  narrow screens), with every viewer setting in four groups:
+  - **Map**: "Last N QSOs" and **Atmosphere on the globe**;
+  - **Last QSOs box**: shown or hidden, its size and where the newest row goes;
+  - **Appearance**: the theme;
+  - **Legend**: which band groups to show.
+
+  Every change applies at once. The panel closes with ✕, Escape, the gear, or after 5 minutes
+  without input in it; the map stays usable beside it.
+- **Themes**: Light, Dim and Dark, for the panels, the legend, the base map and the globe.
+  - **Automatic (device)**, the default, follows the device's light/dark preference.
+  - **Automatic (sun at station)** follows the sun at the house: Light by day, Dim in civil
+    twilight (sun up to 6° below the horizon), Dark at night. It is checked every minute. With no
+    station position yet, it follows the device.
+  - The fixed choices show one theme always. A line under the choice says which theme is shown,
+    and why.
+  - With the default base map, each theme has its own OpenFreeMap style (Liberty, Fiord, Dark); a
+    configured base map is dimmed instead.
+- **Atmosphere**: on the globe, a sky and a glow around the Earth in the theme's colours. On by
+  default; the flat map has none.
+- **Legend groups**: "All considered bands" (the default), or any mix of the band groups the
+  service considers, such as "HF contest (6 bands)" or "WARC (3 bands)". The legend, the map and
+  the box then show only those bands, and QSOs with no band are hidden.
 - **Globe or flat**: pages open as a globe. The **Flat/Globe** button switches the view, and each
   browser remembers its own choice.
 - **Base map**: by default, the free [OpenFreeMap](https://openfreemap.org) vector style, with no
@@ -112,7 +135,7 @@ checked with Subresource Integrity. It is laid out for windows 1024 px wide or w
     UTC time, CQ zone and the DXCC entity from cty.dat as `prefix · name`. Long names are cut,
     and hovering shows them in full. A small header row labels the columns, unless the operator
     turns it off.
-  - **Size and order** are chosen by each viewer in the top-right panel: "Box: last" 3 to 20
+  - **Size and order** are chosen by each viewer in the settings panel: "Box: last" 3 to 20
     (default 5), and "Newest" at the bottom (default) or at the top. They are separate from the
     map's own "Map: last N QSOs" (default 20). The box can list QSOs the map doesn't show; those
     rows are faded and can't be clicked.
@@ -126,7 +149,8 @@ checked with Subresource Integrity. It is laid out for windows 1024 px wide or w
 - **Scale**: a metric scale bar, shown on the flat map only.
 
 Each browser remembers every viewer choice across restarts: Globe/Flat, Auto-zoom, Last QSOs,
-the map's "Last N", and the box size and order.
+the map's "Last N", the box size and order, the theme, the atmosphere and the legend groups. The
+panel itself always starts closed.
 
 ## Configuration
 
@@ -156,7 +180,7 @@ The most common settings:
 | QRZ.com credentials | `LQM_QRZ_USERNAME`, `LQM_QRZ_PASSWORD` | none |
 | HamQTH credentials | `LQM_HAMQTH_USERNAME`, `LQM_HAMQTH_PASSWORD` | none |
 | QRZCQ credentials | `LQM_QRZCQ_USERNAME`, `LQM_QRZCQ_PASSWORD` | none |
-| Bands to consider | `--bands hf-contest,-60m` / `LQM_BANDS` | every band |
+| Bands to consider (`all` for every band) | `--bands hf,-60m` / `LQM_BANDS` | `hf-contest` |
 | Band colours | `--band-color 20m=#1f77b4` (repeatable) | built-in palette |
 | Last-QSO box columns, in order (`call`, `band`, `mode`, `date`, `time`, `cqzone`, `country`) | `--recent-columns` / `LQM_RECENT_COLUMNS` | `call,band,time,cqzone,country` |
 | Last-QSO box header row | `--recent-header true\|false` / `LQM_RECENT_HEADER` | `true` |
@@ -204,10 +228,15 @@ lookups and never reach the map, and the legend lists only the considered bands.
   exclude it.
 - **Groups**: `lf-mf`, `hf` (160m–10m), `hf-contest` (160m 80m 40m 20m 15m 10m), `warc`, `vhf`,
   `uhf`, `shf`, `ehf`.
+- **Default**: with no setting, the six contest HF bands: 160m 80m 40m 20m 15m 10m.
+- **Every band**: `all` (`--bands all`, `LQM_BANDS=all` or `bands = ["all"]`). It goes alone:
+  `all` with other entries is an error.
+- **Upgrading from 2.0 or earlier**: the default used to be every band. To keep that, set
+  `bands = ["all"]`; an existing band setting works unchanged.
 - **Examples**: `hf,2m,-60m` is every HF band plus 2m, without 60m. `-60m` alone is every band except
   60m.
 - **Startup**: the service logs the effective set (`bands considered: …`), and stops when an entry is
-  unknown or the selection leaves no bands.
+  unknown or the selection leaves no bands. `--save-config` always writes `bands`.
 - **Corrections**: when a logger corrects a QSO onto an ignored band, it disappears from the map.
 
 The history lives in memory only and is lost on restart.
