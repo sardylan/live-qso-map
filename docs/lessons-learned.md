@@ -113,6 +113,38 @@ In cargo-release, the dirty-tree and allowed-branch checks run in the full relea
 - Action: after a refused prepare, run `git restore Cargo.toml Cargo.lock`. Owner: maintainer. Status: documented.
 - Action: dry-run release tooling in a scratch clone before documenting a process. Owner: maintainer. Status: open.
 
+## LL-004: A page file added to src/web/assets/ must also be served
+
+- Status: open
+- Date: 2026-10-13
+- Phase: review
+- Category: testing
+- Owner: maintainer
+- Links: specs/012-page-fixes-browser-tests/spec.md (Context, B1); tests/ws_protocol.rs (every_page_asset_on_disk_is_served); docs/ci.md section 11; TR-018
+<!-- key: c7847d69d754 -->
+
+### What happened
+
+Release 3.0.0 shipped with four new page modules (`themes.js`, `sun.js`, `panel.js`, `legend.js`) that the server never served. Chrome got a 404 for each, `app.js` failed to load, and the map page lost its buttons, its settings button and its legend. It was found by opening the page in Chrome after the release.
+
+### What went well / where we got lucky
+
+Driving Chrome over the DevTools Protocol from a short Node script found the cause in minutes (four 404s in the console), and the same approach became the release-time browser tests.
+
+### What did not work
+
+The page tests import modules straight from the source tree, so they passed. The server test checked a fixed list of files that nobody updated. The feature 011 browser checks (T008, T015, T019, T030) were still open when 3.0.0 was tagged.
+
+### Root cause
+
+Page files are embedded and routed one by one in `src/web/mod.rs`, and no test compared that list with the files on disk. No check opened the page through the server, in a browser, before publishing.
+
+### Recommendation / action item
+
+- Action: `every_page_asset_on_disk_is_served` fetches every `.js` and `.css` in `src/web/assets/` on every change. Owner: maintainer. Status: done (feature 012).
+- Action: the `browser-test` job opens the release build's page in Chrome before `publish-github-release`. Owner: maintainer. Status: done (feature 012).
+- Action: finish a feature's manual checks before tagging a release that contains it. Owner: maintainer. Status: open.
+
 ## Archive
 
 Superseded or deprecated entries sink here; nothing is deleted (git keeps history).
