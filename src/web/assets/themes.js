@@ -3,7 +3,8 @@
 
 /**
  * Light, Dim and Dark. Each palette holds:
- * - the CSS variables of app.css (camelCase here, `--kebab-case` there);
+ * - the CSS variables of app.css (camelCase here, `--kebab-case` there); `panelSolid` is
+ *   `panel` without its alpha, for the settings panel (feature 012, B3);
  * - the globe's sky colours (`sky`, `horizon`, `fog`) and the great-circle line colour (`line`);
  * - the OpenFreeMap style used with the default base map (`basemapStyle`);
  * - how much an operator-configured base map is dimmed (`dimOpacity`).
@@ -14,6 +15,7 @@ export const PALETTES = {
   light: {
     bg: '#ffffff',
     panel: '#ffffffeb',
+    panelSolid: '#ffffff',
     text: '#1a1a1a',
     muted: '#666666',
     border: '#dddddd',
@@ -36,6 +38,7 @@ export const PALETTES = {
   dim: {
     bg: '#2b3240',
     panel: '#353d4deb',
+    panelSolid: '#353d4d',
     text: '#e6e9ef',
     muted: '#b4bccb',
     border: '#4a5366',
@@ -58,6 +61,7 @@ export const PALETTES = {
   dark: {
     bg: '#12151b',
     panel: '#1b2028eb',
+    panelSolid: '#1b2028',
     text: '#e8eaed',
     muted: '#a8b0bd',
     border: '#333a46',
@@ -83,6 +87,7 @@ export const PALETTES = {
 const CSS_VARIABLES = {
   bg: '--bg',
   panel: '--panel',
+  panelSolid: '--panel-solid',
   text: '--text',
   muted: '--muted',
   border: '--border',

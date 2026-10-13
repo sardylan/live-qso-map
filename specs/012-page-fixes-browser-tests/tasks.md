@@ -33,7 +33,7 @@ it fails.
 
 ## Phase 1: Setup
 
-- [ ] T001 Confirm that `.gitignore`'s `/target/` covers the runner's default output `target/browser-test/`, and create the folder `tests/browser/` with a short `tests/browser/README.md`. The README says:
+- [X] T001 Confirm that `.gitignore`'s `/target/` covers the runner's default output `target/browser-test/`, and create the folder `tests/browser/` with a short `tests/browser/README.md`. The README says:
   - what the runner is (contracts/browser-test.md);
   - that it needs Node 22+ and Chrome or Chromium, with no `npm install`;
   - that Cargo ignores the folder (only top-level `tests/*.rs` are test targets).
@@ -71,7 +71,7 @@ No shared prerequisite: User Story 1 is done, and the other stories start from t
 
 ### Tests for User Story 4 (write first, confirm they FAIL)
 
-- [ ] T005 [P] [US4] Write failing Rust tests for B4 (data-model "Offered band groups", contracts/websocket-protocol.md).
+- [X] T005 [P] [US4] Write failing Rust tests for B4 (data-model "Offered band groups", contracts/websocket-protocol.md).
   - **`src/band_filter.rs`:** `considered_groups`:
     - with the default set (`default_set()`), gives only `hf-contest`;
     - with `hf`, gives `hf`, `hf-contest`, `warc`, unchanged;
@@ -80,7 +80,7 @@ No shared prerequisite: User Story 1 is done, and the other stories start from t
     - with `None` (every band), gives all eight groups;
     - add a test that no two returned groups have equal `bands`, for each of these sets.
   - **`tests/ws_protocol.rs`:** a test that `hello.band_groups` from a service with the default bands has exactly one entry, `hf-contest`. Remember `test_config()` pins every band, so set `config.band_filter = Some(live_qso_map::band_filter::default_set())` in the test.
-- [ ] T006 [P] [US4] Write failing node tests for B2 and B3 in `web/themes.test.js`.
+- [X] T006 [P] [US4] Write failing node tests for B2 and B3 in `web/themes.test.js`.
   - **Palettes:** every palette has `panelSolid`, a 7-character `#rrggbb` equal to the first 7 characters of `panel`.
   - **Variables:** `panelSolid` is among the CSS variables `applyPalette` writes (`--panel-solid`; extend the `CSS_KEYS` list in the test).
   - **Contrast:** `accent` reaches at least 3:1 against `highlight` and against `bg` in every palette (WCAG 1.4.11).
@@ -91,8 +91,8 @@ No shared prerequisite: User Story 1 is done, and the other stories start from t
 
 ### Implementation for User Story 4
 
-- [ ] T007 [US4] In `src/band_filter.rs`, make `considered_groups` drop a group when another considered group has equal considered bands and is more specific. More specific means fewer bands in its full `GROUPS` definition; on a tie, the earlier one in `GROUPS` wins. Keep the result in `GROUPS` order and update the doc comment. Make T005 pass. If any feature 011 test assumed both `hf` and `hf-contest` with the default bands, fix it, for example in `src/web/protocol.rs` `hello_shape`.
-- [ ] T008 [US4] In `src/web/assets/themes.js`, add `panelSolid` to each palette (light `#ffffff`, dim `#353d4d`, dark `#1b2028`) and `panelSolid: '--panel-solid'` to `CSS_VARIABLES`.
+- [X] T007 [US4] In `src/band_filter.rs`, make `considered_groups` drop a group when another considered group has equal considered bands and is more specific. More specific means fewer bands in its full `GROUPS` definition; on a tie, the earlier one in `GROUPS` wins. Keep the result in `GROUPS` order and update the doc comment. Make T005 pass. If any feature 011 test assumed both `hf` and `hf-contest` with the default bands, fix it, for example in `src/web/protocol.rs` `hello_shape`.
+- [X] T008 [US4] In `src/web/assets/themes.js`, add `panelSolid` to each palette (light `#ffffff`, dim `#353d4d`, dark `#1b2028`) and `panelSolid: '--panel-solid'` to `CSS_VARIABLES`.
   - **`src/web/assets/app.css`:** define `--panel-solid: #ffffff` on `:root`, and set `.panel { background: var(--panel-solid); }`. Add `box-shadow: inset 0 0 0 2px var(--accent)` to `.toggle-control button.active`.
   - **Contrast:** if any palette's `accent` misses 3:1 against `highlight`, adjust `accent` or `highlight`, keeping every existing 4.5:1 text pair.
   - **`src/web/assets/app.js`:** on the map's `moveend`, write `data-view="<lat>,<lon>,<zoom>"` (rounded to 4 decimals) on `#map`. This is the view the browser tests compare (US3 scenario 3).
