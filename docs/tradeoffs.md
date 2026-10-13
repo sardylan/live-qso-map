@@ -28,6 +28,8 @@ we deliberately gave up. Records the *why*, not just the *what*.
 | TR-013 | accepted | The version lives in Cargo.toml and the tag follows it; two-step release with cargo-release | 2026-10-12 |
 | TR-014 | accepted | A manual release rehearsal instead of pre-release tags | 2026-10-12 |
 | TR-015 | accepted | Positions are judged against entity rectangles, excluding only fully nested ones | 2026-10-13 |
+| TR-016 | accepted | Viewer settings in a side panel opened by a gear button | 2026-10-13 |
+| TR-017 | accepted | The server computes "last N on the chosen bands" (protocol 4) | 2026-10-13 |
 
 ## Decisions
 
@@ -642,6 +644,87 @@ In the context of judging online positions against the callsign's entity, facing
 
 - Positive: Cagliari is not Italy; Germany and Poland, the Netherlands and Belgium stay apart; no new data.
 - Negative / debt accepted: northern Sicily counts as Italy for I/ callsigns. Revisit with entity outlines, a follow-up recorded in spec 010 next to the sub-area positions.
+
+## TR-016: Viewer settings in a side panel opened by a gear button
+
+- Status: accepted
+- Date: 2026-10-13
+- Phase: plan
+- Deciders: project owner
+- Links: specs/011-theme-settings-panel/research.md#r6-settings-panel; specs/011-theme-settings-panel/contracts/page-ui.md; spec FR-005 to FR-009
+<!-- key: 34b44b858968 -->
+
+### Context & problem
+
+Feature 011 adds theme, atmosphere and band-group settings to the four existing viewer settings (map "last N", box shown, size and order), which already took a fixed corner of the map. The request asked to group them using a common UX pattern.
+
+### Decision drivers
+
+- Keep the map visible and usable while a setting changes, so its effect is seen at once
+- Work on a wall screen or kiosk: nothing left open, nothing covering the map
+- Keyboard and screen-reader access
+- No new frontend library (Principle III)
+
+### Options considered
+
+| Option | Pros | Cons / what it sacrifices |
+|--------|------|---------------------------|
+| Gear button on the map opening a right-side panel (drawer), auto-closing after 5 minutes (chosen) | Map stays visible beside it; fits seven settings in four groups; common in map apps; full width on phones | One extra click to reach any setting; the panel covers part of the map while open |
+| Settings button opening a modal dialog | Familiar; focus handling built into the browser | Hides or blocks the map, so changes can't be judged while making them |
+| Collapsible toolbar on the map | Settings one tap away | Too small for seven settings with labels; still covers the map when expanded |
+
+### Decision
+
+We chose a gear button in the top-right corner opening a side panel with the groups Map, Last QSOs box, Appearance and Legend. Its open/close and auto-close logic is a pure, tested module.
+
+### Y-statement
+
+In the context of a growing set of viewer settings on a live map, facing a crowded map corner, we chose a gear-opened side panel over a modal dialog or a collapsible toolbar, to keep the map visible while settings change, accepting one extra click to reach a setting.
+
+### Consequences
+
+- Positive: the map is free of settings when the panel is closed; new settings have an obvious home.
+- Negative / debt accepted: settings are one click further away; the panel covers the right edge of the map while open.
+
+## TR-017: The server computes "last N on the chosen bands" (protocol 4)
+
+- Status: accepted
+- Date: 2026-10-13
+- Phase: plan
+- Deciders: project owner
+- Links: specs/011-theme-settings-panel/research.md#r8-showing-only-the-chosen-groups; specs/011-theme-settings-panel/contracts/websocket-protocol.md; spec FR-013
+<!-- key: 92eec803ab4b -->
+
+### Context & problem
+
+Feature 011 lets a viewer show only some band groups, and "last N" must count only the QSOs shown (clarification). The page holds only the window it asked the server for, so if many of the newest QSOs are on hidden bands, it would show fewer than N.
+
+### Decision drivers
+
+- "Last N" means N QSOs actually shown
+- Keep the broadcast path cheap: one history, many pages
+- Corrections that move a QSO to another band must update at once
+
+### Options considered
+
+| Option | Pros | Cons / what it sacrifices |
+|--------|------|---------------------------|
+| set_limit carries an optional list of bands; the session builds the snapshot from the newest N QSOs on them; live updates reach every page, which filters what it draws (chosen) | Exact "last N" on the shown bands; broadcast path unchanged; corrections handled by the page's own filter | Protocol version 3 → 4; a little more per-page state in the session; the band filter exists on both sides |
+| Page-only filtering of a larger window | No protocol change | Can't guarantee N shown QSOs; would need to request far more than N |
+| Server-side filtering of the live updates too | Pages receive only what they draw | Per-page work in the hot broadcast path; the page still has to filter for band corrections |
+
+### Decision
+
+We added an optional bands list to set_limit: the server remembers it per page, and filters snapshots by it. Live upserts and removes are unchanged, and the page filters what it draws.
+
+### Y-statement
+
+In the context of a viewer showing only chosen band groups, facing a "last N" that must count only shown QSOs, we chose a server-side filtered snapshot over page-only or fully server-side filtering, to show exactly N QSOs while keeping the broadcast path unchanged, accepting a protocol bump and a filter on both sides.
+
+### Consequences
+
+- Positive: "last N" is exact; old pages keep working without sending bands.
+- Negative / debt accepted: protocol 4; two places apply the same band filter and must stay consistent (both tested).
 
 ## Archive
 
