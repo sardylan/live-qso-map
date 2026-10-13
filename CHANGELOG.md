@@ -7,6 +7,8 @@ which becomes the GitHub release notes (`docs/releasing.md`).
 
 ## [Unreleased]
 
+## [3.0.1] - 2026-10-13
+
 ### Fixed
 - The map page loads again: 3.0.0 didn't serve four of its script modules (`themes.js`,
   `sun.js`, `panel.js`, `legend.js`), so the page stopped before drawing its controls, the
