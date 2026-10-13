@@ -149,8 +149,10 @@ Tiles depend on a third-party server, so they must not decide a release (edge ca
 - `console.log`: every console message, exception and failed request, with times;
 - `NN-<state>.png`: one screenshot per tested state.
 
-The CircleCI job keeps the folder with `store_artifacts`, whether the run passed or failed
-(`when: always`).
+The CircleCI job keeps the folder with `store_artifacts`, whether the run passed or failed. The
+test step saves the runner's exit code instead of failing, `store_artifacts` runs next, and a last
+step exits with the saved code. (`when: always` is documented for `run` steps only, so it isn't
+relied on for `store_artifacts`.)
 
 **Rationale:** FR-011 and SC-004. A failure must be understandable without a re-run.
 

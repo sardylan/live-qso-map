@@ -12,8 +12,9 @@ browser-test:
         sha256: ff43322f335e436b2f4dcdfeeec5db032299e335a7e8c1c618b326e100ce8732
         dest: chrome-linux64.zip
     - run: unzip -q chrome-linux64.zip
-    - run: node tests/browser/run.mjs --binary ws/bin/x86_64-unknown-linux-musl/live-qso-map --chrome chrome-linux64/chrome
-    - store_artifacts: { path: target/browser-test, destination: browser-test }   # always
+    - run: node tests/browser/run.mjs --binary ws/bin/x86_64-unknown-linux-musl/live-qso-map --chrome chrome-linux64/chrome || status=$?   # exit code saved, not failed
+    - store_artifacts: { path: target/browser-test, destination: browser-test }   # so it always runs
+    - run: exit "$(cat browser-test-status)"   # the job fails here when the tests failed
 ```
 
 **Workflows:**

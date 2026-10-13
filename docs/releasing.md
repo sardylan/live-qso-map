@@ -88,12 +88,16 @@ cargo release push --execute
 **The release chain:**
 1. `check-version` (version, changelog section, secrets), then the five builds, the packages and
    their tests, the archives and the image tests;
-2. the `-rc` image push;
-3. the GitHub release, with the changelog section as notes and `SHA256SUMS`;
+2. the `-rc` image push, and the browser tests (`browser-test`) on the x86_64 binary;
+3. the GitHub release, with the changelog section as notes and `SHA256SUMS`. It waits for
+   `browser-test`, so a release whose map page fails in the browser is never published;
 4. the Docker Hub tags `X.Y.Z` and `latest`.
 
 **If something fails:**
 - **Before publishing:** fix the cause and re-run the workflow from the failed job. Re-running
   `publish-github-release` replaces the files and keeps the notes, including notes edited by
   hand.
+- **`browser-test` failed:** open its artifacts (`browser-test/`, `docs/ci.md` section 11). The
+  failed step, its message and a screenshot say what broke. A network hiccup (for example the
+  CDN) is fixed by re-running from failed; a real page bug needs a code change.
 - **If the fix needs a code change:** release a new patch version. Never move or reuse a tag.

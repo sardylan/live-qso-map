@@ -502,6 +502,40 @@ jobs:
           paths:
             - release/*.zip
 
+  # Real-browser tests (feature 012, contracts/pipeline.md): the x86_64 release binary and its
+  # map page in Chrome for Testing, before anything is published. The image holds Chrome's
+  # libraries but not Chrome, which is fetched pinned and verified (research R1). No secret.
+  browser-test:
+    docker:
+      - image: cimg/node:24.21.0-browsers
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ws
+      - fetch-verified:
+          url: https://storage.googleapis.com/chrome-for-testing-public/154.0.8037.92/linux64/chrome-linux64.zip
+          sha256: ff43322f335e436b2f4dcdfeeec5db032299e335a7e8c1c618b326e100ce8732
+          dest: chrome-linux64.zip
+      - run:
+          name: Unpack Chrome for Testing 154.0.8037.92
+          command: unzip -q chrome-linux64.zip && rm chrome-linux64.zip
+      # The run step records the result instead of failing, so the artifacts are always stored;
+      # the last step then fails the job when the tests failed.
+      - run:
+          name: Browser tests
+          command: |
+            status=0
+            node tests/browser/run.mjs \
+              --binary ws/bin/x86_64-unknown-linux-musl/live-qso-map \
+              --chrome chrome-linux64/chrome || status=$?
+            echo "$status" > browser-test-status
+      - store_artifacts:
+          path: target/browser-test
+          destination: browser-test
+      - run:
+          name: Browser test result
+          command: exit "$(cat browser-test-status)"
+
   # Container image (research R6, feature 009 R8): each architecture is built natively from the
   # pipeline binaries and smoke-tested before anything is pushed. Dockerfile.release runs nothing
   # on the target platform, so no emulation is needed.
@@ -782,6 +816,9 @@ workflows:
           machine-image: ubuntu-2204:current
           resource-class: arm.medium
           requires: [build-linux-aarch64-unknown-linux-musl]
+      - browser-test:
+          filters: *release-tags
+          requires: [build-linux-x86_64-unknown-linux-musl]
       - image-push:
           context: live-qso-map-release
           filters: *release-tags
@@ -794,6 +831,7 @@ workflows:
           requires:
             - package-archives
             - image-push
+            - browser-test
             - build-linux
             - build-macos
             - build-windows
@@ -890,6 +928,8 @@ workflows:
           machine-image: ubuntu-2204:current
           resource-class: arm.medium
           requires: [build-linux-aarch64-unknown-linux-musl]
+      - browser-test:
+          requires: [build-linux-x86_64-unknown-linux-musl]
       - rehearsal-summary:
           requires:
             - build-linux
@@ -907,6 +947,7 @@ workflows:
             - package-archives
             - image-test-amd64
             - image-test-arm64
+            - browser-test
 
   # Weekly schedule trigger (newest-toolchain=true, docs/ci.md section 9).
   newest_toolchain:
