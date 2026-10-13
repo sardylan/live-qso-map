@@ -197,7 +197,12 @@ When it fails, fix the code on a pull request, or raise the pin deliberately: ch
 `rust-version` and the `Dockerfile`'s `RUST_VERSION` together, after fmt, clippy and the tests
 pass on the new version.
 
-To create the schedule (in the UI under Project Setup → Schedule, if the API refuses it):
+The schedule is trigger `04b1cb13-f913-41b9-9424-e36df2ee3628`, created on 2026-10-13 through the
+CircleCI API: although CircleCI's docs say schedules for GitHub App pipelines can't be created that
+way, the call worked. A manual run with the same parameter (`ac823b8e`) ran only `lint-stable` and
+`test-rust-stable`, both green, and left the required checks untouched.
+
+To recreate it (or in the UI under Project Setup → Schedule):
 
 ```bash
 circleci api -X POST api/v2/projects/e4ace6e1-9360-4882-9faf-21f77e871b0e/pipeline-definitions/f5014549-bbc3-4712-901f-e2bd315c9e6e/triggers -d '{
