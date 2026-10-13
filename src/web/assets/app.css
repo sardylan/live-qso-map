@@ -297,3 +297,9 @@ body.scale-on .corner-bl {
   color: var(--muted);
   font-style: italic;
 }
+
+.theme-status {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}

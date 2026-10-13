@@ -4,7 +4,7 @@
 /**
  * Light, Dim and Dark. Each palette holds:
  * - the CSS variables of app.css (camelCase here, `--kebab-case` there);
- * - the globe's sky colours (`sky`, `horizon`, `fog`);
+ * - the globe's sky colours (`sky`, `horizon`, `fog`) and the great-circle line colour (`line`);
  * - the OpenFreeMap style used with the default base map (`basemapStyle`);
  * - how much an operator-configured base map is dimmed (`dimOpacity`).
  *
@@ -29,6 +29,7 @@ export const PALETTES = {
     sky: '#88c6fc',
     horizon: '#ffffff',
     fog: '#ffffff',
+    line: '#000000',
     basemapStyle: 'liberty',
     dimOpacity: 0,
   },
@@ -50,6 +51,7 @@ export const PALETTES = {
     sky: '#2a3a5c',
     horizon: '#5a6f9a',
     fog: '#3a4660',
+    line: '#e6e9ef',
     basemapStyle: 'fiord',
     dimOpacity: 0.35,
   },
@@ -71,6 +73,7 @@ export const PALETTES = {
     sky: '#0b1426',
     horizon: '#1b2a4a',
     fog: '#0e1a30',
+    line: '#ffffff',
     basemapStyle: 'dark',
     dimOpacity: 0.55,
   },
@@ -122,4 +125,59 @@ export function applyPalette(root, name) {
     root.style.setProperty(variable, palette[key]);
   }
   root.dataset.theme = name;
+}
+
+/** The five theme choices of the Appearance group (FR-001); the first is the default. */
+export const THEME_CHOICES = ['auto-device', 'auto-sun', 'light', 'dim', 'dark'];
+const THEME_KEY = 'lqm.theme';
+
+/**
+ * The theme to show (research R2):
+ * - `auto-device`: Dark when the device prefers dark, else Light;
+ * - `auto-sun`: Light with the sun at or above the horizon, Dim in civil twilight (down to 6°
+ *   below), Dark lower. With no station position (`sunElevation` null), like `auto-device`;
+ * - `light`, `dim`, `dark`: that theme.
+ */
+export function resolveTheme(choice, { prefersDark, sunElevation }) {
+  if (choice === 'light' || choice === 'dim' || choice === 'dark') return choice;
+  if (choice === 'auto-sun' && sunElevation !== null && sunElevation !== undefined) {
+    if (sunElevation >= 0) return 'light';
+    return sunElevation >= -6 ? 'dim' : 'dark';
+  }
+  return prefersDark ? 'dark' : 'light';
+}
+
+/** The saved choice; anything missing, unknown or unreadable gives the default (constitution IV). */
+export function loadTheme(storage) {
+  try {
+    const value = storage ? storage.getItem(THEME_KEY) : null;
+    return THEME_CHOICES.includes(value) ? value : THEME_CHOICES[0];
+  } catch {
+    return THEME_CHOICES[0];
+  }
+}
+
+export function saveTheme(storage, choice) {
+  try {
+    if (storage) storage.setItem(THEME_KEY, choice);
+  } catch {
+    // A browser that refuses storage keeps the choice for this visit only.
+  }
+}
+
+const NAMES = { light: 'Light', dim: 'Dim', dark: 'Dark' };
+
+/** The Appearance group's status line: the theme shown and why (contracts/page-ui.md). */
+export function themeStatus(choice, inputs) {
+  const theme = NAMES[resolveTheme(choice, inputs)];
+  if (choice === 'auto-device') return `${theme}: device preference`;
+  if (choice !== 'auto-sun') return `${theme}: chosen`;
+  const { sunElevation, place } = inputs;
+  if (sunElevation === null || sunElevation === undefined) {
+    return `No station position yet: following the device (${theme})`;
+  }
+  const degrees = Math.round(Math.abs(sunElevation));
+  const where = place ? `at ${place}` : 'at the station';
+  const side = sunElevation >= 0 ? 'above' : 'below';
+  return `${theme}: sun ${degrees}° ${side} the horizon ${where}`;
 }

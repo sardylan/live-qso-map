@@ -13,6 +13,22 @@ export function buildStyle(basemap) {
   return basemap.url;
 }
 
+const OPENFREEMAP_STYLES = 'https://tiles.openfreemap.org/styles/';
+/** The service's default base map (`DEFAULT_STYLE_URL` in src/config.rs). */
+export const DEFAULT_STYLE_URL = `${OPENFREEMAP_STYLES}liberty`;
+
+/**
+ * The base map for a theme (feature 011, research R4): with the default OpenFreeMap map, the
+ * theme's own style and no dimming; with any operator-configured map (another style, raster
+ * tiles), the same style (`styleUrl` null) dimmed by the theme's opacity.
+ */
+export function basemapFor(basemap, palette, defaultUrl) {
+  if (basemap.kind !== 'raster' && basemap.url === defaultUrl) {
+    return { styleUrl: `${OPENFREEMAP_STYLES}${palette.basemapStyle}`, dimOpacity: 0 };
+  }
+  return { styleUrl: null, dimOpacity: palette.dimOpacity };
+}
+
 /** True when the browser can create a WebGL context (FR-012). */
 export function hasWebGL(createCanvas) {
   try {
