@@ -218,7 +218,7 @@ and no `-rc` tag.
   - rotating the tokens.
 
   In `README.md`, replace the "CircleCI project needs these variables" table with a pointer to it.
-- [ ] T029 [US3] [ext] Create the context `live-qso-map-release` with its project and expression restrictions. The maintainer enters the three values: a fine-grained GitHub token (this repository only, `contents: write`) and a Docker Hub personal access token (Read/Write/Delete). Delete any project-level variables with these names. Check with `quickstart.md` §6.
+- [X] T029 [US3] [ext] Create the context `live-qso-map-release` with its project and expression restrictions. The maintainer enters the three values: a fine-grained GitHub token (this repository only, `contents: write`) and a Docker Hub personal access token (Read/Write/Delete). Delete any project-level variables with these names. Check with `quickstart.md` §6.
 - [X] T030 [US3] Add `test_release_rerun_keeps_notes` to `tools/test_ci_config.py`, a regression test for R2. It asserts that the config:
   - contains no `ghr` and no ` -delete`;
   - contains `gh release view` before `gh release create` with `--verify-tag` and `--notes-file`;
@@ -401,7 +401,7 @@ with a known advisory fails `audit`; `quickstart.md` §7.
 - [X] T058 [P] Mark every item of `specs/009-fix-ci-pipeline/reference/circleci-review.md` with its resolution, or "out of scope (decision)" for 9, 11 and 14. Mark item 15 resolved by T023/T056.
 - [X] T059 [P] Add a lessons-learned entry to `docs/lessons-learned.md`, following the file's format and lock rules. The lesson: a pipeline that validates can still never have run. Check the run history (`circleci run list`), not only `config validate`, before trusting a release path. OAuth checkout needs an SSH key even for public repositories.
 - [X] T060 Run the local gates: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test --locked`, `node --test 'web/*.test.js'`, `sh scripts/test-*.sh`, and `circleci config validate .circleci/config.yml`.
-- [ ] T061 Run a final rehearsal and the event checks (`quickstart.md` §2, §4, §6) on the final branch head, then merge the feature pull request with the gates green. Delete the feature branch locally and remotely (constitution, Development Workflow).
+- [X] T061 Run a final rehearsal and the event checks (`quickstart.md` §2, §4, §6) on the final branch head, then merge the feature pull request with the gates green. Delete the feature branch locally and remotely (constitution, Development Workflow).
 
 ---
 
