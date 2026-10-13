@@ -329,3 +329,14 @@ Task: "T022 [US4] web/legend.test.js"
 4. **US4:** band groups. The protocol bump, server and page.
 5. **US5:** the server default. Last, because it changes what other tests see.
 6. **Polish:** docs, changelog, gates, pull request.
+
+---
+
+## Phase 9: Convergence
+
+Appended by `/speckit-converge` on review of the current codebase against
+spec/plan/tasks. Complete with `/speckit-implement`.
+
+- [X] T039 [US1] Write a failing test in `web/themes.test.js` that reads `src/web/assets/app.css` and checks that the MapLibre map buttons take the theme. `.maplibregl-ctrl-group` and its `button` must use `var(--bg)`, `var(--text)` and `var(--border)`, and `.toggle-control button.active` must set `color: var(--text)` as well as its `--highlight` background. Then style them in `app.css`. The zoom and compass icons are dark SVGs from MapLibre, so invert them under `[data-theme="dim"]` and `[data-theme="dark"]`. Today they keep MapLibre's white buttons, and in Dark an active Auto-zoom button shows default black text on `#2c3a52`. <!-- gap: FR-002 (map buttons), SC-002 -->
+- [X] T040 [US1] Write a failing test in `web/themes.test.js` that reads `app.css` and checks that QSO and QTH popups use the theme. `.maplibregl-popup-content` must use `background: var(--bg)` and `color: var(--text)`, and the popup tip (`.maplibregl-popup-tip`, every anchor) must use `var(--bg)`. Then style them in `app.css`. Today the popup background stays MapLibre's white while the text inherits `--text`, which gives light text on white in Dim and Dark. <!-- gap: FR-002 (whole page), SC-002 -->
+- [X] T041 [US1] Write a failing test in `web/themes.test.js` that reads `app.css` and checks the attribution line and the scale bar. `.maplibregl-ctrl-attrib` (with its links and the compact `ⓘ` button) and `.maplibregl-ctrl-scale` must use theme variables (`--panel` or `--bg`, `--text`, `--accent` for links, `--border`). Then style them in `app.css`. Today both keep MapLibre's light defaults over a dark map. <!-- gap: FR-002 (whole page), SC-002 -->
