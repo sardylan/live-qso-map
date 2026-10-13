@@ -246,7 +246,7 @@ The country data's answer for the base call is ignored, and `/MM` and `/AM` are 
     `APP_LIVEQSOMAP_POS_REJECTED` field.
 - [X] T022 [P] Add a "Rejected positions" note to the README (QSO fields section, near `APP_LIVEQSOMAP_POS_SOURCE` if documented there, otherwise in the enrichment description): what the new field means, with an example.
 - [X] T023 Run the local gates: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test --locked`, `node --test 'web/*.test.js'`, `python3 -m unittest discover -s tools -p 'test_*.py'`, and quickstart §1.
-- [ ] T024 Mark the tasks done, commit per phase, push `feature/010-portable-callsigns`, and open the pull request. Merge it once the five gates are green; delete the branch afterwards (constitution, Development Workflow).
+- [X] T024 Mark the tasks done, commit per phase, push `feature/010-portable-callsigns`, and open the pull request. Merge it once the five gates are green; delete the branch afterwards (constitution, Development Workflow).
 
 ---
 
@@ -288,3 +288,16 @@ Task: "T013 [US2] integration rows 3, 4, 7–10 in tests/portable_callsigns.rs"
 2. **US2**: the base-callsign retry for portable callsigns.
 3. **US3**: placeholders and the logger path.
 4. **Polish**: domain document, changelog, README, gates, pull request.
+
+## Phase 7: Convergence
+
+Appended by `/speckit-converge` on review of the current codebase against spec/plan/tasks.
+Complete with `/speckit-implement`.
+
+- [X] T025 [US3] Add a test proving FR-009: every discarded position produces one `position rejected` warning carrying `call`, `source`, `reason` and `round`. Use the warning-capturing `tracing_subscriber` layer already used in `src/ingest/mod.rs` tests and `tests/qartest_replay.rs`, either in `src/enrich/mod.rs` tests (calling `enrich()` with fake sources) or in `tests/portable_callsigns.rs`. Cover:
+  - row 2 (`qrz`, `outside-entity`, round `logged`);
+  - row 3 (`qrz`, `outside-entity`, round `base`);
+  - row 15 (`logger`, `placeholder`);
+  - a QSO with nothing rejected, which gives no such warning.
+
+  The test must fail when the `tracing::warn!` in `enrich()` is removed (constitution Principle I). <!-- gap: FR-009; US3 acceptance scenario 6 -->
