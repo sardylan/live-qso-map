@@ -35,7 +35,11 @@ import {
   saveRecentSize,
   loadRecentOrder,
   saveRecentOrder,
+  basemapFor,
+  DEFAULT_STYLE_URL,
 } from './view.js';
+import { PALETTES, applyPalette, resolveTheme, loadTheme, saveTheme, themeStatus } from './themes.js';
+import { solarElevation } from './sun.js';
 import { recentQsos, headerCells, rowCells, markerKeyOf, entityLabel, onMap } from './recent.js';
 import { scoreText, isStale, updatedTitle } from './score.js';
 import { createAutoZoom } from './autozoom.js';
@@ -115,6 +119,15 @@ let scoreState = null;
 const SCORE_TICK_MS = 5_000;
 // How far inside the free area a marker opened from the box is brought (FR-022a).
 const PAN_INSET_PX = 40;
+// The theme (feature 011): the viewer's choice, the theme shown, and what decides it.
+let themeChoice = loadTheme(localStore());
+let currentTheme = null;
+let basemap = null;
+// The style URL the map uses when the page picks it (default base map); null otherwise.
+let activeStyleUrl = null;
+const darkQuery = typeof window.matchMedia === 'function' ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+// The automatic theme is re-checked this often (FR-003: within 60 s).
+const THEME_TICK_MS = 60_000;
 
 function element(tag, className, text) {
   const node = document.createElement(tag);
@@ -197,7 +210,7 @@ function addOverlays() {
     source: 'qso-lines',
     layout: { 'line-cap': 'round' },
     // Black from the QTH (FR-004); slight transparency keeps overlapping paths apart.
-    paint: { 'line-color': '#000', 'line-width': 1.5, 'line-opacity': 0.6 },
+    paint: { 'line-color': PALETTES[currentTheme ?? 'light'].line, 'line-width': 1.5, 'line-opacity': 0.6 },
   });
   // Order: lines, then the house, then the markers, which stay clickable on top (FR-005).
   addHouseImage();
@@ -533,6 +546,8 @@ function render() {
   if (qthChanged) map.getSource('qth').setData(houseFeature(nextQth));
   current = next;
   qth = nextQth;
+  // The sun mode follows the house marker: a new position may change the theme (FR-003).
+  if (qthChanged) updateTheme();
   if (openKey === QTH_POPUP) {
     if (!qth) openPopup.remove();
     else if (qthChanged) openPopup.setLngLat([qth.lon, qth.lat]).setDOMContent(qthPopupContent(qth));
@@ -573,10 +588,85 @@ function openTrackedPopup(lngLat, content, key) {
   armPopupTimer(popup);
 }
 
+/** What the automatic theme looks at: the device preference, and the sun at the house marker. */
+function themeInputs() {
+  const station = currentQth(helloStation, state);
+  return {
+    prefersDark: darkQuery ? darkQuery.matches : false,
+    sunElevation: station ? solarElevation(new Date(), station.lat, station.lon) : null,
+    place: station ? station.locator || station.callsign : null,
+  };
+}
+
+/** Picks the theme and applies it to the page and the map when it changes (FR-001–FR-003). */
+function updateTheme() {
+  const inputs = themeInputs();
+  const status = document.getElementById('theme-status');
+  if (status) status.textContent = themeStatus(themeChoice, inputs);
+  const theme = resolveTheme(themeChoice, inputs);
+  if (theme === currentTheme) return;
+  currentTheme = theme;
+  applyPalette(document.documentElement, theme);
+  applyBasemap();
+}
+
+/**
+ * The default base map switches style with the theme; any other is dimmed instead (research
+ * R4). A style switch drops every layer: the `style.load` handler adds them back. The camera
+ * is not touched, so the view stays as it is.
+ */
+function applyBasemap() {
+  if (!map || !basemap || !currentTheme) return;
+  const { styleUrl } = basemapFor(basemap, PALETTES[currentTheme], DEFAULT_STYLE_URL);
+  if (styleUrl && styleUrl !== activeStyleUrl) {
+    activeStyleUrl = styleUrl;
+    loaded = false;
+    map.setStyle(styleUrl, { diff: false });
+    return;
+  }
+  applyOverlayTheme();
+}
+
+/** The theme's colours on the page's own layers, and the dimming layer for other base maps. */
+function applyOverlayTheme() {
+  if (!loaded || !currentTheme) return;
+  const palette = PALETTES[currentTheme];
+  map.setPaintProperty('qso-lines', 'line-color', palette.line);
+  const { dimOpacity } = basemapFor(basemap, palette, DEFAULT_STYLE_URL);
+  if (dimOpacity > 0) {
+    if (!map.getLayer('theme-dim')) {
+      // A full background layer above the base map and below the QSO layers: the markers keep
+      // their colours.
+      map.addLayer(
+        { id: 'theme-dim', type: 'background', paint: { 'background-color': '#000000', 'background-opacity': dimOpacity } },
+        'qso-lines',
+      );
+    } else {
+      map.setPaintProperty('theme-dim', 'background-opacity', dimOpacity);
+    }
+  } else if (map.getLayer('theme-dim')) {
+    map.removeLayer('theme-dim');
+  }
+}
+
+/** Everything the page adds to a style, again after every style switch. */
+function onStyleLoad() {
+  map.setProjection({ type: shown });
+  addOverlays();
+  loaded = true;
+  current = new Map();
+  qth = null;
+  applyOverlayTheme();
+  render();
+  autozoom.change();
+}
+
 function createMap(hello) {
+  const themed = basemapFor(hello.basemap, PALETTES[currentTheme ?? 'light'], DEFAULT_STYLE_URL);
+  activeStyleUrl = themed.styleUrl;
   map = new maplibregl.Map({
     container: 'map',
-    style: buildStyle(hello.basemap),
+    style: themed.styleUrl ?? buildStyle(hello.basemap),
     center: [0, 30],
     zoom: 1.5,
     attributionControl: false,
@@ -593,15 +683,8 @@ function createMap(hello) {
   settingsControl = new SettingsControl();
   map.addControl(settingsControl, 'top-right');
   updateScale();
-  map.on('load', () => {
-    map.setProjection({ type: shown });
-    addOverlays();
-    loaded = true;
-    current = new Map();
-    qth = null;
-    render();
-    autozoom.change();
-  });
+  // Fires for the first style and after every theme switch of the default base map.
+  map.on('style.load', onStyleLoad);
   // Only camera moves the viewer makes carry the browser event; the page's own fits do not.
   // `movestart` fires for every camera change, including rotation and pitch (FR-011).
   map.on('movestart', (event) => {
@@ -648,10 +731,13 @@ function showLegend(bands) {
 }
 
 function onHello(hello) {
-  if (!map) createMap(hello);
-  showLegend(hello.bands);
   helloStation = hello.station ?? null;
   entity = hello.entity ?? null;
+  basemap = hello.basemap;
+  // The theme first, so the map starts with the right style (no light flash at night).
+  updateTheme();
+  if (!map) createMap(hello);
+  showLegend(hello.bands);
   if (hello.recent && Array.isArray(hello.recent.columns)) recentConfig = hello.recent;
   state = createState({ bands: hello.bands, fallbackColor: hello.fallback_color, limit: connection.limit });
   renderRecent();
@@ -710,6 +796,22 @@ function connect() {
   });
 }
 
+/** The Appearance group: the theme choice and its status line (FR-001, contracts/page-ui.md). */
+function setupAppearance() {
+  const select = document.getElementById('theme');
+  select.value = themeChoice;
+  select.addEventListener('change', () => {
+    themeChoice = select.value;
+    saveTheme(localStore(), themeChoice);
+    updateTheme();
+  });
+  if (darkQuery && typeof darkQuery.addEventListener === 'function') {
+    darkQuery.addEventListener('change', updateTheme);
+  }
+  setInterval(updateTheme, THEME_TICK_MS);
+  updateTheme();
+}
+
 function setupSelector() {
   const select = document.getElementById('limit');
   select.value = connection.limit === null ? 'all' : String(connection.limit);
@@ -759,6 +861,7 @@ function setupSelector() {
 if (hasWebGL(() => document.createElement('canvas'))) {
   setupSelector();
   setupPanel();
+  setupAppearance();
   connect();
   window.addEventListener('resize', () => autozoom.change());
   setInterval(() => runActions(autozoom.tick(Date.now())), 250);

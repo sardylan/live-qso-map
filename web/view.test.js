@@ -181,3 +181,33 @@ test('a box hidden before feature 007 stays hidden once the switch is a checkbox
   assert.equal(loadRecent(storage), false);
   assert.equal(loadRecent(memoryStorage({ 'lqm.recent': 'shown' })), true);
 });
+
+// --- base map per theme (feature 011, T010) -----------------------------------------------
+
+import { basemapFor } from '../src/web/assets/view.js';
+
+const DEFAULT_URL = 'https://tiles.openfreemap.org/styles/liberty';
+
+test('the default base map switches to the theme style, undimmed', () => {
+  const basemap = { kind: 'style', url: DEFAULT_URL };
+  assert.deepEqual(basemapFor(basemap, { basemapStyle: 'dark', dimOpacity: 0.55 }, DEFAULT_URL), {
+    styleUrl: 'https://tiles.openfreemap.org/styles/dark',
+    dimOpacity: 0,
+  });
+  assert.deepEqual(basemapFor(basemap, { basemapStyle: 'liberty', dimOpacity: 0 }, DEFAULT_URL), {
+    styleUrl: DEFAULT_URL,
+    dimOpacity: 0,
+  });
+});
+
+test('an operator base map keeps its style and is dimmed', () => {
+  const palette = { basemapStyle: 'fiord', dimOpacity: 0.35 };
+  assert.deepEqual(basemapFor({ kind: 'style', url: 'https://example.org/style.json' }, palette, DEFAULT_URL), {
+    styleUrl: null,
+    dimOpacity: 0.35,
+  });
+  assert.deepEqual(basemapFor({ kind: 'raster', url: 'https://t/{z}/{x}/{y}.png' }, palette, DEFAULT_URL), {
+    styleUrl: null,
+    dimOpacity: 0.35,
+  });
+});

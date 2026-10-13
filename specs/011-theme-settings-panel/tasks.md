@@ -103,13 +103,13 @@ and every panel follow the chosen theme within 60 seconds.
 
 ### Tests for User Story 1 (write first, confirm they FAIL)
 
-- [ ] T009 [P] [US1] Write failing tests in the new `web/sun.test.js`, for a new `src/web/assets/sun.js` (`solarElevation(date, lat, lon)`):
+- [X] T009 [P] [US1] Write failing tests in the new `web/sun.test.js`, for a new `src/web/assets/sun.js` (`solarElevation(date, lat, lon)`):
   - Cagliari (39.22N 9.12E) at 2026-03-20 11:30 UTC is between 49° and 52°;
   - the same place at 2026-03-20 23:30 UTC is below −40°;
   - Tromsø (69.65N 18.96E) at 2026-06-21 23:00 UTC is above 0° (polar day);
   - Tromsø at 2026-12-21 11:00 UTC is below 0° (polar night);
   - the equator at the equinox at local noon is above 85°.
-- [ ] T010 [P] [US1] Add failing tests to `web/themes.test.js` for `resolveTheme(choice, { prefersDark, sunElevation })`:
+- [X] T010 [P] [US1] Add failing tests to `web/themes.test.js` for `resolveTheme(choice, { prefersDark, sunElevation })`:
   - every row of research R2's table, including elevations 0, −0.1, −6 and −6.1, and
     `auto-sun` with `null` behaving like `auto-device`;
   - `loadTheme`/`saveTheme` (`lqm.theme`): five valid values, the default `auto-device`, and
@@ -124,9 +124,9 @@ and every panel follow the chosen theme within 60 seconds.
 
 ### Implementation for User Story 1
 
-- [ ] T011 [US1] Implement `solarElevation` in `src/web/assets/sun.js` (NOAA equations, UTC, no refraction; research R3). Make T009 pass.
-- [ ] T012 [US1] Implement `resolveTheme`, `loadTheme`, `saveTheme` and `themeStatus` in `src/web/assets/themes.js`, and `basemapFor` in `src/web/assets/view.js`. Make T010 pass.
-- [ ] T013 [US1] In `src/web/assets/app.js`:
+- [X] T011 [US1] Implement `solarElevation` in `src/web/assets/sun.js` (NOAA equations, UTC, no refraction; research R3). Make T009 pass.
+- [X] T012 [US1] Implement `resolveTheme`, `loadTheme`, `saveTheme` and `themeStatus` in `src/web/assets/themes.js`, and `basemapFor` in `src/web/assets/view.js`. Make T010 pass.
+- [X] T013 [US1] In `src/web/assets/app.js`:
   1. **Recompute** the theme on load, on the `matchMedia('(prefers-color-scheme: dark)')`
      `change` event, every 60 s, and when the house-marker position from `currentQth()`
      changes;
@@ -140,7 +140,7 @@ and every panel follow the chosen theme within 60 seconds.
      `theme-dim` with the palette's colour and `basemapFor`'s `dimOpacity`, inserted below the
      first QSO layer. Only these MapLibre calls stay checked by hand;
   5. **Keep the view:** don't touch the camera, and let any animation finish.
-- [ ] T014 [US1] Add the Appearance group to the panel in `src/web/assets/index.html`: a `<select id="theme">` with the five choices, and a status line `<p id="theme-status" aria-live="polite">`. Wire both in `src/web/assets/app.js` (save on change; update the status on every recompute).
+- [X] T014 [US1] Add the Appearance group to the panel in `src/web/assets/index.html`: a `<select id="theme">` with the five choices, and a status line `<p id="theme-status" aria-live="polite">`. Wire both in `src/web/assets/app.js` (save on change; update the status on every recompute).
 - [ ] T015 [US1] **Verify** quickstart §3 by hand (device switch, sun mode with a faked time, fixed themes kept after reload, dimming of an operator-configured map), and record the result in the commit message.
 
 **Checkpoint**: the page follows the light, and every theme is readable.
