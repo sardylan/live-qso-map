@@ -233,19 +233,19 @@ The country data's answer for the base call is ignored, and `/MM` and `/AM` are 
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T020 [P] Update `docs/ham-radio.md` (research R9):
+- [X] T020 [P] Update `docs/ham-radio.md` (research R9):
   - **HR-7:** add that a position outside the callsign's entity (nested entities excluded), or a
     placeholder (0°/0°; square `AA00` except Antarctica), is not a position.
   - **§2.2:** add a "Position looked up as" column (logged call, then the base call when no
     online service knows it; never for `/MM` and `/AM`).
   - **Changelog:** add a dated line.
-- [ ] T021 [P] Add entries under `## [Unreleased]` in `CHANGELOG.md` (`docs/releasing.md`):
+- [X] T021 [P] Add entries under `## [Unreleased]` in `CHANGELOG.md` (`docs/releasing.md`):
   - **Fixed:** prefixed callsigns drawn in their own entity; positions at 0°/0° or `AA00AA`
     ignored.
   - **Added:** the base-callsign retry for portable callsigns, and the
     `APP_LIVEQSOMAP_POS_REJECTED` field.
-- [ ] T022 [P] Add a "Rejected positions" note to the README (QSO fields section, near `APP_LIVEQSOMAP_POS_SOURCE` if documented there, otherwise in the enrichment description): what the new field means, with an example.
-- [ ] T023 Run the local gates: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test --locked`, `node --test 'web/*.test.js'`, `python3 -m unittest discover -s tools -p 'test_*.py'`, and quickstart §1.
+- [X] T022 [P] Add a "Rejected positions" note to the README (QSO fields section, near `APP_LIVEQSOMAP_POS_SOURCE` if documented there, otherwise in the enrichment description): what the new field means, with an example.
+- [X] T023 Run the local gates: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test --locked`, `node --test 'web/*.test.js'`, `python3 -m unittest discover -s tools -p 'test_*.py'`, and quickstart §1.
 - [ ] T024 Mark the tasks done, commit per phase, push `feature/010-portable-callsigns`, and open the pull request. Merge it once the five gates are green; delete the branch afterwards (constitution, Development Workflow).
 
 ---

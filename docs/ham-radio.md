@@ -75,6 +75,16 @@ more precise:
   with it;
 - anything that displays a position MUST show its precision.
 
+Some positions are not positions at all, and MUST be discarded like an absent one (feature 010):
+
+- **Placeholders:** exactly 0° latitude and 0° longitude, from any source, and any point in
+  locator square `AA00`, except for an Antarctic station (that square holds the South Pole).
+- **Outside the entity:** a position found online that lies outside the area of the callsign's
+  entity. A point inside an entity nested within that area (Sardinia within Italy) counts as
+  outside. Positions sent by the logger are trusted, except placeholders.
+
+A discarded position is noted in the QSO record (`APP_LIVEQSOMAP_POS_REJECTED`) and logged.
+
 ### HR-8 Coordinates use one sign convention inside the service
 
 Inside the service, latitude is positive north and longitude positive east, in decimal degrees.
@@ -127,12 +137,15 @@ example `DL`, `IS`, `K`, `3D2`), a **call-area digit**, and a **suffix** (`DL5QF
 
 **Portable and compound forms:**
 
-| Form | Meaning | Entity taken from |
-|------|---------|-------------------|
-| `IS0/DL1ABC` | DL1ABC operating from Sardinia | the shorter, prefix-like part, `IS0` |
-| `DL1ABC/P`, `/M`, `/A`, `/QRP` | portable, mobile, alternative address, low power | `DL1ABC` (suffix ignored) |
-| `K1ABC/6` | operating in US call area 6 | `K6ABC` (still USA) |
-| `DL1ABC/MM`, `/AM` | maritime or aeronautical mobile | no entity |
+| Form | Meaning | Entity taken from | Looked up online as |
+|------|---------|-------------------|---------------------|
+| `IS0/DL1ABC` | DL1ABC operating from Sardinia | the shorter, prefix-like part, `IS0` | `IS0/DL1ABC`, then `DL1ABC` if unknown |
+| `DL1ABC/P`, `/M`, `/A`, `/QRP` | portable, mobile, alternative address, low power | `DL1ABC` (suffix ignored) | `DL1ABC/P`, then `DL1ABC` if unknown |
+| `K1ABC/6` | operating in US call area 6 | `K6ABC` (still USA) | `K1ABC/6`, then `K1ABC` if unknown |
+| `DL1ABC/MM`, `/AM` | maritime or aeronautical mobile | no entity | `DL1ABC/MM` only |
+
+A position found through the base callsign is still judged against the entity of the callsign
+as logged (HR-7): `IS0/DL1ABC` is never drawn at DL1ABC's home in Germany.
 
 Some callsigns are exceptions to their prefix. The country data lists them as exact matches
 (`=CALL` in cty.dat), which take precedence over any prefix rule.
@@ -280,3 +293,4 @@ across the map.
 | Date | Change |
 |------|--------|
 | 2026-10-09 | Initial version: rules HR-1 to HR-11, concepts §2.1–§2.10. |
+| 2026-10-13 | HR-7: placeholder positions and positions outside the entity are discarded; §2.2: how compound callsigns are looked up online (feature 010). |

@@ -7,6 +7,17 @@ which becomes the GitHub release notes (`docs/releasing.md`).
 
 ## [Unreleased]
 
+### Fixed
+- A station operating from another country with a prefix (`IS0/DL1ABC`, `I/HB9ABC`) is drawn in
+  that country, not at its home abroad.
+- Positions at 0°/0°, and the `AA00` locator outside Antarctica, are ignored instead of drawn.
+- An online position outside the callsign's country is ignored, and the country centre is used.
+
+### Added
+- Portable and compound callsigns unknown online are looked up again without their prefix or
+  suffix (`IS0ABC/P` → `IS0ABC`).
+- The QSO field `APP_LIVEQSOMAP_POS_REJECTED` lists ignored positions and why.
+
 ## [2.0.1] - 2026-10-13
 
 ### Fixed
