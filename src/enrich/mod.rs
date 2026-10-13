@@ -374,4 +374,125 @@ mod tests {
             assert_eq!(by_entity, by_lookup, "{call}");
         }
     }
+
+    // --- FR-009: one warning per rejected position (feature 010, T025) ---------------------
+
+    use crate::pipeline::{LookupSource, cty_source};
+    use crate::position::{LookupCandidate, Precision};
+    use std::collections::HashMap;
+    use std::sync::Mutex;
+    use tracing::field::{Field, Visit};
+    use tracing_subscriber::layer::{Context, Layer, SubscriberExt};
+
+    const PORTABLE: &str = include_str!("../../tests/fixtures/cty-portable.dat");
+
+    /// Records the fields of every WARN event, as text.
+    struct Warnings(Arc<Mutex<Vec<HashMap<String, String>>>>);
+
+    struct Fields(HashMap<String, String>);
+
+    impl Visit for Fields {
+        fn record_str(&mut self, field: &Field, value: &str) {
+            self.0.insert(field.name().to_string(), value.to_string());
+        }
+        fn record_debug(&mut self, field: &Field, value: &dyn std::fmt::Debug) {
+            self.0
+                .insert(field.name().to_string(), format!("{value:?}"));
+        }
+    }
+
+    impl<S: tracing::Subscriber> Layer<S> for Warnings {
+        fn on_event(&self, event: &tracing::Event<'_>, _ctx: Context<'_, S>) {
+            if *event.metadata().level() == tracing::Level::WARN {
+                let mut fields = Fields(HashMap::new());
+                event.record(&mut fields);
+                self.0.lock().unwrap().push(fields.0);
+            }
+        }
+    }
+
+    /// A fake QRZ answering `known` calls at Berlin.
+    fn qrz_at_berlin(known: &'static [&'static str]) -> LookupSource {
+        Arc::new(move |call: String| {
+            Box::pin(async move {
+                if !known.contains(&call.as_str()) {
+                    return Ok(None);
+                }
+                Ok(Some(LookupCandidate {
+                    source: PositionSource::Qrz,
+                    position: Some(Position::new(
+                        52.52,
+                        13.4,
+                        Precision::Locator6,
+                        PositionSource::Qrz,
+                    )?),
+                    fields: AdifRecord::new(),
+                }))
+            })
+        })
+    }
+
+    /// Enriches one QSO and returns the `position rejected` warnings it produced.
+    async fn rejection_warnings(
+        call: &str,
+        extra: &[(&str, &str)],
+        known: &'static [&'static str],
+    ) -> Vec<HashMap<String, String>> {
+        let config = Config::default();
+        let country = Arc::new(CountryData::parse(PORTABLE));
+        let areas = Arc::new(ExtentTable::embedded().unwrap());
+        let sources = vec![qrz_at_berlin(known), cty_source(Arc::clone(&country))];
+        let lookups = Lookups::new(sources, Some(country), areas, &config);
+        let warnings = Arc::new(Mutex::new(Vec::new()));
+        let subscriber = tracing_subscriber::registry().with(Warnings(warnings.clone()));
+        let _guard = tracing::subscriber::set_default(subscriber);
+        enrich(event(call, extra), &config, &lookups).await;
+        let all = warnings.lock().unwrap().clone();
+        all.into_iter()
+            .filter(|w| w.get("message").map(String::as_str) == Some("position rejected"))
+            .collect()
+    }
+
+    fn expected(call: &str, source: &str, reason: &str, round: &str) -> HashMap<String, String> {
+        HashMap::from([
+            ("message".to_string(), "position rejected".to_string()),
+            ("call".to_string(), call.to_string()),
+            ("source".to_string(), source.to_string()),
+            ("reason".to_string(), reason.to_string()),
+            ("round".to_string(), round.to_string()),
+        ])
+    }
+
+    #[tokio::test]
+    async fn every_rejected_position_is_logged_once() {
+        // Row 2: the logged call is known, at a home outside Sardinia.
+        assert_eq!(
+            rejection_warnings("IS0/DL0AAA", &[], &["IS0/DL0AAA"]).await,
+            vec![expected("IS0/DL0AAA", "qrz", "outside-entity", "logged")]
+        );
+        // Row 3: only the base call is known.
+        assert_eq!(
+            rejection_warnings("IS0/DL0AAA", &[], &["DL0AAA"]).await,
+            vec![expected("IS0/DL0AAA", "qrz", "outside-entity", "base")]
+        );
+        // Row 15: the logger sent 0°/0°; the online answer is accepted.
+        assert_eq!(
+            rejection_warnings(
+                "DL0AAA",
+                &[("LAT", "N000 00.000"), ("LON", "E000 00.000")],
+                &["DL0AAA"]
+            )
+            .await,
+            vec![expected("DL0AAA", "logger", "placeholder", "logged")]
+        );
+    }
+
+    #[tokio::test]
+    async fn nothing_rejected_means_no_rejection_warning() {
+        assert!(
+            rejection_warnings("DL0AAA", &[], &["DL0AAA"])
+                .await
+                .is_empty()
+        );
+    }
 }
