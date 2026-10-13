@@ -112,6 +112,11 @@ export function finishStep(run, step, error, now = Date.now()) {
   return step;
 }
 
+/** Notes a screenshot taken during `step`, so the report points at its evidence (FR-011). */
+export function addScreenshot(step, file) {
+  (step.screenshots ??= []).push(file);
+}
+
 /** After a failure, the remaining steps are reported as not run. */
 export function skipRest(run, names) {
   for (const name of names) run.steps.push({ name, status: 'not-run' });
