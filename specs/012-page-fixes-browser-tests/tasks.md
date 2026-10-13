@@ -95,6 +95,7 @@ No shared prerequisite: User Story 1 is done, and the other stories start from t
 - [ ] T008 [US4] In `src/web/assets/themes.js`, add `panelSolid` to each palette (light `#ffffff`, dim `#353d4d`, dark `#1b2028`) and `panelSolid: '--panel-solid'` to `CSS_VARIABLES`.
   - **`src/web/assets/app.css`:** define `--panel-solid: #ffffff` on `:root`, and set `.panel { background: var(--panel-solid); }`. Add `box-shadow: inset 0 0 0 2px var(--accent)` to `.toggle-control button.active`.
   - **Contrast:** if any palette's `accent` misses 3:1 against `highlight`, adjust `accent` or `highlight`, keeping every existing 4.5:1 text pair.
+  - **`src/web/assets/app.js`:** on the map's `moveend`, write `data-view="<lat>,<lon>,<zoom>"` (rounded to 4 decimals) on `#map`. This is the view the browser tests compare (US3 scenario 3).
 
   Make T006 pass.
 
@@ -147,7 +148,7 @@ build and a local Chrome, with a report, a log and screenshots.
 
   Domains to enable: Runtime, Log, Network, Page.
 - [ ] T012 [US3] Implement `tests/browser/run.mjs`, the runner (contracts/browser-test.md, research R3–R6, R8).
-  - **Arguments:** parse them with `lib.parseArgs`. Exit 2 when the binary or Chrome isn't found.
+  - **Arguments:** parse them with `lib.parseArgs`. Exit 2 when the binary or Chrome isn't found, or when Chrome doesn't answer on its debugging port within 10 s ("Chrome did not start: <path>").
   - **The program:**
     - pick free HTTP and UDP ports by binding port 0 (`net`, `dgram`);
     - start it with `--http-port`, `--udp-port`, `--cty-path tests/fixtures/cty-excerpt.dat`, `--cty-max-age-days 0`, `--station-callsign IS0GVH` and `--station-locator JM49OF`, with every `LQM_*` variable removed from its environment;
@@ -158,6 +159,7 @@ build and a local Chrome, with a report, a log and screenshots.
     - **Waits and failures:** wait with `lib.waitFor`. Fail a step when a fatal event (`lib.classifyEvent`) arrived during it.
     - **Screenshots:** take one `NN-<step>.png` per step after its condition holds.
     - **QSOs:** send them as UDP datagrams built with `lib.qsoAdif`.
+    - **Step 04:** read `#map`'s `data-view` before and after each theme switch, and fail if it moved (more than 0.01° or 0.01 zoom).
     - **Step 08:** stop the program (phase A), check the banner, then start phase B with `--bands hf`.
   - **Files:** write `report.json` and `console.log` (data-model "Browser test run").
   - **Output:** print one line per step and `browser tests: pass|fail`. Exit 0 or 1.
@@ -183,7 +185,8 @@ merge.
     - a job `browser-test` exists, using the image `cimg/node:24.21.0-browsers`;
     - it `fetch-verified`s `https://storage.googleapis.com/chrome-for-testing-public/154.0.8037.92/linux64/chrome-linux64.zip` with SHA-256 `ff43322f335e436b2f4dcdfeeec5db032299e335a7e8c1c618b326e100ce8732`;
     - it runs `node tests/browser/run.mjs` with `--binary ws/bin/x86_64-unknown-linux-musl/live-qso-map`;
-    - it has a `store_artifacts` of `target/browser-test` with `when: always`.
+    - it has a `store_artifacts` of `target/browser-test` with `when: always`;
+    - neither workflow gives the `browser-test` entry a `context:` (FR-013).
   - **Release workflow:** the job uses `filters: *release-tags` and requires `build-linux-x86_64-unknown-linux-musl`, and `publish-github-release` requires `browser-test`.
   - **Rehearsal workflow:** the job is present there, and `rehearsal-summary` requires it.
   - **Elsewhere:** the job doesn't appear in the gates workflow or in the weekly scheduled workflow.
@@ -195,9 +198,13 @@ merge.
   - **Artifacts:** add `when: always` on the `store_artifacts` step.
   - **Checks:** run `circleci config validate`, and make T014 pass.
 - [ ] T016 [US2] Document the browser tests (FR-014):
-  - **`docs/ci.md`:** a section after "Audit gate": when they run, what they block, the artifacts (`browser-test/` on the job's Artifacts tab), how to bump the Chrome pin, and how to run them locally. Also add the job to the rehearsal list in §7.
+  - **`docs/ci.md`:** a section after "Audit gate": when they run, what they block, the artifacts (`browser-test/` on the job's Artifacts tab), how to bump the Chrome pin, how to run them locally, and that "Rerun workflow from failed" runs `browser-test` again (it keeps no cache). Also add the job to the rehearsal list in §7.
   - **`docs/releasing.md`:** `browser-test` must be green before `publish-github-release`, and where to look when it fails.
-- [ ] T017 [US2] **Verify** in a rehearsal run on the pushed branch (`docs/ci.md` §7, `--param rehearsal=true`): `browser-test` passes, `rehearsal-summary` runs after it, and its artifacts hold the screenshots and `report.json`.
+- [ ] T017 [US2] **Verify** in rehearsal runs on the pushed branch (`docs/ci.md` §7, `--param rehearsal=true`):
+  1. **Broken page:** push a temporary commit that removes the `/legend.js` route from `src/web/mod.rs` and start a rehearsal. `browser-test` fails, step 01 names the 404, and `rehearsal-summary` doesn't run (SC-002).
+  2. **Good page:** revert that commit with `git revert`, push, and start another rehearsal. `browser-test` passes, `rehearsal-summary` runs, and the artifacts hold the screenshots and `report.json`. Note the `browser-test` job's duration; it must be under 5 minutes (SC-003).
+
+  Both commits stay in the branch history; the PR is merged with rebase as usual.
 
 **Checkpoint**: no release can be published past a broken page.
 
