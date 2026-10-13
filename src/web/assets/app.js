@@ -708,6 +708,11 @@ function createMap(hello) {
   map.on('style.load', onStyleLoad);
   // Only camera moves the viewer makes carry the browser event; the page's own fits do not.
   // `movestart` fires for every camera change, including rotation and pitch (FR-011).
+  // The settled view, for the browser tests (feature 012, US3 scenario 3): "lat,lon,zoom".
+  map.on('moveend', () => {
+    const { lat, lng } = map.getCenter();
+    document.getElementById('map').dataset.view = [lat, lng, map.getZoom()].map((v) => v.toFixed(4)).join(',');
+  });
   map.on('movestart', (event) => {
     if (event.originalEvent) runActions(autozoom.userMove());
   });

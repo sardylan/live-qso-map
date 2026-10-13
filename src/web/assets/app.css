@@ -3,6 +3,7 @@
 :root {
   --bg: #ffffff;
   --panel: #ffffffeb;
+  --panel-solid: #ffffff;
   --text: #1a1a1a;
   --muted: #666666;
   --border: #dddddd;
@@ -139,7 +140,8 @@ body {
   box-sizing: border-box;
   overflow-y: auto;
   padding: 10px 14px 14px;
-  background: var(--panel);
+  /* Opaque: the legend and the map credit must not show through it (feature 012, B3). */
+  background: var(--panel-solid);
   color: var(--text);
   box-shadow: -2px 0 8px var(--shadow);
   transform: translateX(0);
@@ -245,6 +247,8 @@ body {
   background: var(--highlight);
   color: var(--text);
   font-weight: 600;
+  /* More than a shade: an accent outline marks the on state in every theme (feature 012, B2). */
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 
 /* Map buttons in the theme (feature 011, FR-002): MapLibre's are white with dark icons. */

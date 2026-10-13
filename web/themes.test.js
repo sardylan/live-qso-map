@@ -6,7 +6,7 @@ import { PALETTES, contrastRatio } from '../src/web/assets/themes.js';
 // The CSS variables app.css reads (feature 011, T001), as palette keys.
 const CSS_KEYS = [
   'bg', 'panel', 'text', 'muted', 'border', 'accent', 'highlight', 'banner', 'bannerLow',
-  'bannerText', 'noticeBg', 'noticeText', 'shadow', 'space',
+  'bannerText', 'noticeBg', 'noticeText', 'shadow', 'space', 'panelSolid',
 ];
 
 test('there are three palettes with every key the page needs', () => {
@@ -200,4 +200,28 @@ test('the attribution line and the scale bar use the theme colours (T041)', () =
   uses('.maplibregl-ctrl-scale', 'background-color', '--panel');
   uses('.maplibregl-ctrl-scale', 'border-color', '--text');
   uses('.maplibregl-ctrl-scale', 'color', '--text');
+});
+
+// --- feature 012: the on state and the panel (B2, B3) ----------------------------------------
+
+test('the panel colour has an opaque twin, the same colour without alpha (B3)', () => {
+  for (const [name, p] of Object.entries(PALETTES)) {
+    assert.match(p.panelSolid, /^#[0-9a-f]{6}$/i, `${name}.panelSolid is #rrggbb`);
+    assert.equal(p.panelSolid.toLowerCase(), p.panel.slice(0, 7).toLowerCase(), `${name}.panelSolid`);
+  }
+});
+
+test('the on-state outline reaches 3:1 against the button backgrounds (B2, WCAG 1.4.11)', () => {
+  for (const [name, p] of Object.entries(PALETTES)) {
+    for (const bg of ['highlight', 'bg']) {
+      const ratio = contrastRatio(p.accent, p[bg]);
+      assert.ok(ratio >= 3, `${name}: accent on ${bg} is ${ratio.toFixed(2)}:1`);
+    }
+  }
+});
+
+test('an on toggle button has an accent outline; the panel is opaque (B2, B3)', () => {
+  uses('.toggle-control button.active', 'box-shadow', '--accent');
+  uses('.panel', 'background', '--panel-solid');
+  assert.ok(declarations(':root')['--panel-solid'], ':root defines --panel-solid');
 });

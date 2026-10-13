@@ -90,6 +90,27 @@ async fn every_page_receives_hello_snapshot_and_live_upserts() {
     service.shutdown().await;
 }
 
+/// With the default bands, `hello.band_groups` offers "HF contest" only: "HF" would select the
+/// same six bands (feature 012, B4, contracts/websocket-protocol.md).
+#[tokio::test]
+async fn default_bands_offer_a_single_band_group() -> Result<(), Box<dyn std::error::Error>> {
+    let mut config = test_config();
+    config.band_filter = Some(live_qso_map::band_filter::default_set());
+    let service = start(config, None).await?;
+    let mut ws = connect(service.http_addr).await;
+    let hello = next_json(&mut ws, Duration::from_secs(2))
+        .await
+        .ok_or("no hello")?;
+    let names: Vec<&str> = hello["band_groups"]
+        .as_array()
+        .ok_or("no band_groups")?
+        .iter()
+        .filter_map(|g| g["name"].as_str())
+        .collect();
+    assert_eq!(names, ["hf-contest"]);
+    Ok(())
+}
+
 /// Every module and stylesheet in `src/web/assets/` is served, byte for byte. The page tests
 /// import the files from disk, so a module the server doesn't route passes them and still
 /// breaks the page: `app.js` fails to load when one of its imports is missing (3.0.0).

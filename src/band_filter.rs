@@ -52,21 +52,44 @@ pub struct ConsideredGroup {
 
 /// Every band group with at least one considered band, in the order of [`GROUPS`], each keeping
 /// only its considered bands (feature 011, FR-012). `None` means every band is considered.
+///
+/// Groups whose considered bands are the same are offered once (feature 012, FR-005): the kept
+/// one is the most specific, with the fewest bands in its full definition, and on a tie the
+/// first in [`GROUPS`]. With the default bands, "HF contest" is kept and "HF" is not.
 pub fn considered_groups(filter: Option<&BandSet>) -> Vec<ConsideredGroup> {
-    GROUPS
+    let candidates: Vec<(usize, ConsideredGroup)> = GROUPS
         .iter()
-        .filter_map(|(name, bands)| {
-            let bands: Vec<&'static str> = bands
+        .filter_map(|(name, all)| {
+            let bands: Vec<&'static str> = all
                 .iter()
                 .copied()
                 .filter(|band| filter.is_none_or(|f| f.contains(band)))
                 .collect();
-            (!bands.is_empty()).then(|| ConsideredGroup {
-                name,
-                label: group_label(name).unwrap_or(name),
-                bands,
+            (!bands.is_empty()).then(|| {
+                let group = ConsideredGroup {
+                    name,
+                    label: group_label(name).unwrap_or(name),
+                    bands,
+                };
+                (all.len(), group)
             })
         })
+        .collect();
+    candidates
+        .iter()
+        .enumerate()
+        .filter(|(i, (size, group))| {
+            // Dropped when another group with the same bands is more specific.
+            !candidates
+                .iter()
+                .enumerate()
+                .any(|(j, (other_size, other))| {
+                    j != *i
+                        && other.bands == group.bands
+                        && (other_size < size || (other_size == size && j < *i))
+                })
+        })
+        .map(|(_, (_, group))| group.clone())
         .collect()
 }
 
@@ -382,12 +405,57 @@ mod tests {
         let contest = resolve_strs(&["hf-contest", "-160m"]).unwrap();
         let groups = considered_groups(Some(&contest));
         let names: Vec<&str> = groups.iter().map(|g| g.name).collect();
-        assert_eq!(names, ["hf", "hf-contest"]);
         assert_eq!(
-            groups[1].bands,
+            names,
+            ["hf-contest"],
+            "hf would list the same five bands (feature 012, B4)"
+        );
+        assert_eq!(
+            groups[0].bands,
             ["80m", "40m", "20m", "15m", "10m"],
             "frequency order (HR-2)"
         );
+    }
+
+    fn names_of(filter: Option<&BandSet>) -> Vec<&'static str> {
+        considered_groups(filter).iter().map(|g| g.name).collect()
+    }
+
+    #[test]
+    fn equal_groups_keep_only_the_most_specific() {
+        // Feature 012 (B4, FR-005): two groups with the same considered bands are offered once,
+        // as the group with the fewest bands in its full definition.
+        assert_eq!(names_of(Some(&default_set())), ["hf-contest"]);
+        assert_eq!(
+            names_of(Some(&resolve_strs(&["hf"]).unwrap())),
+            ["hf", "hf-contest", "warc"]
+        );
+        assert_eq!(
+            names_of(Some(&resolve_strs(&["40m", "20m"]).unwrap())),
+            ["hf-contest"]
+        );
+        assert_eq!(names_of(Some(&resolve_strs(&["30m"]).unwrap())), ["warc"]);
+        assert_eq!(names_of(None).len(), GROUPS.len());
+    }
+
+    #[test]
+    fn no_two_offered_groups_have_the_same_bands() {
+        let sets = [
+            Some(default_set()),
+            Some(resolve_strs(&["hf"]).unwrap()),
+            Some(resolve_strs(&["40m", "20m"]).unwrap()),
+            Some(resolve_strs(&["30m"]).unwrap()),
+            Some(resolve_strs(&["hf-contest", "-160m"]).unwrap()),
+            None,
+        ];
+        for set in &sets {
+            let groups = considered_groups(set.as_ref());
+            for (i, a) in groups.iter().enumerate() {
+                for b in &groups[i + 1..] {
+                    assert_ne!(a.bands, b.bands, "{} and {} for {set:?}", a.name, b.name);
+                }
+            }
+        }
     }
 
     #[test]
