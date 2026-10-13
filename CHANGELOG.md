@@ -7,6 +7,8 @@ which becomes the GitHub release notes (`docs/releasing.md`).
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-10-13
+
 ### Fixed
 - A station operating from another country with a prefix (`IS0/DL1ABC`, `I/HB9ABC`) is drawn in
   that country, not at its home abroad.
