@@ -1,5 +1,6 @@
 //! Enrichment workers: station position, remote position, then publish (plan "Summary").
 
+pub mod acceptance;
 pub mod cty;
 pub mod provider;
 pub mod resolve;
@@ -11,6 +12,7 @@ use tokio::sync::watch;
 
 use crate::config::Config;
 use crate::enrich::cty::CountryData;
+use crate::entity_extents::ExtentTable;
 use crate::history::{EnrichedQso, QsoEntity, qso_timestamp};
 use crate::ingest::QsoEvent;
 use crate::pipeline::{LookupSource, Pipeline};
@@ -23,12 +25,15 @@ pub struct Lookups {
     pub sources: Arc<Vec<LookupSource>>,
     pub order: Arc<Vec<PositionSource>>,
     pub country: Option<Arc<CountryData>>,
+    /// Entity rectangles, to judge remote positions (feature 010, research R5).
+    pub areas: Arc<ExtentTable>,
 }
 
 impl Lookups {
     pub fn new(
         sources: Vec<LookupSource>,
         country: Option<Arc<CountryData>>,
+        areas: Arc<ExtentTable>,
         config: &Config,
     ) -> Self {
         let mut order: Vec<PositionSource> = config
@@ -46,6 +51,7 @@ impl Lookups {
             sources: Arc::new(sources),
             order: Arc::new(order),
             country,
+            areas,
         }
     }
 }
@@ -58,13 +64,15 @@ pub async fn enrich(event: QsoEvent, config: &Config, lookups: &Lookups) -> Enri
     let mut remote = resolve::logger_position(&record);
     if remote.is_none() && !lookups.sources.is_empty() {
         let call = record.get("CALL").unwrap_or_default().trim().to_string();
-        let (position, fields) = resolve::resolve_remote(
+        let lookup = resolve::resolve_remote(
             &call,
             &lookups.sources,
             &lookups.order,
             config.lookup.timeout,
+            &|_| acceptance::Verdict::Accept,
         )
         .await;
+        let (position, fields) = resolve::select(&lookup.candidates, &lookups.order);
         for (name, value) in fields.iter() {
             record.set_if_absent(name, value);
         }
@@ -136,7 +144,8 @@ mod tests {
     const CTY: &str = include_str!("../../tests/fixtures/cty-excerpt.dat");
 
     fn lookups(country: Option<Arc<CountryData>>, config: &Config) -> Lookups {
-        Lookups::new(Vec::new(), country, config)
+        let areas = Arc::new(ExtentTable::embedded().expect("embedded entity extents"));
+        Lookups::new(Vec::new(), country, areas, config)
     }
 
     fn event(call: &str, extra: &[(&str, &str)]) -> QsoEvent {

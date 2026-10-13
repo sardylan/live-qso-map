@@ -303,7 +303,7 @@ pub async fn start_with_country(
     };
     let entity = station_entity(&config.station, country.as_deref(), &extents);
     let hello_station = HelloStation::new(&config.station, entity);
-    let lookups = crate::enrich::Lookups::new(sources, country, &config);
+    let lookups = crate::enrich::Lookups::new(sources, country, Arc::new(extents), &config);
     tracing::info!("{}", bands_log_line(config.band_filter.as_ref()));
     let udp = UdpSocket::bind((config.bind_address, config.udp_port)).await?;
     let http = TcpListener::bind((config.bind_address, config.http_port)).await?;

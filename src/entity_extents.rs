@@ -16,6 +16,40 @@ const EMBEDDED: &str = include_str!("web/entity_extents.json");
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct ExtentTable {
     extents: HashMap<String, [f64; 4]>,
+    /// For each entity, the entities whose box lies entirely inside its own (feature 010, R5).
+    nested: HashMap<String, Vec<String>>,
+}
+
+/// Whether `[west, south, east, north]` contains the point; `west > east` crosses 180°.
+pub fn contains(bounds: [f64; 4], lat: f64, lon: f64) -> bool {
+    let [w, s, e, n] = bounds;
+    let in_lon = if w <= e {
+        (w..=e).contains(&lon)
+    } else {
+        lon >= w || lon <= e
+    };
+    in_lon && (s..=n).contains(&lat)
+}
+
+/// The longitude intervals of a box, split in two when it crosses 180°.
+fn lon_ranges(bounds: [f64; 4]) -> Vec<(f64, f64)> {
+    let [w, _, e, _] = bounds;
+    if w <= e {
+        vec![(w, e)]
+    } else {
+        vec![(w, 180.0), (-180.0, e)]
+    }
+}
+
+/// Whether `inner` lies entirely inside `outer` (wrap-aware), and is not the same box.
+fn nests(outer: [f64; 4], inner: [f64; 4]) -> bool {
+    if outer == inner || inner[1] < outer[1] || inner[3] > outer[3] {
+        return false;
+    }
+    let outer_ranges = lon_ranges(outer);
+    lon_ranges(inner)
+        .iter()
+        .all(|&(iw, ie)| outer_ranges.iter().any(|&(ow, oe)| ow <= iw && ie <= oe))
 }
 
 #[derive(Deserialize)]
@@ -46,7 +80,19 @@ impl ExtentTable {
             }
             extents.insert(prefix, [w, s, e, n]);
         }
-        Ok(Self { extents })
+        let mut nested: HashMap<String, Vec<String>> = HashMap::new();
+        for (outer, &outer_box) in &extents {
+            let mut inner: Vec<String> = extents
+                .iter()
+                .filter(|&(prefix, &inner_box)| prefix != outer && nests(outer_box, inner_box))
+                .map(|(prefix, _)| prefix.clone())
+                .collect();
+            if !inner.is_empty() {
+                inner.sort();
+                nested.insert(outer.clone(), inner);
+            }
+        }
+        Ok(Self { extents, nested })
     }
 
     /// The table shipped with the binary.
@@ -56,6 +102,27 @@ impl ExtentTable {
 
     pub fn get(&self, prefix: &str) -> Option<[f64; 4]> {
         self.extents.get(prefix).copied()
+    }
+
+    /// The entities whose box lies entirely inside `prefix`'s box, sorted; empty when none.
+    pub fn nested(&self, prefix: &str) -> &[String] {
+        self.nested
+            .get(prefix)
+            .map(Vec::as_slice)
+            .unwrap_or_default()
+    }
+
+    /// Whether the point belongs to `prefix`'s entity: inside its box and inside none of the
+    /// boxes nested in it (a point in Cagliari is Sardinia, not Italy). `None` when the entity
+    /// has no box.
+    pub fn inside(&self, prefix: &str, lat: f64, lon: f64) -> Option<bool> {
+        let bounds = self.get(prefix)?;
+        let in_nested = self
+            .nested(prefix)
+            .iter()
+            .filter_map(|inner| self.get(inner))
+            .any(|inner| contains(inner, lat, lon));
+        Some(contains(bounds, lat, lon) && !in_nested)
     }
 
     pub fn len(&self) -> usize {
@@ -73,16 +140,6 @@ mod tests {
     use crate::errors::Error;
 
     const SAMPLE: &str = r#"{"source":"test","extents":{"IS":[8.13,38.86,9.83,41.31],"3D2":[176.8,-19.3,-178.2,-16.0]}}"#;
-
-    fn contains(b: [f64; 4], lat: f64, lon: f64) -> bool {
-        let [w, s, e, n] = b;
-        let in_lon = if w <= e {
-            (w..=e).contains(&lon)
-        } else {
-            lon >= w || lon <= e
-        };
-        in_lon && (s..=n).contains(&lat)
-    }
 
     fn rejected(json: &str) {
         match ExtentTable::parse(json) {
@@ -125,5 +182,84 @@ mod tests {
         assert!(contains(k, 39.1, -94.6), "Kansas City in K");
         assert!(!contains(k, 21.3, -157.86), "Honolulu not in K");
         assert!(contains(vk, -33.87, 151.21), "Sydney in VK");
+    }
+
+    // --- nesting and inside (feature 010, research R5) -------------------------------------
+
+    const NESTED: &str = r#"{"source":"test","extents":{
+        "I":[6.6,37.91,18.52,47.09],"IS":[8.13,38.86,9.83,41.27],"IT9":[12.03,36.65,15.66,38.82],
+        "DL":[5.87,47.27,15.04,55.06],"SP":[14.12,49.0,24.15,54.84],
+        "3D2":[176.8,-19.3,-178.2,-16.0],"X":[178.0,-18.0,179.0,-17.0]}}"#;
+
+    #[test]
+    fn contains_handles_normal_and_antimeridian_boxes() {
+        let three_d2 = [176.8, -19.3, -178.2, -16.0];
+        assert!(contains(three_d2, -18.0, 178.4), "east of 180");
+        assert!(contains(three_d2, -18.0, -179.0), "west of 180");
+        assert!(!contains(three_d2, -18.0, 170.0));
+        assert!(!contains(three_d2, -10.0, 178.4), "latitude outside");
+        assert!(contains([8.13, 38.86, 9.83, 41.27], 39.22, 9.12));
+        assert!(!contains([8.13, 38.86, 9.83, 41.27], 39.22, 12.0));
+    }
+
+    #[test]
+    fn nested_lists_only_fully_contained_boxes() {
+        let t = ExtentTable::parse(NESTED).unwrap();
+        assert_eq!(
+            t.nested("I"),
+            ["IS".to_string()].as_slice(),
+            "IT9 reaches south of I"
+        );
+        assert!(t.nested("DL").is_empty(), "SP only overlaps DL");
+        assert_eq!(
+            t.nested("3D2"),
+            ["X".to_string()].as_slice(),
+            "wrap-aware nesting"
+        );
+        assert!(t.nested("??").is_empty());
+    }
+
+    #[test]
+    fn inside_excludes_nested_entities() {
+        let t = ExtentTable::parse(NESTED).unwrap();
+        let cagliari = (39.22, 9.12);
+        let rome = (41.9, 12.5);
+        assert_eq!(
+            t.inside("I", cagliari.0, cagliari.1),
+            Some(false),
+            "Cagliari is Sardinia"
+        );
+        assert_eq!(t.inside("IS", cagliari.0, cagliari.1), Some(true));
+        assert_eq!(t.inside("I", rome.0, rome.1), Some(true));
+        assert_eq!(t.inside("IS", rome.0, rome.1), Some(false));
+        assert_eq!(
+            t.inside("DL", 51.0, 14.5),
+            Some(true),
+            "eastern Germany stays DL"
+        );
+        assert_eq!(t.inside("??", 51.0, 14.5), None, "unknown entity");
+    }
+
+    #[test]
+    fn embedded_table_nests_the_expected_entities() {
+        let t = ExtentTable::embedded().unwrap();
+        for (outer, inner) in [
+            ("I", "IS"),
+            ("I", "T7"),
+            ("I", "HV"),
+            ("I", "TK"),
+            ("F", "LX"),
+            ("G", "GW"),
+        ] {
+            assert!(
+                t.nested(outer).iter().any(|p| p == inner),
+                "{outer} should nest {inner}"
+            );
+        }
+        assert!(
+            !t.nested("I").iter().any(|p| p == "IT9"),
+            "Sicily is not fully inside Italy"
+        );
+        assert!(t.nested("DL").is_empty());
     }
 }

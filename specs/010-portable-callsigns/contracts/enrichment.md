@@ -31,7 +31,7 @@ rectangle; "IT" is in mainland Italy.
 | 11 | `DL0AAA` | — | locator in France | (no base) | Germany reference | cty / country | `qrz:outside-entity` |
 | 12 | `DL0AAA` | — | 0°/0° | — | Germany reference | cty / country | `qrz:placeholder` |
 | 13 | `DL0AAA` | — | `AA00AA` | — | Germany reference | cty / country | `qrz:placeholder` |
-| 14 | `KC4AAA` | — | `AA00AA` | — | that locator | provider | — |
+| 14 | `LU1ZAA` (Antarctica) | — | `AA00AA` | — | that locator | provider | — |
 | 15 | `DL0AAA` | LAT/LON 0/0 | locator DE | — | that locator | provider | `logger:placeholder` |
 | 16 | `DL0AAA` | GRIDSQUARE `AA00` | unknown | — | Germany reference | cty / country | `logger:placeholder` |
 | 17 | `DL0AAA` | GRIDSQUARE in France | (not asked) | — | the logger locator | logger | — (logger trusted, FR-012) |
