@@ -726,6 +726,50 @@ In the context of a viewer showing only chosen band groups, facing a "last N" th
 - Positive: "last N" is exact; old pages keep working without sending bands.
 - Negative / debt accepted: protocol 4; two places apply the same band filter and must stay consistent (both tested).
 
+## TR-018: Real-browser release tests: Chrome for Testing in cimg/node-browsers, driven over the DevTools Protocol
+
+- Status: accepted
+- Date: 2026-10-13
+- Phase: plan
+- Deciders: project owner
+- Links: specs/012-page-fixes-browser-tests/research.md#r1-where-chrome-comes-from-in-the-pipeline; specs/012-page-fixes-browser-tests/research.md#r2-how-the-tests-drive-chrome; specs/012-page-fixes-browser-tests/contracts/pipeline.md; spec FR-006, FR-008
+<!-- key: a54e1bfb79ed -->
+
+### Context & problem
+
+Release 3.0.0 shipped a page that never ran: four script modules weren't served, and no check opened the page in a browser. Feature 012 adds tests that run a real browser against the release build, in the release pipeline only. They need a browser in CI and a way to drive it.
+
+### Decision drivers
+
+- Every CI tool pinned and checksum-verified (feature 009)
+- No new dependency for the shipped program, and as few as possible for the tests (constitution III)
+- Runnable by hand on Linux, macOS and Windows (constitution V)
+- Enough control to see console errors, failed requests and screenshots
+
+### Options considered
+
+| Option | Pros | Cons / what it sacrifices |
+|--------|------|---------------------------|
+| `cimg/node:24.21.0-browsers` (pinned tag) + Chrome for Testing 154 (pinned URL and SHA-256), driven over the DevTools Protocol with Node built-ins (chosen) | Maintainer's image choice; Chrome's libraries and software WebGL already there; the browser version is exact and verified; no npm packages, no lockfile | Chrome (196 MB) is downloaded on every release run; a small home-made driver to maintain |
+| `node:24` (Debian) + `apt install chromium` | Same Node image as test-web; no extra download | Debian replaces Chromium versions, so the browser isn't pinned |
+| `mcr.microsoft.com/playwright` image | Browser and Node ready | About 2 GB, Ubuntu-based; only worth it with the Playwright npm library |
+| `browser-tools` orb `install-chrome` | One line in the config | Installs the current Chrome (unpinned); a third-party orb |
+| Puppeteer or Playwright from npm | Rich, well-known automation API | A package tree and lockfile to pin and audit; their own browser downloads |
+| Selenium 3 in the image + chromedriver | Already in the image | Old protocol; one more pin (chromedriver); weaker access to console errors |
+
+### Decision
+
+We run the browser tests in `cimg/node:24.21.0-browsers` with Chrome for Testing 154.0.8037.92 fetched by `fetch-verified`, and drive Chrome over the DevTools Protocol with Node built-ins only (`tests/browser/`).
+
+### Y-statement
+
+In the context of release-time browser tests, facing the need for a pinned browser and a way to drive it, we chose Chrome for Testing in CircleCI's browser image with a DevTools Protocol driver on Node built-ins over a distribution Chromium, the Playwright image, the browser-tools orb or an npm automation library, to keep every piece pinned and dependency-free, accepting a Chrome download per release run and a small driver of our own.
+
+### Consequences
+
+- Positive: the browser version is exact and verified; the tests add no npm or crate dependency; developers run them with any local Chrome or Chromium.
+- Negative / debt accepted: the Chrome pin needs a deliberate bump now and then; the driver covers only the protocol calls the tests use.
+
 ## Archive
 
 Superseded or deprecated entries sink here; nothing is deleted (git keeps history).
