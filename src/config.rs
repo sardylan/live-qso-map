@@ -213,8 +213,9 @@ pub struct Cli {
     /// Bands to consider, comma-separated or repeated; prefix with - to exclude
     ///
     /// Entries are ADIF bands or groups: lf-mf, hf, hf-contest, warc, vhf, uhf, shf, ehf.
+    /// "all" alone considers every band.
     ///
-    /// Environment: LQM_BANDS. Default: every band.
+    /// Environment: LQM_BANDS. Default: hf-contest (160, 80, 40, 20, 15 and 10 m).
     #[arg(long = "bands")]
     pub bands: Vec<String>,
     /// Last-QSO box columns, in order, comma-separated or repeated
@@ -396,7 +397,8 @@ pub struct Config {
     pub lookup: LookupConfig,
     pub country_data: CountryDataConfig,
     pub map: MapConfig,
-    /// Considered bands (feature 003); `None` means every band, no filter.
+    /// Considered bands (feature 003); `None` means every band, no filter (the setting `all`).
+    /// With no setting, the contest HF bands (feature 011).
     pub band_filter: Option<BandSet>,
 }
 
@@ -424,7 +426,7 @@ impl Default for Config {
                 url: "https://www.country-files.com/cty/cty.dat".into(),
                 max_age_days: 30,
             },
-            band_filter: None,
+            band_filter: Some(crate::band_filter::default_set()),
             map: MapConfig {
                 style_url: None,
                 style_attribution: None,
@@ -588,10 +590,12 @@ impl FileConfig {
             None => FileCredentials::default(),
         };
         FileConfig {
-            bands: config
-                .band_filter
-                .as_ref()
-                .map(|set| set.bands().iter().map(|b| b.to_string()).collect()),
+            // Always written (feature 011): the effective list, or `all` for every band, so a
+            // reload gives the same set whatever the default becomes.
+            bands: Some(match config.band_filter.as_ref() {
+                Some(set) => set.bands().iter().map(|b| b.to_string()).collect(),
+                None => vec![crate::band_filter::ALL.to_string()],
+            }),
             bind_address: Some(config.bind_address),
             udp_port: Some(u32::from(config.udp_port)),
             http_port: Some(u32::from(config.http_port)),
@@ -1633,12 +1637,27 @@ style_attribution = "file credit"
         c.band_filter.as_ref().unwrap().bands().to_vec()
     }
 
+    const CONTEST: [&str; 6] = ["160m", "80m", "40m", "20m", "15m", "10m"];
+
     #[test]
-    fn band_filter_defaults_to_none() {
+    fn band_filter_defaults_to_the_contest_bands() {
         let (c, _) = load(&[], &[], None).unwrap();
-        assert_eq!(c.band_filter, None);
+        assert_eq!(band_names(&c), CONTEST);
         let (c, _) = load(&[], &[("LQM_BANDS", "")], None).unwrap();
+        assert_eq!(band_names(&c), CONTEST);
+        assert_eq!(band_names(&Config::default()), CONTEST);
+    }
+
+    #[test]
+    fn all_considers_every_band_at_every_layer() {
+        let file = "bands = [\"hf-contest\"]\n";
+        let (c, _) = load(&["--bands", "all"], &[], Some(file)).unwrap();
         assert_eq!(c.band_filter, None);
+        let (c, _) = load(&[], &[("LQM_BANDS", "all")], Some(file)).unwrap();
+        assert_eq!(c.band_filter, None);
+        let (c, _) = load(&[], &[], Some("bands = [\"all\"]\n")).unwrap();
+        assert_eq!(c.band_filter, None);
+        config_err(load(&["--bands", "all,2m"], &[], None), "bands");
     }
 
     #[test]

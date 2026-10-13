@@ -245,14 +245,14 @@ band, and the export always writes `bands`.
 
 ### Tests for User Story 5 (write first, confirm they FAIL)
 
-- [ ] T031 [P] [US5] Write failing tests in `src/band_filter.rs` for `parse_setting`:
+- [X] T031 [P] [US5] Write failing tests in `src/band_filter.rs` for `parse_setting`:
   - empty gives `hf-contest`;
   - `["all"]` gives `None`;
   - `["all", "2m"]` and `"all,-60m"` give `Error::Config` naming `bands`;
   - other values behave as before.
 
   Update the existing "empty means every band" test to the new rule.
-- [ ] T032 [P] [US5] Write failing tests:
+- [X] T032 [P] [US5] Write failing tests:
   - **`src/config.rs`:** with no setting, `band_filter` is `hf-contest`; `--bands all` and
     `LQM_BANDS=all` give every band (`None`).
   - **`src/config_export.rs`:** the export writes `bands = ["all"]` for every band and the six
@@ -263,8 +263,8 @@ band, and the export always writes `bands`.
 
 ### Implementation for User Story 5
 
-- [ ] T033 [US5] First, make `test_config()` in `tests/common/mod.rs` pin every band (`config.band_filter = None`), with a comment: "integration tests don't depend on the default bands; feature 011 tests the default in T031–T032". Existing tests then keep their meaning whatever the default is. Then implement the default and `all` in `parse_setting` (`src/band_filter.rs`), the configuration plumbing in `src/config.rs` (any place that treats "no setting" as `None`), and the export in `src/config_export.rs`. Make T031 and T032 pass, and fix any unit test that relied on the old default (search `band_filter: None` and `bands_considered`).
-- [ ] T034 [US5] Update `deploy/config.example.toml`: the commented `bands` line explains the default (the six contest HF bands) and `bands = ["all"]`.
+- [X] T033 [US5] First, make `test_config()` in `tests/common/mod.rs` pin every band (`config.band_filter = None`), with a comment: "integration tests don't depend on the default bands; feature 011 tests the default in T031–T032". Existing tests then keep their meaning whatever the default is. Then implement the default and `all` in `parse_setting` (`src/band_filter.rs`), the configuration plumbing in `src/config.rs` (any place that treats "no setting" as `None`), and the export in `src/config_export.rs`. Make T031 and T032 pass, and fix any unit test that relied on the old default (search `band_filter: None` and `bands_considered`).
+- [X] T034 [US5] Update `deploy/config.example.toml`: the commented `bands` line explains the default (the six contest HF bands) and `bands = ["all"]`.
 
 **Checkpoint**: a fresh installation's legend shows six colours (SC-006).
 

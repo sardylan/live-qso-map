@@ -22,6 +22,9 @@ pub fn test_config() -> Config {
     // A closed local port: tests never download from the Internet.
     config.country_data.url = "http://127.0.0.1:9/cty.dat".into();
     config.country_data.max_age_days = 0;
+    // Integration tests don't depend on the default bands; feature 011 tests the default in
+    // T031–T032.
+    config.band_filter = None;
     config
 }
 

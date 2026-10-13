@@ -174,8 +174,26 @@ pub fn resolve(entries: &[&str]) -> Result<BandSet> {
     Ok(BandSet { bands: included })
 }
 
+/// The group considered when the `bands` setting is absent or empty (feature 011, FR-016).
+pub const DEFAULT_GROUP: &str = "hf-contest";
+
+/// The setting value that considers every band, with no filter (feature 011).
+pub const ALL: &str = "all";
+
+/// The bands considered with no setting: the six contest HF bands (feature 011, FR-016).
+pub fn default_set() -> BandSet {
+    let bands = SelectionEntry {
+        exclude: false,
+        target: Target::Group(DEFAULT_GROUP),
+    }
+    .bands();
+    BandSet { bands }
+}
+
 /// Parses the `bands` setting: entries may hold comma-separated lists; blanks are skipped.
-/// Nothing left means no filter (`None`).
+/// - nothing left: the contest HF bands ([`default_set`]);
+/// - `all` alone: every band, no filter (`None`); `all` with other entries is an error;
+/// - anything else: [`resolve`].
 pub fn parse_setting(entries: &[String]) -> Result<Option<BandSet>> {
     let parts: Vec<&str> = entries
         .iter()
@@ -184,7 +202,16 @@ pub fn parse_setting(entries: &[String]) -> Result<Option<BandSet>> {
         .filter(|p| !p.is_empty())
         .collect();
     if parts.is_empty() {
-        return Ok(None);
+        return Ok(Some(default_set()));
+    }
+    if parts.iter().any(|p| p.eq_ignore_ascii_case(ALL)) {
+        if parts.len() == 1 {
+            return Ok(None);
+        }
+        return Err(bands_error(format!(
+            "'{ALL}' cannot be combined with other entries ('{}')",
+            parts.join(",")
+        )));
     }
     resolve(&parts).map(Some)
 }
@@ -280,10 +307,33 @@ mod tests {
     }
 
     #[test]
-    fn empty_setting_means_no_filter() {
-        assert_eq!(parse_setting(&[]).unwrap(), None);
-        assert_eq!(parse_setting(&["".into(), " ".into()]).unwrap(), None);
-        assert_eq!(parse_setting(&[" , ".into()]).unwrap(), None);
+    fn empty_setting_means_the_contest_bands() {
+        let contest = Some(resolve_strs(&["hf-contest"]).unwrap());
+        assert_eq!(parse_setting(&[]).unwrap(), contest);
+        assert_eq!(parse_setting(&["".into(), " ".into()]).unwrap(), contest);
+        assert_eq!(parse_setting(&[" , ".into()]).unwrap(), contest);
+    }
+
+    #[test]
+    fn all_means_every_band() {
+        assert_eq!(parse_setting(&["all".into()]).unwrap(), None);
+        assert_eq!(parse_setting(&[" ALL ".into()]).unwrap(), None);
+        assert_eq!(parse_setting(&["all,".into()]).unwrap(), None);
+    }
+
+    #[test]
+    fn all_with_other_entries_is_an_error() {
+        for entries in [vec!["all", "2m"], vec!["all,-60m"], vec!["hf", "all"]] {
+            let entries: Vec<String> = entries.into_iter().map(String::from).collect();
+            let message = match parse_setting(&entries) {
+                Err(Error::Config { setting, message }) => {
+                    assert_eq!(setting, "bands");
+                    message
+                }
+                other => panic!("{entries:?}: {other:?}"),
+            };
+            assert!(message.contains("all"), "{message}");
+        }
     }
 
     #[test]
