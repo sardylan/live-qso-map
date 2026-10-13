@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { PALETTES, contrastRatio } from '../src/web/assets/themes.js';
 
 // The CSS variables app.css reads (feature 011, T001), as palette keys.
@@ -125,4 +126,78 @@ test('the status line says which theme is shown and why', () => {
     'No station position yet: following the device (Dark)',
   );
   assert.equal(themeStatus('dim', { prefersDark: false, sunElevation: null }), 'Dim: chosen');
+});
+
+// --- MapLibre's own interface takes the theme (feature 011, T039–T041, FR-002) ---------------
+// MapLibre ships light colours for its buttons, popups, attribution and scale bar. app.css,
+// loaded after maplibre-gl.css, overrides them with the theme's variables.
+
+const CSS = readFileSync(new URL('../src/web/assets/app.css', import.meta.url), 'utf8').replace(
+  /\/\*[\s\S]*?\*\//g,
+  '',
+);
+
+/** The declarations of every app.css rule whose selector list holds `selector`, merged. */
+function declarations(selector) {
+  const merged = {};
+  for (const [, selectors, body] of CSS.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    if (!selectors.split(',').map((s) => s.trim().replace(/\s+/g, ' ')).includes(selector)) continue;
+    for (const line of body.split(';')) {
+      const colon = line.indexOf(':');
+      if (colon > 0) merged[line.slice(0, colon).trim()] = line.slice(colon + 1).trim();
+    }
+  }
+  return merged;
+}
+
+function uses(selector, property, variable) {
+  const value = declarations(selector)[property] ?? '';
+  assert.ok(value.includes(`var(${variable})`), `${selector} { ${property}: … var(${variable}) } — got "${value}"`);
+}
+
+function inverted(selector) {
+  for (const theme of ['dim', 'dark']) {
+    const scoped = `[data-theme="${theme}"] ${selector}`;
+    assert.match(declarations(scoped).filter ?? '', /invert\(/, `${scoped} { filter: invert(…) }`);
+  }
+}
+
+test('the map buttons use the theme colours (T039)', () => {
+  uses('.maplibregl-ctrl-group', 'background', '--bg');
+  uses('.maplibregl-ctrl-group:not(:empty)', 'box-shadow', '--border');
+  uses('.maplibregl-ctrl-group button', 'color', '--text');
+  uses('.maplibregl-ctrl-group button + button', 'border-top-color', '--border');
+  uses('.toggle-control button.active', 'background', '--highlight');
+  uses('.toggle-control button.active', 'color', '--text');
+  inverted('.maplibregl-ctrl-icon');
+});
+
+test('popups use the theme colours, tips included (T040)', () => {
+  uses('.maplibregl-popup-content', 'background', '--bg');
+  uses('.maplibregl-popup-content', 'color', '--text');
+  uses('.maplibregl-popup-close-button', 'color', '--text');
+  const tips = {
+    top: 'border-bottom-color',
+    'top-left': 'border-bottom-color',
+    'top-right': 'border-bottom-color',
+    bottom: 'border-top-color',
+    'bottom-left': 'border-top-color',
+    'bottom-right': 'border-top-color',
+    left: 'border-right-color',
+    right: 'border-left-color',
+  };
+  for (const [anchor, property] of Object.entries(tips)) {
+    uses(`.maplibregl-popup-anchor-${anchor} .maplibregl-popup-tip`, property, '--bg');
+  }
+});
+
+test('the attribution line and the scale bar use the theme colours (T041)', () => {
+  uses('.maplibregl-ctrl.maplibregl-ctrl-attrib', 'background-color', '--panel');
+  uses('.maplibregl-ctrl.maplibregl-ctrl-attrib', 'color', '--text');
+  uses('.maplibregl-ctrl-attrib.maplibregl-compact', 'background-color', '--panel');
+  uses('.maplibregl-ctrl-attrib a', 'color', '--accent');
+  inverted('.maplibregl-ctrl-attrib-button');
+  uses('.maplibregl-ctrl-scale', 'background-color', '--panel');
+  uses('.maplibregl-ctrl-scale', 'border-color', '--text');
+  uses('.maplibregl-ctrl-scale', 'color', '--text');
 });

@@ -56,8 +56,37 @@ body {
   vertical-align: middle;
 }
 
+/* Popups in the theme (feature 011, FR-002): MapLibre draws them white, tips included. The tip
+   selectors match MapLibre's own, so they win by coming later. */
 .maplibregl-popup-content {
   padding: 8px 10px;
+  background: var(--bg);
+  color: var(--text);
+  box-shadow: 0 1px 4px var(--shadow);
+}
+
+.maplibregl-popup-close-button {
+  color: var(--text);
+}
+
+.maplibregl-popup-anchor-top .maplibregl-popup-tip,
+.maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+.maplibregl-popup-anchor-top-right .maplibregl-popup-tip {
+  border-bottom-color: var(--bg);
+}
+
+.maplibregl-popup-anchor-bottom .maplibregl-popup-tip,
+.maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
+.maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip {
+  border-top-color: var(--bg);
+}
+
+.maplibregl-popup-anchor-left .maplibregl-popup-tip {
+  border-right-color: var(--bg);
+}
+
+.maplibregl-popup-anchor-right .maplibregl-popup-tip {
+  border-left-color: var(--bg);
 }
 
 .qso-popup table {
@@ -214,7 +243,53 @@ body {
 
 .toggle-control button.active {
   background: var(--highlight);
+  color: var(--text);
   font-weight: 600;
+}
+
+/* Map buttons in the theme (feature 011, FR-002): MapLibre's are white with dark icons. */
+.maplibregl-ctrl-group {
+  background: var(--bg);
+}
+
+.maplibregl-ctrl-group:not(:empty) {
+  box-shadow: 0 0 0 2px var(--border);
+}
+
+.maplibregl-ctrl-group button {
+  color: var(--text);
+}
+
+.maplibregl-ctrl-group button + button {
+  border-top-color: var(--border);
+}
+
+/* MapLibre's icons are dark SVG images: inverted, they read on the Dim and Dark buttons. */
+[data-theme="dim"] .maplibregl-ctrl-icon,
+[data-theme="dark"] .maplibregl-ctrl-icon,
+[data-theme="dim"] .maplibregl-ctrl-attrib-button,
+[data-theme="dark"] .maplibregl-ctrl-attrib-button {
+  filter: invert(1);
+}
+
+/* The attribution line and the scale bar (feature 011, FR-002). */
+.maplibregl-ctrl.maplibregl-ctrl-attrib {
+  background-color: var(--panel);
+  color: var(--text);
+}
+
+.maplibregl-ctrl-attrib.maplibregl-compact {
+  background-color: var(--panel);
+}
+
+.maplibregl-ctrl-attrib a {
+  color: var(--accent);
+}
+
+.maplibregl-ctrl-scale {
+  background-color: var(--panel);
+  border-color: var(--text);
+  color: var(--text);
 }
 
 /* Bottom-left column (feature 007, FR-012): the score line above the last-QSO box. It sits above
