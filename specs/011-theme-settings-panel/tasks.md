@@ -33,20 +33,20 @@ it fails.
 
 ## Phase 1: Setup
 
-- [ ] T001 Replace every colour in `src/web/assets/app.css` with CSS custom properties, defined once on `:root` with today's (light) values: `--bg`, `--panel`, `--text`, `--muted`, `--border`, `--accent`, `--banner`, `--banner-low`, `--highlight`, `--space`. No visual change. Check the page looks identical (quickstart §5, step 1, before the panel exists).
+- [X] T001 Replace every colour in `src/web/assets/app.css` with CSS custom properties, defined once on `:root` with today's (light) values: `--bg`, `--panel`, `--text`, `--muted`, `--border`, `--accent`, `--banner`, `--banner-low`, `--highlight`, `--space`. No visual change. Check the page looks identical (quickstart §5, step 1, before the panel exists).
 
 ---
 
 ## Phase 2: Foundational (blocking prerequisites)
 
-- [ ] T002 [P] Write failing tests in the new `web/themes.test.js`, for a new `src/web/assets/themes.js`:
+- [X] T002 [P] Write failing tests in the new `web/themes.test.js`, for a new `src/web/assets/themes.js`:
   - `PALETTES` has `light`, `dim` and `dark`, each with every key used by `app.css`, plus
     `sky`, `horizon`, `fog`, `basemapStyle` (`liberty`, `fiord`, `dark`) and `dimOpacity` (0,
     0.35, 0.55);
   - `contrastRatio(fg, bg)` gives 21 for black on white and 1 for equal colours;
   - for every palette, `text`/`bg`, `text`/`panel`, `muted`/`panel` and the banner text pairs
     have a contrast of at least 4.5 (SC-002).
-- [ ] T003 Implement `src/web/assets/themes.js` (`PALETTES`, `contrastRatio` with WCAG relative luminance, and `applyPalette(root, palette)`, which sets the CSS variables and `data-theme`). Make T002 pass. Light's values equal T001's.
+- [X] T003 Implement `src/web/assets/themes.js` (`PALETTES`, `contrastRatio` with WCAG relative luminance, and `applyPalette(root, palette)`, which sets the CSS variables and `data-theme`). Make T002 pass. Light's values equal T001's.
 
 **Checkpoint**: the palettes exist and their contrast is proven. The page is still light.
 

@@ -1,3 +1,22 @@
+/* Colours come from the theme (feature 011): `themes.js` writes these variables for Light, Dim
+   and Dark. The values here are Light's, used until the page script runs. */
+:root {
+  --bg: #ffffff;
+  --panel: #ffffffeb;
+  --text: #1a1a1a;
+  --muted: #666666;
+  --border: #dddddd;
+  --accent: #1f5fbf;
+  --highlight: #dbe9ff;
+  --banner: #b03a2e;
+  --banner-low: #7a5c00;
+  --banner-text: #ffffff;
+  --notice-bg: #fff4e5;
+  --notice-text: #5c3a00;
+  --shadow: rgba(0, 0, 0, 0.3);
+  --space: #0b1020;
+}
+
 html,
 body,
 #map {
@@ -7,6 +26,8 @@ body,
 
 body {
   font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--text);
 }
 
 .legend {
@@ -14,10 +35,10 @@ body {
   right: 10px;
   bottom: 30px;
   z-index: 2;
-  background: rgba(255, 255, 255, 0.92);
+  background: var(--panel);
   padding: 6px 8px;
   border-radius: 4px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 1px 4px var(--shadow);
   line-height: 1.6;
 }
 
@@ -48,7 +69,7 @@ body {
 }
 
 .qso-popup .meta {
-  color: #666;
+  color: var(--muted);
 }
 
 .qth-popup div {
@@ -61,15 +82,15 @@ body {
   left: 50%;
   transform: translateX(-50%);
   z-index: 3;
-  background: #b03a2e;
-  color: #fff;
+  background: var(--banner);
+  color: var(--banner-text);
   padding: 4px 10px;
   border-radius: 4px;
 }
 
 .banner-low {
   top: 42px;
-  background: #7a5c00;
+  background: var(--banner-low);
 }
 
 .settings {
@@ -77,10 +98,10 @@ body {
   top: 10px;
   right: 10px;
   z-index: 2;
-  background: rgba(255, 255, 255, 0.92);
+  background: var(--panel);
   padding: 4px 8px;
   border-radius: 4px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 1px 4px var(--shadow);
 }
 
 /* The box settings sit under the map selector, visibly apart from it (feature 006, FR-007), with
@@ -91,7 +112,7 @@ body {
   gap: 10px;
   margin-top: 4px;
   padding-top: 4px;
-  border-top: 1px solid #ddd;
+  border-top: 1px solid var(--border);
 }
 
 .settings .box-settings input[type="checkbox"] {
@@ -109,8 +130,8 @@ body {
   margin: 20vh auto 0;
   padding: 16px 20px;
   border-radius: 6px;
-  background: #fff4e5;
-  color: #5c3a00;
+  background: var(--notice-bg);
+  color: var(--notice-text);
   font-size: 15px;
   text-align: center;
 }
@@ -123,7 +144,7 @@ body {
 }
 
 .toggle-control button.active {
-  background: #dbe9ff;
+  background: var(--highlight);
   font-weight: 600;
 }
 
@@ -153,10 +174,10 @@ body.scale-on .corner-bl {
 
 .recent,
 .score {
-  background: rgba(255, 255, 255, 0.92);
+  background: var(--panel);
   padding: 6px 8px;
   border-radius: 4px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 1px 4px var(--shadow);
 }
 
 /* The contest score: always one line (FR-005, FR-006). */
@@ -167,7 +188,7 @@ body.scale-on .corner-bl {
 
 /* No score for 5 minutes (FR-007). */
 .score.stale {
-  color: #999;
+  color: var(--muted);
   font-weight: normal;
 }
 
@@ -187,7 +208,7 @@ body.scale-on .corner-bl {
 .recent th {
   font-size: 11px;
   font-weight: normal;
-  color: #777;
+  color: var(--muted);
 }
 
 .recent td.call {
@@ -195,7 +216,7 @@ body.scale-on .corner-bl {
 }
 
 .recent td.country {
-  color: #666;
+  color: var(--muted);
 }
 
 .recent tr.clickable {
@@ -204,11 +225,11 @@ body.scale-on .corner-bl {
 
 .recent tr.clickable:hover,
 .recent tr.clickable:focus {
-  background: #dbe9ff;
+  background: var(--highlight);
   outline: none;
 }
 
 .recent .empty {
-  color: #666;
+  color: var(--muted);
   font-style: italic;
 }
