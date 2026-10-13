@@ -160,3 +160,37 @@ export function saveRecentOrder(storage, order) {
     // Storage may be unavailable; the choice then lasts for this page only.
   }
 }
+
+const ATMOSPHERE_KEY = 'lqm.atmosphere';
+
+/** Whether the globe shows its atmosphere: on unless the viewer switched it off (FR-010). */
+export function loadAtmosphere(storage) {
+  try {
+    return storage?.getItem(ATMOSPHERE_KEY) !== 'off';
+  } catch {
+    return true;
+  }
+}
+
+export function saveAtmosphere(storage, on) {
+  try {
+    storage?.setItem(ATMOSPHERE_KEY, on ? 'on' : 'off');
+  } catch {
+    // A browser that refuses storage keeps the choice for this visit only.
+  }
+}
+
+/**
+ * The MapLibre sky for a theme (feature 011, research R5): the theme's colours, and the
+ * atmosphere glow only on the globe and only when it is on (FR-010, FR-011).
+ */
+export function skyFor(palette, { atmosphere, projection }) {
+  return {
+    'sky-color': palette.sky,
+    'horizon-color': palette.horizon,
+    'fog-color': palette.fog,
+    'sky-horizon-blend': 0.5,
+    'horizon-fog-blend': 0.5,
+    'atmosphere-blend': atmosphere && projection === 'globe' ? 1 : 0,
+  };
+}

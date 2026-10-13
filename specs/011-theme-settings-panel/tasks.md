@@ -156,7 +156,7 @@ the Map group that is saved.
 
 ### Tests for User Story 3 (write first, confirm they FAIL)
 
-- [ ] T016 [P] [US3] Add failing tests to `web/view.test.js`:
+- [X] T016 [P] [US3] Add failing tests to `web/view.test.js`:
   - `loadAtmosphere`/`saveAtmosphere` (`lqm.atmosphere`): default `on`, `off` kept, unknown or
     throwing storage gives `on`;
   - `skyFor(palette, { atmosphere, projection })` returns the MapLibre sky object, with
@@ -165,8 +165,8 @@ the Map group that is saved.
 
 ### Implementation for User Story 3
 
-- [ ] T017 [US3] Implement `loadAtmosphere`, `saveAtmosphere` and `skyFor` in `src/web/assets/view.js`. Make T016 pass.
-- [ ] T018 [US3] Add the checkbox "Atmosphere on the globe" (`id="atmosphere"`) to the Map group in `src/web/assets/index.html`. In `src/web/assets/app.js`, call `map.setSky(skyFor(…))` on load, on theme change, on projection change, on `style.load` and on checkbox change; save on change. Set the map container's background to `var(--space)` in `src/web/assets/app.css`.
+- [X] T017 [US3] Implement `loadAtmosphere`, `saveAtmosphere` and `skyFor` in `src/web/assets/view.js`. Make T016 pass.
+- [X] T018 [US3] Add the checkbox "Atmosphere on the globe" (`id="atmosphere"`) to the Map group in `src/web/assets/index.html`. In `src/web/assets/app.js`, call `map.setSky(skyFor(…))` on load, on theme change, on projection change, on `style.load` and on checkbox change; save on change. Set the map container's background to `var(--space)` in `src/web/assets/app.css`.
 - [ ] T019 [US3] **Verify** quickstart §4 by hand.
 
 **Checkpoint**: the globe looks like a planet; the flat map is unchanged.

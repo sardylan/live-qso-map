@@ -24,6 +24,11 @@ body,
   margin: 0;
 }
 
+/* Behind the globe: space, in the theme's colour (feature 011, research R5). */
+#map {
+  background: var(--space);
+}
+
 body {
   font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
   background: var(--bg);
