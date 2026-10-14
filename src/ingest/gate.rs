@@ -1,8 +1,8 @@
 //! Resend gate: drops identical resends before enrichment and numbers corrections
 //! (FR-008, FR-009, research R3, data-model "ResendGate").
 
+use std::collections::HashMap;
 use std::collections::hash_map::DefaultHasher;
-use std::collections::{HashMap, VecDeque};
 use std::hash::{Hash, Hasher};
 
 use crate::adif::AdifRecord;
@@ -26,8 +26,6 @@ struct GateEntry {
 #[derive(Debug, Default)]
 pub struct ResendGate {
     entries: HashMap<Identity, GateEntry>,
-    order: VecDeque<Identity>,
-    capacity: usize,
 }
 
 /// Hash of the normalised record before enrichment; fields are iterated in name order.
@@ -50,12 +48,9 @@ pub fn split_timestamp(text: &str) -> Option<(String, String)> {
 }
 
 impl ResendGate {
-    /// `capacity` 0 means unbounded; otherwise it matches the history size.
-    pub fn new(capacity: usize) -> Self {
-        Self {
-            capacity,
-            ..Self::default()
-        }
+    /// An empty gate. Like the history, it is never trimmed (feature 014, FR-023).
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn len(&self) -> usize {
@@ -134,16 +129,7 @@ impl ResendGate {
     }
 
     fn insert(&mut self, identity: Identity, entry: GateEntry) {
-        self.order.push_back(identity.clone());
         self.entries.insert(identity, entry);
-        while self.capacity > 0 && self.entries.len() > self.capacity {
-            match self.order.pop_front() {
-                Some(oldest) => {
-                    self.entries.remove(&oldest);
-                }
-                None => break,
-            }
-        }
     }
 }
 
@@ -190,7 +176,7 @@ mod tests {
 
     #[test]
     fn unknown_identity_is_forwarded_as_rev_1() {
-        let mut gate = ResendGate::new(0);
+        let mut gate = ResendGate::new();
         let mut e = event(record("K6QA", "SSB", &[]));
         assert_eq!(gate.check(&mut e), GateDecision::Forward { rev: 1 });
         assert_eq!(e.rev, 1);
@@ -198,7 +184,7 @@ mod tests {
 
     #[test]
     fn identical_resend_is_dropped() {
-        let mut gate = ResendGate::new(0);
+        let mut gate = ResendGate::new();
         gate.check(&mut event(record("K6QA", "SSB", &[])));
         assert_eq!(
             gate.check(&mut event(record("K6QA", "SSB", &[]))),
@@ -208,7 +194,7 @@ mod tests {
 
     #[test]
     fn changed_content_is_a_new_revision() {
-        let mut gate = ResendGate::new(0);
+        let mut gate = ResendGate::new();
         gate.check(&mut event(record("K6QA", "SSB", &[("SRX_STRING", "3")])));
         let mut e = event(record("K6QA", "SSB", &[("SRX_STRING", "15")]));
         assert_eq!(gate.check(&mut e), GateDecision::Forward { rev: 2 });
@@ -232,7 +218,7 @@ mod tests {
 
     #[test]
     fn correction_without_logger_id_is_rekeyed_by_old_identity() {
-        let mut gate = ResendGate::new(0);
+        let mut gate = ResendGate::new();
         let mut original = event(record("K6QA", "SSB", &[]));
         gate.check(&mut original);
         let original_id = original.id.clone();
@@ -248,7 +234,7 @@ mod tests {
 
     #[test]
     fn correction_of_unknown_qso_is_new() {
-        let mut gate = ResendGate::new(0);
+        let mut gate = ResendGate::new();
         let mut e = correction(
             record("HB9FQZ", "SSB", &[]),
             "HB9FQZ",
@@ -259,7 +245,7 @@ mod tests {
 
     #[test]
     fn logger_id_identity_tracks_callsign_changes() {
-        let mut gate = ResendGate::new(0);
+        let mut gate = ResendGate::new();
         let mut a = QsoEvent::new(
             EventKind::New,
             record("K6QA", "SSB", &[]),
@@ -278,25 +264,8 @@ mod tests {
     }
 
     #[test]
-    fn capacity_evicts_oldest_identity() {
-        let mut gate = ResendGate::new(2);
-        for call in ["K1A", "K2B", "K3C"] {
-            gate.check(&mut event(record(call, "CW", &[])));
-        }
-        assert_eq!(gate.len(), 2);
-        assert_eq!(
-            gate.check(&mut event(record("K1A", "CW", &[]))),
-            GateDecision::Forward { rev: 1 }
-        );
-        assert_eq!(
-            gate.check(&mut event(record("K3C", "CW", &[]))),
-            GateDecision::Drop
-        );
-    }
-
-    #[test]
-    fn capacity_zero_never_evicts() {
-        let mut gate = ResendGate::new(0);
+    fn never_evicts() {
+        let mut gate = ResendGate::new();
         for i in 0..500 {
             gate.check(&mut event(record(&format!("K{i}A"), "CW", &[])));
         }
@@ -305,7 +274,7 @@ mod tests {
 
     #[test]
     fn different_mode_is_a_different_qso() {
-        let mut gate = ResendGate::new(0);
+        let mut gate = ResendGate::new();
         assert_eq!(
             gate.check(&mut event(record("K6QA", "SSB", &[]))),
             GateDecision::Forward { rev: 1 }
@@ -331,7 +300,7 @@ mod tests {
 
     #[test]
     fn contains_known_identities_and_previous_ones() {
-        let mut gate = ResendGate::new(0);
+        let mut gate = ResendGate::new();
         let mut original = event(record("K6QA", "SSB", &[]));
         gate.check(&mut original);
         assert!(gate.contains(&event(record("K6QA", "SSB", &[("SRX_STRING", "x")]))));

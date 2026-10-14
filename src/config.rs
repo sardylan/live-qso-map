@@ -80,11 +80,14 @@ pub struct Cli {
     /// Environment: LQM_HTTP_PORT. Default: 8080.
     #[arg(long)]
     pub http_port: Option<u32>,
-    /// QSOs kept in memory, 0 = unbounded
+    /// QSO history file (ADIF), read at startup and written at a graceful stop
     ///
-    /// Environment: LQM_HISTORY_SIZE. Default: 10000.
-    #[arg(long)]
-    pub history_size: Option<usize>,
+    /// Environment: LQM_HISTORY_FILE. Default: qso-history.adi next to the country data.
+    #[arg(long, value_name = "PATH")]
+    pub history_file: Option<PathBuf>,
+    /// Removed in feature 014: accepted and ignored with a warning.
+    #[arg(long, hide = true)]
+    pub history_size: Option<String>,
     /// Enrichment workers
     ///
     /// Environment: LQM_WORKERS. Default: 1.
@@ -230,6 +233,11 @@ pub struct Cli {
     /// Environment: LQM_RECENT_HEADER. Default: true.
     #[arg(long = "recent-header")]
     pub recent_header: Option<bool>,
+    /// Complete the QSOs in FILE (default: the history file), write it back, then exit
+    ///
+    /// No UDP or HTTP listener is opened. Every band is completed.
+    #[arg(long, value_name = "FILE", num_args = 0..=1, conflicts_with = "save_config")]
+    pub enrich_only: Option<Option<PathBuf>>,
     /// Write the effective configuration to PATH (- = standard output), then exit
     #[arg(long, value_name = "PATH", conflicts_with = "dump_config")]
     pub save_config: Option<PathBuf>,
@@ -388,7 +396,9 @@ pub struct Config {
     pub bind_address: IpAddr,
     pub udp_port: u16,
     pub http_port: u16,
-    pub history_size: usize,
+    /// The QSO history file (feature 014). `Config::load` always sets it; `None` (the
+    /// `Default`) means no history file, which only tests use.
+    pub history_file: Option<PathBuf>,
     pub workers: usize,
     pub ingest_queue: usize,
     pub broadcast_queue: usize,
@@ -408,7 +418,7 @@ impl Default for Config {
             bind_address: IpAddr::V4(Ipv4Addr::UNSPECIFIED),
             udp_port: 12060,
             http_port: 8080,
-            history_size: 10_000,
+            history_file: None,
             workers: 1,
             ingest_queue: 1024,
             broadcast_queue: 1024,
@@ -456,7 +466,10 @@ pub(crate) struct FileConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     http_port: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    history_size: Option<usize>,
+    history_file: Option<PathBuf>,
+    /// Removed in feature 014: accepted and ignored with a warning, never written.
+    #[serde(default, skip_serializing)]
+    history_size: Option<toml::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     workers: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -599,7 +612,12 @@ impl FileConfig {
             bind_address: Some(config.bind_address),
             udp_port: Some(u32::from(config.udp_port)),
             http_port: Some(u32::from(config.http_port)),
-            history_size: Some(config.history_size),
+            // Written only when it differs from the default next to the country data.
+            history_file: config
+                .history_file
+                .clone()
+                .filter(|path| *path != default_history_file(&config.country_data.path)),
+            history_size: None,
             workers: Some(config.workers),
             ingest_queue: Some(config.ingest_queue),
             broadcast_queue: Some(config.broadcast_queue),
@@ -647,6 +665,21 @@ impl FileConfig {
                 bands: config.map.bands.clone(),
             },
         }
+    }
+}
+
+/// The warning for the removed `history_size` setting (feature 014, R14).
+pub const HISTORY_SIZE_REMOVED: &str =
+    "history_size is no longer used: the history is not limited; remove it";
+
+/// File name of the default history file, next to the country data (feature 014, R1).
+pub const HISTORY_FILE_NAME: &str = "qso-history.adi";
+
+/// The default history file: `qso-history.adi` in the folder of `cty_path`.
+pub fn default_history_file(cty_path: &Path) -> PathBuf {
+    match cty_path.parent() {
+        Some(folder) => folder.join(HISTORY_FILE_NAME),
+        None => PathBuf::from(HISTORY_FILE_NAME),
     }
 }
 
@@ -819,14 +852,19 @@ impl Config {
             )?,
             defaults.http_port,
         )?;
-        let history_size = layer(
-            "history_size",
-            cli.history_size,
+        if cli.history_size.is_some()
+            || env("LQM_HISTORY_SIZE").is_some()
+            || file.history_size.is_some()
+        {
+            warnings.push(HISTORY_SIZE_REMOVED.to_string());
+        }
+        let history_file_set = layer(
+            "history_file",
+            cli.history_file.clone(),
             env,
-            "LQM_HISTORY_SIZE",
-            file.history_size,
-        )?
-        .unwrap_or(defaults.history_size);
+            "LQM_HISTORY_FILE",
+            file.history_file,
+        )?;
         let workers = positive(
             "workers",
             layer("workers", cli.workers, env, "LQM_WORKERS", file.workers)?,
@@ -1154,7 +1192,9 @@ impl Config {
             bind_address,
             udp_port,
             http_port,
-            history_size,
+            history_file: Some(
+                history_file_set.unwrap_or_else(|| default_history_file(&country_data.path)),
+            ),
             workers,
             ingest_queue,
             broadcast_queue,
@@ -1216,7 +1256,7 @@ mod tests {
         assert_eq!(c.bind_address.to_string(), "0.0.0.0");
         assert_eq!(c.udp_port, 12060);
         assert_eq!(c.http_port, 8080);
-        assert_eq!(c.history_size, 10000);
+        assert_eq!(c.history_file, Some(PathBuf::from("./qso-history.adi")));
         assert_eq!(c.workers, 1);
         assert_eq!(c.ingest_queue, 1024);
         assert_eq!(c.broadcast_queue, 1024);
@@ -1257,7 +1297,6 @@ mod tests {
     const FILE: &str = r##"
 udp_port = 2000
 http_port = 2001
-history_size = 50
 
 [station]
 callsign = "IS0MZK"
@@ -1287,7 +1326,10 @@ fallback_color = "#000000"
         let (c, _) = load(&[], &[], Some(FILE)).unwrap();
         assert_eq!(c.udp_port, 2000);
         assert_eq!(c.http_port, 2001);
-        assert_eq!(c.history_size, 50);
+        assert_eq!(
+            c.history_file,
+            Some(PathBuf::from("/var/lib/lqm/qso-history.adi"))
+        );
         assert_eq!(c.station.callsign.as_deref(), Some("IS0MZK"));
         assert_eq!(c.station.locator.as_deref(), Some("JM49NH"));
         assert_eq!(c.lookup.timeout, Duration::from_secs(7));
@@ -1404,10 +1446,6 @@ fallback_color = "#000000"
             "lookup.provider_order",
         );
         config_err(load(&["--log-level", "loud"], &[], None), "log_level");
-        config_err(
-            load(&[], &[("LQM_HISTORY_SIZE", "many")], None),
-            "history_size",
-        );
         config_err(
             load(&["--lookup-timeout", "0"], &[], None),
             "lookup.timeout_secs",
@@ -1794,7 +1832,11 @@ style_attribution = "file credit"
             None,
         )
         .unwrap();
-        assert_eq!(config, Config::default());
+        let expected = Config {
+            history_file: Some(PathBuf::from("./qso-history.adi")),
+            ..Config::default()
+        };
+        assert_eq!(config, expected);
     }
 
     // --- feature 008: help (T044) ---
@@ -1853,5 +1895,65 @@ style_attribution = "file credit"
                 "--{typo} should suggest --{name}: {rendered}"
             );
         }
+    }
+
+    // --- history file and enrich-only (feature 014, T007) -----------------------------------
+
+    #[test]
+    fn history_file_layers() {
+        let file = Some("history_file = \"/from/file.adi\"\n");
+        let (c, _) = load(&[], &[], file).unwrap();
+        assert_eq!(c.history_file, Some(PathBuf::from("/from/file.adi")));
+        let (c, _) = load(&[], &[("LQM_HISTORY_FILE", "/from/env.adi")], file).unwrap();
+        assert_eq!(c.history_file, Some(PathBuf::from("/from/env.adi")));
+        let (c, _) = load(
+            &["--history-file", "/from/cli.adi"],
+            &[("LQM_HISTORY_FILE", "/from/env.adi")],
+            file,
+        )
+        .unwrap();
+        assert_eq!(c.history_file, Some(PathBuf::from("/from/cli.adi")));
+    }
+
+    #[test]
+    fn history_file_defaults_next_to_the_country_data() {
+        let (c, _) = load(&["--cty-path", "/var/lib/live-qso-map/cty.dat"], &[], None).unwrap();
+        assert_eq!(
+            c.history_file,
+            Some(PathBuf::from("/var/lib/live-qso-map/qso-history.adi"))
+        );
+        let (c, _) = load(&["--cty-path", "cty.dat"], &[], None).unwrap();
+        assert_eq!(c.history_file, Some(PathBuf::from("qso-history.adi")));
+        let (c, _) = load(&[], &[], None).unwrap();
+        assert_eq!(c.history_file, Some(PathBuf::from("./qso-history.adi")));
+        assert_eq!(Config::default().history_file, None);
+    }
+
+    #[test]
+    fn history_size_is_ignored_with_a_warning() {
+        for (args, env_pairs, file) in [
+            (vec!["--history-size", "50"], vec![], None),
+            (vec![], vec![("LQM_HISTORY_SIZE", "many")], None),
+            (vec![], vec![], Some("history_size = 50\n")),
+        ] {
+            let (_, warnings) = load(&args, &env_pairs, file).unwrap();
+            assert_eq!(
+                warnings,
+                [HISTORY_SIZE_REMOVED],
+                "{args:?} {env_pairs:?} {file:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn enrich_only_takes_an_optional_file() {
+        assert_eq!(cli(&[]).enrich_only, None);
+        assert_eq!(cli(&["--enrich-only"]).enrich_only, Some(None));
+        assert_eq!(
+            cli(&["--enrich-only", "x.adi"]).enrich_only,
+            Some(Some(PathBuf::from("x.adi")))
+        );
+        let both = Cli::try_parse_from(["live-qso-map", "--enrich-only", "--save-config", "x"]);
+        assert!(both.is_err());
     }
 }

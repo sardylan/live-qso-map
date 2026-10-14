@@ -39,7 +39,7 @@ run it, and confirm it fails first. Use `cargo test`; page modules use `node --t
 
 ## Phase 1: Setup
 
-- [ ] T001 [P] Create the fixtures in `tests/fixtures/` and list them in `tests/fixtures/README.md`:
+- [X] T001 [P] Create the fixtures in `tests/fixtures/` and list them in `tests/fixtures/README.md`:
   - `history-external.adi`: an exported log with a header and 8 records — 2 with `GRIDSQUARE`,
     1 with `LAT`/`LON`, 3 with no position, 1 on `2m` (outside `hf-contest`), 1 malformed (no
     `TIME_ON`);
@@ -48,7 +48,7 @@ run it, and confirm it fails first. Use `cargo test`; page modules use `node --t
     including one record with `APP_LIVEQSOMAP_POS_REJECTED`, one with
     `APP_LIVEQSOMAP_LOOKUP_FAILED`, and one QARTest record with `APP_LIVEQSOMAP_LOGGER_ID`;
   - `history-not-adif.txt`: plain text with neither `<EOH>` nor `<EOR>`.
-- [ ] T002 [P] Extend `tests/common/mod.rs`:
+- [X] T002 [P] Extend `tests/common/mod.rs`:
   - `temp_dir(name) -> PathBuf`: a fresh folder under `std::env::temp_dir()` named from `name`,
     the process id and a counter; created empty;
   - `FakeProvider` builder: per-call answers (`Found(LookupCandidate)`, `NotFound`, `Fail`,
@@ -62,20 +62,20 @@ run it, and confirm it fails first. Use `cargo test`; page modules use `node --t
 **Error variant, unbounded history, configuration, the added-field list, and the file module's
 read/write/restore primitives. Every story needs them.**
 
-- [ ] T003 [P] Write a failing unit test in `src/errors.rs`: `Error::HistoryFile { path, message }`
+- [X] T003 [P] Write a failing unit test in `src/errors.rs`: `Error::HistoryFile { path, message }`
   displays `history file <path>: <message>`.
-- [ ] T004 [P] Implement `Error::HistoryFile { path: PathBuf, message: String }` in
+- [X] T004 [P] Implement `Error::HistoryFile { path: PathBuf, message: String }` in
   `src/errors.rs` (Display, no `source`). Make T003 pass.
-- [ ] T005 Write failing unit tests in `src/history.rs`: `History::new()` takes no capacity and
+- [X] T005 Write failing unit tests in `src/history.rs`: `History::new()` takes no capacity and
   keeps 50 000 upserts (none evicted); `iter_in_order()` yields QSOs oldest first by `sort_ts`,
   ties by id; tombstones still reject stale revisions. Update the existing eviction tests to the
   new rule (remove the ones that assert eviction).
-- [ ] T006 Implement in `src/history.rs`: drop `capacity` and eviction; add `iter_in_order()`.
+- [X] T006 Implement in `src/history.rs`: drop `capacity` and eviction; add `iter_in_order()`.
   In `src/ingest/gate.rs` make `ResendGate::new()` unbounded (drop the capacity argument and its
   eviction; update its tests). Update callers: `Pipeline::new(broadcast_queue)` in
   `src/pipeline.rs`, `ingest::run` (no `gate_capacity`), `tests/load_ws.rs` and
   `tests/ws_protocol.rs` (drop `config.history_size`). Make T005 and all existing tests pass.
-- [ ] T007 Write failing unit tests in `src/config.rs` (contracts/command-line.md, R1, R13, R14):
+- [X] T007 Write failing unit tests in `src/config.rs` (contracts/command-line.md, R1, R13, R14):
   - `history_file` from `--history-file`, `LQM_HISTORY_FILE`, TOML `history_file`, with the usual
     precedence;
   - not set → `Some(<folder of country_data.path>/qso-history.adi)`; with `country_data.path =
@@ -86,25 +86,25 @@ read/write/restore primitives. Every story needs them.**
   - `--enrich-only` alone → `Some(None)`; `--enrich-only x.adi` → `Some(Some("x.adi"))`;
     `--enrich-only` with `--save-config` → usage error;
   - `Config::default().history_file` is `None`.
-- [ ] T008 Implement in `src/config.rs`: `Cli::history_file`, `Cli::enrich_only:
+- [X] T008 Implement in `src/config.rs`: `Cli::history_file`, `Cli::enrich_only:
   Option<Option<PathBuf>>` (`num_args = 0..=1`, `conflicts_with = "save_config"`), hidden
   `Cli::history_size` kept only to warn; `Config::history_file: Option<PathBuf>`; remove
   `Config::history_size`; the file layer accepts `history_size` and warns. Make T007 pass.
-- [ ] T009 [P] Update `src/config_export.rs` and `tests/config_export.rs`: no `history_size`;
+- [X] T009 [P] Update `src/config_export.rs` and `tests/config_export.rs`: no `history_size`;
   `history_file` written only when set explicitly (the default depends on the country data path).
   Tests first.
-- [ ] T010 Update `src/main.rs`: after `country_data.path` is resolved, resolve `history_file` the
+- [X] T010 Update `src/main.rs`: after `country_data.path` is resolved, resolve `history_file` the
   same way (`resolve_data_path`, R1). Update `tests/cli_help.rs` for `--history-file` and
   `--enrich-only [FILE]` (and `--history-size` absent from help). Tests first.
-- [ ] T011 Write failing unit tests in `src/enrich/mod.rs` (R3): after `enrich`, the record has
+- [X] T011 Write failing unit tests in `src/enrich/mod.rs` (R3): after `enrich`, the record has
   `APP_LIVEQSOMAP_ADDED` listing exactly the fields that were absent before (in name order,
   including `MY_GRIDSQUARE` from the configuration, merged lookup fields such as `QTH`, and the
   `APP_LIVEQSOMAP_*` fields), and no logger field is listed; a record with a logger `GRIDSQUARE`
   does not list `GRIDSQUARE`.
-- [ ] T012 Create `src/history_file/mod.rs` (declare `read`, `write`, `restore`; the field-name
+- [X] T012 Create `src/history_file/mod.rs` (declare `read`, `write`, `restore`; the field-name
   constants) and register it in `src/lib.rs`. Implement the `APP_LIVEQSOMAP_ADDED` computation at
   the end of `enrich()` in `src/enrich/mod.rs`. Make T011 pass.
-- [ ] T013 [P] Write failing unit tests in `src/history_file/write.rs` (R10,
+- [X] T013 [P] Write failing unit tests in `src/history_file/write.rs` (R10,
   contracts/history-file.md):
   - header: comment line with the UTC time, `ADIF_VER 3.1.4`, `PROGRAMID live-qso-map`,
     `PROGRAMVERSION` = crate version, `CREATED_TIMESTAMP` `YYYYMMDD HHMMSS`, `<EOH>`;
@@ -114,20 +114,20 @@ read/write/restore primitives. Every story needs them.**
   - a failed save leaves the previous file byte-for-byte unchanged (make the target's folder
     read-only on Unix, `#[cfg(unix)]`; on other targets, simulate with a target path that is a
     directory).
-- [ ] T014 [P] Implement `src/history_file/write.rs`: `render(records, now) -> String` and
+- [X] T014 [P] Implement `src/history_file/write.rs`: `render(records, now) -> String` and
   `save(path, records, now) -> Result<()>` (write `<name>.tmp`, `sync_all`, `rename`; remove the
   temporary file on error). Make T013 pass.
-- [ ] T015 [P] Write failing unit tests in `src/history_file/read.rs` (R11):
+- [X] T015 [P] Write failing unit tests in `src/history_file/read.rs` (R11):
   - a missing file → `Read::Missing`;
   - an empty file → zero records, not unreadable;
   - `history-external.adi` → 7 records and 1 malformed counted;
   - `history-not-adif.txt` → `Read::Unreadable(reason)`;
   - `move_aside(path, now)` renames to `<name>.unreadable-YYYYMMDDTHHMMSSZ` (no `:`), and
     returns the new path.
-- [ ] T016 [P] Implement `src/history_file/read.rs`: `read(path) -> Result<Read>` with
+- [X] T016 [P] Implement `src/history_file/read.rs`: `read(path) -> Result<Read>` with
   `Read::{Missing, Unreadable(String), Records { records, malformed }}` and `move_aside`. Make
   T015 pass.
-- [ ] T017 Write failing unit tests in `src/history_file/restore.rs` (R3–R8, data-model table):
+- [X] T017 Write failing unit tests in `src/history_file/restore.rs` (R3–R8, data-model table):
   - `as_received(record)` removes the fields listed in `APP_LIVEQSOMAP_ADDED` and the list
     itself; a record without the list is unchanged;
   - `classify(record, Mode::Service, filter)` and `classify(…, Mode::EnrichOnly, …)` give every
@@ -136,7 +136,7 @@ read/write/restore primitives. Every story needs them.**
     → `Reuse` (service) / `Enrich` (enrich-only); saved position → `Reuse`; otherwise `Enrich`;
   - `saved_position(record)` reads `LAT`/`LON` with the saved precision and source (a `cty`
     point stays `Country`/`Cty`), and is `None` when the source or precision is unknown.
-- [ ] T018 Implement `src/history_file/restore.rs`: `Mode`, `RestoreAction::{Skip, Park,
+- [X] T018 Implement `src/history_file/restore.rs`: `Mode`, `RestoreAction::{Skip, Park,
   Reuse, Enrich}`, `as_received`, `classify`, `saved_position`. Make T017 pass.
 
 **Checkpoint**: `cargo test` green; nothing loads or saves yet.

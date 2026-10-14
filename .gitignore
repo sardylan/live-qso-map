@@ -46,3 +46,4 @@ coverage/
 # Operating systems
 .DS_Store
 Thumbs.db
+/qso-history.adi*

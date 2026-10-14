@@ -11,6 +11,7 @@ use std::sync::Arc;
 
 use tokio::sync::watch;
 
+use crate::adif::AdifRecord;
 use crate::config::Config;
 use crate::enrich::cty::CountryData;
 use crate::entity_extents::ExtentTable;
@@ -61,6 +62,8 @@ impl Lookups {
 /// else the best acceptable lookup result (FR-011 – FR-019; feature 010).
 pub async fn enrich(event: QsoEvent, config: &Config, lookups: &Lookups) -> EnrichedQso {
     let mut record = event.record;
+    let before: std::collections::BTreeSet<String> =
+        record.iter().map(|(name, _)| name.to_string()).collect();
     let station = station::apply_station(&mut record, &config.station);
     let call = record.get("CALL").unwrap_or_default().trim().to_string();
     // The entity always comes from cty.dat for the call as logged, whatever gave the position
@@ -156,6 +159,7 @@ pub async fn enrich(event: QsoEvent, config: &Config, lookups: &Lookups) -> Enri
         Some(position) => resolve::write_position_fields(&mut record, position),
         None => tracing::warn!(call, "no position found; the QSO is kept but not drawn"),
     }
+    list_added_fields(&mut record, &before);
     let sort_ts = record
         .get("QSO_DATE")
         .zip(record.get("TIME_ON"))
@@ -169,6 +173,21 @@ pub async fn enrich(event: QsoEvent, config: &Config, lookups: &Lookups) -> Enri
         remote,
         station,
         entity,
+    }
+}
+
+/// Writes `APP_LIVEQSOMAP_ADDED`: every field absent from `before` (feature 014, R3).
+fn list_added_fields(record: &mut AdifRecord, before: &std::collections::BTreeSet<String>) {
+    let added: Vec<&str> = record
+        .iter()
+        .map(|(name, _)| name)
+        .filter(|name| *name != crate::history_file::ADDED_FIELD && !before.contains(*name))
+        .collect();
+    if added.is_empty() {
+        record.remove(crate::history_file::ADDED_FIELD);
+    } else {
+        let list = added.join(",");
+        record.set(crate::history_file::ADDED_FIELD, list);
     }
 }
 
@@ -493,6 +512,84 @@ mod tests {
             rejection_warnings("DL0AAA", &[], &["DL0AAA"])
                 .await
                 .is_empty()
+        );
+    }
+
+    // --- fields the service added (feature 014, T011, R3) ------------------------------------
+
+    fn qrz_source(fields: &[(&str, &str)]) -> LookupSource {
+        let mut record = crate::adif::AdifRecord::new();
+        for (k, v) in fields {
+            record.set(k, *v);
+        }
+        Arc::new(move |_call: String| {
+            let fields = record.clone();
+            Box::pin(async move {
+                Ok(Some(crate::position::LookupCandidate {
+                    source: PositionSource::Qrz,
+                    position: Some(Position::new(
+                        40.0,
+                        -75.0,
+                        crate::position::Precision::Locator6,
+                        PositionSource::Qrz,
+                    )?),
+                    fields,
+                }))
+            })
+        })
+    }
+
+    fn added(q: &EnrichedQso) -> Vec<&str> {
+        q.record
+            .get(crate::history_file::ADDED_FIELD)
+            .map(|list| list.split(',').collect())
+            .unwrap_or_default()
+    }
+
+    #[tokio::test]
+    async fn enrich_lists_the_fields_it_added() {
+        let mut config = Config::default();
+        config.station.locator = Some("JM49NH".into());
+        let l = lookups(None, &config);
+        let q = enrich(event("DL1ABC", &[("GRIDSQUARE", "JO62QM")]), &config, &l).await;
+        assert_eq!(
+            added(&q),
+            [
+                "APP_LIVEQSOMAP_POS_PRECISION",
+                "APP_LIVEQSOMAP_POS_SOURCE",
+                "APP_LIVEQSOMAP_STATION_POS_SOURCE",
+                "LAT",
+                "LON",
+                "MY_GRIDSQUARE",
+            ],
+            "the logger's GRIDSQUARE is not listed"
+        );
+    }
+
+    #[tokio::test]
+    async fn merged_lookup_fields_are_listed_too() {
+        let mut config = Config::default();
+        config.station.locator = Some("JM49NH".into());
+        let areas = Arc::new(ExtentTable::embedded().expect("embedded entity extents"));
+        let l = Lookups::new(
+            vec![qrz_source(&[("QTH", "Philadelphia"), ("NAME", "Ann")])],
+            None,
+            areas,
+            &config,
+        );
+        let q = enrich(event("K1ABC", &[("NAME", "Logged")]), &config, &l).await;
+        assert_eq!(q.record.get("NAME"), Some("Logged"));
+        assert_eq!(
+            added(&q),
+            [
+                "APP_LIVEQSOMAP_POS_PRECISION",
+                "APP_LIVEQSOMAP_POS_SOURCE",
+                "APP_LIVEQSOMAP_STATION_POS_SOURCE",
+                "LAT",
+                "LON",
+                "MY_GRIDSQUARE",
+                "QTH",
+            ]
         );
     }
 }

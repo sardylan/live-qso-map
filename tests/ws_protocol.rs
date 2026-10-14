@@ -318,10 +318,9 @@ async fn pages_choose_their_own_window() {
 }
 
 #[tokio::test]
-async fn history_is_capped() {
-    let mut config = test_config();
-    config.history_size = 1000;
-    let service = start(config, None).await.unwrap();
+async fn history_is_not_capped() {
+    // Feature 014 (FR-023): the service keeps every QSO.
+    let service = start(test_config(), None).await.unwrap();
     fill(&service, 1001, 1000).await;
     tokio::time::sleep(Duration::from_millis(200)).await;
     live_qso_map::install_crypto_provider();
@@ -334,7 +333,7 @@ async fn history_is_capped() {
             .unwrap(),
     )
     .unwrap();
-    assert_eq!(health["history"], 1000);
+    assert_eq!(health["history"], 1001);
     service.shutdown().await;
 }
 

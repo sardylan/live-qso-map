@@ -84,6 +84,10 @@ fn run() -> ExitCode {
         }
         config.country_data.path =
             resolve_data_path(&config.country_data.path, exe_dir.as_deref(), true);
+        // Feature 014 (R1): the history file follows the same rule.
+        config.history_file = config
+            .history_file
+            .map(|path| resolve_data_path(&path, exe_dir.as_deref(), true));
     }
 
     tracing_subscriber::fmt()

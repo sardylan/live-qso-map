@@ -182,12 +182,11 @@ pub async fn run(
     socket: UdpSocket,
     station: StationConfig,
     queue: async_channel::Sender<QsoEvent>,
-    gate_capacity: usize,
     filter: Option<BandSet>,
     pipeline: Pipeline,
     mut shutdown: watch::Receiver<bool>,
 ) {
-    let mut gate = gate::ResendGate::new(gate_capacity);
+    let mut gate = gate::ResendGate::new();
     let mut buffer = vec![0u8; 65_535];
     loop {
         let received = tokio::select! {

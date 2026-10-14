@@ -80,10 +80,10 @@ pub struct Pipeline {
 }
 
 impl Pipeline {
-    pub fn new(history_size: usize, broadcast_queue: usize) -> Self {
+    pub fn new(broadcast_queue: usize) -> Self {
         let (changes, _) = broadcast::channel(broadcast_queue.max(1));
         Self {
-            history: Arc::new(Mutex::new(History::new(history_size))),
+            history: Arc::new(Mutex::new(History::new())),
             score: Arc::new(Mutex::new(None)),
             changes,
         }
@@ -310,7 +310,7 @@ pub async fn start_with_country(
     let udp_addr = udp.local_addr()?;
     let http_addr = http.local_addr()?;
 
-    let pipeline = Pipeline::new(config.history_size, config.broadcast_queue);
+    let pipeline = Pipeline::new(config.broadcast_queue);
     let (shutdown_tx, shutdown_rx) = watch::channel(false);
     let mut tasks = JoinSet::new();
     spawn_tasks(
@@ -347,7 +347,6 @@ fn spawn_tasks(
         udp,
         config.station.clone(),
         queue_tx,
-        config.history_size,
         config.band_filter.clone(),
         pipeline.clone(),
         shutdown.clone(),
@@ -466,7 +465,7 @@ mod tests {
 
     #[test]
     fn publish_of_stale_rev_sends_nothing() {
-        let pipeline = Pipeline::new(0, 16);
+        let pipeline = Pipeline::new(16);
         let mut rx = pipeline.subscribe();
         assert!(pipeline.publish(qso("A", 2)));
         assert!(!pipeline.publish(qso("A", 1)));
@@ -481,7 +480,7 @@ mod tests {
 
     #[test]
     fn publish_without_subscribers_still_updates_history() {
-        let pipeline = Pipeline::new(0, 16);
+        let pipeline = Pipeline::new(16);
         assert!(pipeline.publish(qso("A", 1)));
         assert_eq!(pipeline.history_len(), 1);
     }
@@ -519,7 +518,7 @@ mod tests {
 
     #[test]
     fn remove_broadcasts_only_when_something_was_removed() {
-        let pipeline = Pipeline::new(0, 16);
+        let pipeline = Pipeline::new(16);
         pipeline.publish(qso("A", 1));
         let mut rx = pipeline.subscribe();
         assert!(!pipeline.remove("ZZ", 2));
@@ -546,12 +545,12 @@ mod tests {
 
     #[test]
     fn a_new_pipeline_holds_no_score() {
-        assert!(Pipeline::new(0, 16).latest_score().is_none());
+        assert!(Pipeline::new(16).latest_score().is_none());
     }
 
     #[test]
     fn publish_score_stores_and_broadcasts() {
-        let pipeline = Pipeline::new(0, 16);
+        let pipeline = Pipeline::new(16);
         let mut rx = pipeline.subscribe();
         pipeline.publish_score(score(132));
         let held = pipeline.latest_score().unwrap();
@@ -572,7 +571,7 @@ mod tests {
 
     #[test]
     fn an_identical_score_is_broadcast_again_and_refreshed() {
-        let pipeline = Pipeline::new(0, 16);
+        let pipeline = Pipeline::new(16);
         let mut rx = pipeline.subscribe();
         pipeline.publish_score(score(90));
         let first = pipeline.latest_score().unwrap().received;

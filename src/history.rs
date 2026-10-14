@@ -2,7 +2,7 @@
 //! (FR-021, FR-028, data-model "History").
 
 use serde::Serialize;
-use std::collections::{BTreeSet, HashMap, VecDeque};
+use std::collections::{BTreeSet, HashMap};
 use std::sync::Arc;
 
 use crate::adif::AdifRecord;
@@ -47,20 +47,16 @@ pub enum Removal {
 pub struct History {
     by_id: HashMap<String, Arc<EnrichedQso>>,
     ordered: BTreeSet<(i64, String)>,
-    capacity: usize,
     /// Removed ids and the revision of their removal (feature 003, TR-002): older revisions still
     /// in flight must not bring the QSO back.
     tombstones: HashMap<String, u32>,
-    tombstone_order: VecDeque<String>,
 }
 
 impl History {
-    /// `capacity` 0 means unbounded.
-    pub fn new(capacity: usize) -> Self {
-        Self {
-            capacity,
-            ..Self::default()
-        }
+    /// An empty history. It is never trimmed: every QSO stays until it is removed (feature 014,
+    /// FR-023).
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn upsert(&mut self, mut qso: EnrichedQso) -> Upsert {
@@ -81,20 +77,9 @@ impl History {
         }
 
         let key = (qso.sort_ts, qso.id.clone());
-        if self.capacity > 0 && self.by_id.len() >= self.capacity {
-            match self.ordered.first() {
-                Some(oldest) if *oldest > key => return Upsert::Stale,
-                _ => {}
-            }
-        }
         let stored = Arc::new(qso);
         self.ordered.insert(key);
         self.by_id.insert(stored.id.clone(), Arc::clone(&stored));
-        while self.capacity > 0 && self.by_id.len() > self.capacity {
-            if let Some((_, id)) = self.ordered.pop_first() {
-                self.by_id.remove(&id);
-            }
-        }
         Upsert::Accepted(stored)
     }
 
@@ -111,18 +96,7 @@ impl History {
             _ => Removal::NotPresent,
         };
         let entry = self.tombstones.entry(id.to_string()).or_insert(0);
-        if *entry == 0 {
-            self.tombstone_order.push_back(id.to_string());
-        }
         *entry = (*entry).max(rev);
-        while self.capacity > 0 && self.tombstones.len() > self.capacity {
-            match self.tombstone_order.pop_front() {
-                Some(oldest) => {
-                    self.tombstones.remove(&oldest);
-                }
-                None => break,
-            }
-        }
         removed
     }
 
@@ -163,6 +137,11 @@ impl History {
             .collect();
         newest.reverse();
         newest
+    }
+
+    /// Every QSO, oldest first by sort key (ties by id), for the history file (feature 014).
+    pub fn iter_in_order(&self) -> impl Iterator<Item = &Arc<EnrichedQso>> {
+        self.ordered.iter().filter_map(|(_, id)| self.by_id.get(id))
     }
 
     pub fn get(&self, id: &str) -> Option<Arc<EnrichedQso>> {
@@ -268,14 +247,14 @@ mod tests {
 
     #[test]
     fn new_id_is_accepted() {
-        let mut h = History::new(0);
+        let mut h = History::new();
         assert!(matches!(h.upsert(qso("A", 1, 10)), Upsert::Accepted(_)));
         assert_eq!(h.len(), 1);
     }
 
     #[test]
     fn higher_rev_is_accepted_and_keeps_sort_key() {
-        let mut h = History::new(0);
+        let mut h = History::new();
         h.upsert(qso("A", 1, 10));
         h.upsert(qso("B", 1, 20));
         let Upsert::Accepted(stored) = h.upsert(qso("A", 2, 99)) else {
@@ -289,7 +268,7 @@ mod tests {
 
     #[test]
     fn same_or_lower_rev_is_stale() {
-        let mut h = History::new(0);
+        let mut h = History::new();
         h.upsert(qso("A", 2, 10));
         assert!(matches!(h.upsert(qso("A", 2, 10)), Upsert::Stale));
         assert!(matches!(h.upsert(qso("A", 1, 10)), Upsert::Stale));
@@ -298,7 +277,7 @@ mod tests {
 
     #[test]
     fn latest_returns_last_n_ascending() {
-        let mut h = History::new(0);
+        let mut h = History::new();
         for (i, id) in ["C", "A", "E", "B", "D"].iter().enumerate() {
             h.upsert(qso(id, 1, [30, 10, 50, 20, 40][i]));
         }
@@ -310,39 +289,31 @@ mod tests {
 
     #[test]
     fn equal_timestamps_order_by_id() {
-        let mut h = History::new(0);
+        let mut h = History::new();
         h.upsert(qso("B", 1, 10));
         h.upsert(qso("A", 1, 10));
         assert_eq!(ids(&h.latest(None)), ["A", "B"]);
     }
 
     #[test]
-    fn capacity_evicts_oldest() {
-        let mut h = History::new(3);
-        for (id, ts) in [("A", 10), ("B", 20), ("C", 30), ("D", 40)] {
+    fn never_evicts() {
+        let mut h = History::new();
+        for i in 0..50_000 {
+            h.upsert(qso(&format!("Q{i:05}"), 1, i));
+        }
+        assert_eq!(h.len(), 50_000);
+        assert!(matches!(h.upsert(qso("OLD", 1, -1)), Upsert::Accepted(_)));
+        assert_eq!(h.len(), 50_001);
+    }
+
+    #[test]
+    fn iter_in_order_is_oldest_first_ties_by_id() {
+        let mut h = History::new();
+        for (id, ts) in [("C", 30), ("B", 10), ("A", 10), ("D", 20)] {
             h.upsert(qso(id, 1, ts));
         }
-        assert_eq!(h.len(), 3);
-        assert_eq!(ids(&h.latest(None)), ["B", "C", "D"]);
-        assert!(h.get("A").is_none());
-    }
-
-    #[test]
-    fn insert_older_than_everything_in_full_history_is_stale() {
-        let mut h = History::new(2);
-        h.upsert(qso("B", 1, 20));
-        h.upsert(qso("C", 1, 30));
-        assert!(matches!(h.upsert(qso("A", 1, 10)), Upsert::Stale));
-        assert_eq!(ids(&h.latest(None)), ["B", "C"]);
-    }
-
-    #[test]
-    fn capacity_zero_never_evicts() {
-        let mut h = History::new(0);
-        for i in 0..100 {
-            h.upsert(qso(&format!("Q{i:03}"), 1, i));
-        }
-        assert_eq!(h.len(), 100);
+        let order: Vec<&str> = h.iter_in_order().map(|q| q.id.as_str()).collect();
+        assert_eq!(order, ["A", "B", "D", "C"]);
     }
 
     #[test]
@@ -366,7 +337,7 @@ mod tests {
 
     #[test]
     fn remove_deletes_and_tombstones() {
-        let mut h = History::new(0);
+        let mut h = History::new();
         h.upsert(qso("A", 1, 10));
         h.upsert(qso("B", 1, 20));
         assert_eq!(h.remove("A", 2), Removal::Removed);
@@ -377,7 +348,7 @@ mod tests {
 
     #[test]
     fn stale_upsert_after_removal_is_rejected() {
-        let mut h = History::new(0);
+        let mut h = History::new();
         h.upsert(qso("A", 1, 10));
         h.remove("A", 2);
         assert!(matches!(h.upsert(qso("A", 1, 10)), Upsert::Stale));
@@ -387,7 +358,7 @@ mod tests {
 
     #[test]
     fn higher_rev_after_removal_comes_back_as_new() {
-        let mut h = History::new(0);
+        let mut h = History::new();
         h.upsert(qso("A", 1, 10));
         h.remove("A", 2);
         let Upsert::Accepted(stored) = h.upsert(qso("A", 3, 99)) else {
@@ -401,28 +372,19 @@ mod tests {
 
     #[test]
     fn remove_of_unknown_id_records_a_tombstone() {
-        let mut h = History::new(0);
+        let mut h = History::new();
         assert_eq!(h.remove("X", 2), Removal::NotPresent);
         assert!(matches!(h.upsert(qso("X", 1, 10)), Upsert::Stale));
         assert!(matches!(h.upsert(qso("X", 3, 10)), Upsert::Accepted(_)));
     }
 
     #[test]
-    fn tombstones_are_capped_like_the_history() {
-        let mut h = History::new(2);
-        for id in ["A", "B", "C"] {
-            h.remove(id, 5);
+    fn tombstones_are_never_dropped() {
+        let mut h = History::new();
+        for i in 0..1000 {
+            h.remove(&format!("Q{i}"), 1);
         }
-        assert!(
-            matches!(h.upsert(qso("A", 1, 10)), Upsert::Accepted(_)),
-            "oldest tombstone evicted"
-        );
-        assert!(matches!(h.upsert(qso("C", 1, 10)), Upsert::Stale));
-        let mut unbounded = History::new(0);
-        for i in 0..100 {
-            unbounded.remove(&format!("Q{i}"), 1);
-        }
-        assert!(matches!(unbounded.upsert(qso("Q0", 1, 0)), Upsert::Stale));
+        assert!(matches!(h.upsert(qso("Q0", 1, 0)), Upsert::Stale));
     }
 
     // --- latest on chosen bands (feature 011, T020) ----------------------------------------
@@ -437,7 +399,7 @@ mod tests {
 
     #[test]
     fn latest_matching_keeps_only_the_chosen_bands() {
-        let mut h = History::new(0);
+        let mut h = History::new();
         for (id, ts, band) in [
             ("A", 10, Some("40m")),
             ("B", 20, Some("30M")),

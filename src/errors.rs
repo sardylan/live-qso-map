@@ -34,6 +34,11 @@ pub enum Error {
         path: std::path::PathBuf,
         source: std::io::Error,
     },
+    /// The QSO history file could not be read, moved aside or written (feature 014).
+    HistoryFile {
+        path: std::path::PathBuf,
+        message: String,
+    },
 }
 
 impl fmt::Display for Error {
@@ -59,6 +64,9 @@ impl fmt::Display for Error {
                     path.display()
                 )
             }
+            Error::HistoryFile { path, message } => {
+                write!(f, "history file {}: {message}", path.display())
+            }
         }
     }
 }
@@ -77,7 +85,8 @@ impl std::error::Error for Error {
             | Error::Adif { .. }
             | Error::QarTest { .. }
             | Error::Provider { .. }
-            | Error::InvalidPosition { .. } => None,
+            | Error::InvalidPosition { .. }
+            | Error::HistoryFile { .. } => None,
         }
     }
 }
@@ -192,7 +201,24 @@ mod tests {
                 path: "/x.toml".into(),
                 source: std::io::Error::other("denied"),
             },
+            Error::HistoryFile {
+                path: "/x.adi".into(),
+                message: "denied".into(),
+            },
         ]
+    }
+
+    #[test]
+    fn history_file_names_the_path() {
+        let e = Error::HistoryFile {
+            path: "/var/lib/live-qso-map/qso-history.adi".into(),
+            message: "permission denied".into(),
+        };
+        assert_eq!(
+            e.to_string(),
+            "history file /var/lib/live-qso-map/qso-history.adi: permission denied"
+        );
+        assert!(e.source().is_none());
     }
 
     #[tokio::test]

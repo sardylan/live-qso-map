@@ -43,3 +43,108 @@ pub async fn next_upsert(
         _ => None,
     }
 }
+
+/// A fresh, empty folder under the system temporary folder, unique to this process and call
+/// (feature 014).
+pub fn temp_dir(name: &str) -> std::path::PathBuf {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    static COUNTER: AtomicUsize = AtomicUsize::new(0);
+    let n = COUNTER.fetch_add(1, Ordering::SeqCst);
+    let dir = std::env::temp_dir().join(format!("lqm-{name}-{}-{n}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    dir
+}
+
+/// Every record of an ADIF file, parsed like the service parses it.
+pub fn read_records(path: &std::path::Path) -> Vec<live_qso_map::adif::AdifRecord> {
+    let data = std::fs::read(path).unwrap();
+    live_qso_map::adif::parse::parse_datagram(&data).0
+}
+
+/// How a fake provider answers one callsign.
+#[derive(Clone)]
+pub enum Answer {
+    Found(live_qso_map::position::LookupCandidate),
+    NotFound,
+    Fail,
+    /// Waits until the notify is released, then answers "not found".
+    Hang(std::sync::Arc<tokio::sync::Notify>),
+}
+
+/// A fake online provider: per-call answers (default "not found") and a call counter.
+#[derive(Clone)]
+pub struct FakeProvider {
+    pub source: live_qso_map::position::PositionSource,
+    pub answers: std::sync::Arc<std::sync::Mutex<std::collections::HashMap<String, Answer>>>,
+    pub calls: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+}
+
+impl FakeProvider {
+    pub fn new(source: live_qso_map::position::PositionSource) -> Self {
+        Self {
+            source,
+            answers: Default::default(),
+            calls: Default::default(),
+        }
+    }
+
+    /// Answers `call` with a position of the given precision at `lat`/`lon`.
+    pub fn found(
+        self,
+        call: &str,
+        lat: f64,
+        lon: f64,
+        precision: live_qso_map::position::Precision,
+    ) -> Self {
+        let candidate = live_qso_map::position::LookupCandidate {
+            source: self.source,
+            position: Some(
+                live_qso_map::position::Position::new(lat, lon, precision, self.source).unwrap(),
+            ),
+            fields: live_qso_map::adif::AdifRecord::new(),
+        };
+        self.answer(call, Answer::Found(candidate))
+    }
+
+    pub fn answer(self, call: &str, answer: Answer) -> Self {
+        self.answers
+            .lock()
+            .unwrap()
+            .insert(call.to_ascii_uppercase(), answer);
+        self
+    }
+
+    pub fn calls(&self) -> usize {
+        self.calls.load(std::sync::atomic::Ordering::SeqCst)
+    }
+
+    pub fn source(&self) -> live_qso_map::pipeline::LookupSource {
+        let this = self.clone();
+        std::sync::Arc::new(move |call: String| {
+            this.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            let answer = this
+                .answers
+                .lock()
+                .unwrap()
+                .get(&call.to_ascii_uppercase())
+                .cloned()
+                .unwrap_or(Answer::NotFound);
+            let provider = this.source.as_str();
+            Box::pin(async move {
+                match answer {
+                    Answer::Found(candidate) => Ok(Some(candidate)),
+                    Answer::NotFound => Ok(None),
+                    Answer::Fail => Err(live_qso_map::errors::Error::Provider {
+                        provider,
+                        message: "fake failure".into(),
+                    }),
+                    Answer::Hang(notify) => {
+                        notify.notified().await;
+                        Ok(None)
+                    }
+                }
+            })
+        })
+    }
+}

@@ -157,7 +157,6 @@ mod tests {
             "bind_address",
             "udp_port",
             "http_port",
-            "history_size",
             "workers",
             "ingest_queue",
             "broadcast_queue",
@@ -205,6 +204,20 @@ mod tests {
         );
         let station = table.get("station").and_then(|s| s.as_table());
         assert!(station.is_none_or(|s| s.is_empty()));
+        assert!(
+            !table.contains_key("history_size"),
+            "removed in feature 014"
+        );
+    }
+
+    #[test]
+    fn history_file_is_written_only_when_set_explicitly() {
+        let default = rendered(&load(&["--cty-path", "/var/lib/lqm/cty.dat"], &[], None));
+        let table: toml::Table = toml::from_str(&default).unwrap();
+        assert!(!table.contains_key("history_file"), "{default}");
+        let explicit = rendered(&load(&["--history-file", "/srv/log.adi"], &[], None));
+        let table: toml::Table = toml::from_str(&explicit).unwrap();
+        assert_eq!(table["history_file"].as_str(), Some("/srv/log.adi"));
     }
 
     #[test]
@@ -280,7 +293,8 @@ mod tests {
     #[test]
     fn round_trip_over_many_combinations() {
         let cases: Vec<Config> = vec![
-            Config::default(),
+            load(&[], &[], None),
+            load(&["--history-file", "/srv/contest.adi"], &[], None),
             load(
                 &[
                     "--station-callsign",
@@ -362,8 +376,6 @@ mod tests {
                     "2237",
                     "--http-port",
                     "9090",
-                    "--history-size",
-                    "0",
                     "--workers",
                     "4",
                     "--ingest-queue",
