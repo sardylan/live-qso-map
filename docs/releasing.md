@@ -78,7 +78,7 @@ cargo release push --execute
 ## Before tagging
 
 - **Secrets:** check that the three publishing secrets exist (names only):
-  `circleci context env-var list live-qso-map-release --org gh/sardylan` (`docs/ci.md`,
+  `circleci context secret list live-qso-map-release --org gh/sardylan` (`docs/ci.md`,
   section 8).
 - **Rehearsal:** if the release path changed since the last release (executors, packaging, image,
   cross), run a rehearsal first (`docs/ci.md`, section 7).

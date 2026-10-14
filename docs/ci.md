@@ -173,7 +173,7 @@ circleci context restriction create live-qso-map-release --type project \
   --value e4ace6e1-9360-4882-9faf-21f77e871b0e --org gh/sardylan
 circleci context restriction create live-qso-map-release --type expression \
   --value 'pipeline.git.tag starts-with "v"' --org gh/sardylan
-circleci context env-var list live-qso-map-release --org gh/sardylan   # names only, before tagging
+circleci context secret list live-qso-map-release --org gh/sardylan    # names only, before tagging
 circleci project envvar list                                        # must not list them
 ```
 

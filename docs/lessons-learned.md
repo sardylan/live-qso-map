@@ -19,6 +19,7 @@ so the team replicates what worked and avoids what did not.
 | LL-004 | open | A page file added to src/web/assets/ must also be served | 2026-10-13 |
 | LL-005 | open | Look at a map effect in the browser before designing around it | 2026-10-14 |
 | LL-006 | open | Lookup sources carry no identity, so failed lookups could not be named | 2026-10-14 |
+| LL-007 | open | Browser steps that never ran in CI blocked the release three times | 2026-10-14 |
 
 ## Lessons
 
@@ -212,6 +213,36 @@ The source abstraction was designed for answers (LookupCandidate carries its sou
 ### Recommendation / action item
 
 When a plan needs a new attribute of an existing abstraction (here: a failure's source), check the type carries it during /speckit-plan, not at implementation. Consider replacing the parallel name list with a named source type if more per-source data is needed.
+
+## LL-007: Browser steps that never ran in CI blocked the release three times
+
+- Status: open
+- Date: 2026-10-14
+- Phase: execute
+- Category: testing
+- Owner: -
+- Links: PRs #19, #21; tags v3.1.0, v3.1.1 (unpublished), v3.1.2; tests/browser/run.mjs; docs/ci.md section 7
+<!-- key: 9a2b725a9501 -->
+
+### What happened
+
+Feature 013's browser steps 10-11 were written and tuned on a local GPU. Browser tests run only on release tags, so CI first ran them when 3.1.0 was cut. On CI's software renderer (3-5 frames/s) several assumptions broke in turn: drag size (fixed 0.5 deg/px), fixed repaint delays before on/off captures, a 3-frame minimum for a one-second flight, judging the Sun symbol by brightness (it matched the land under it), and auto-zoom refits during theme switches. 3.1.0 also failed at step 08, whose 'empty map after a restart' assumption feature 014 had made obsolete.
+
+### What went well / where we got lucky
+
+Release rehearsals (docs/ci.md section 7) proved each fix in CI without burning tags; the last tag (3.1.2) was published on the first try after a green rehearsal. CI screenshots and report.json pinpointed every cause.
+
+### What did not work
+
+Tagging a fix and hoping (3.1.1); each failure only revealed the next timing-sensitive check. CPU throttling locally reproduced the zoom but not the slow rendering (it does not reach the GPU process).
+
+### Root cause
+
+The release-only browser tests are the only place those steps run, and no rehearsal was run when they were added (013) or when behaviour they assert changed (014).
+
+### Recommendation / action item
+
+Run a release rehearsal before merging any change to tests/browser/ or to behaviour a browser step asserts. In browser steps prefer settled readings over fixed delays, colour over brightness, and interactions sized from what they measurably did.
 
 ## Archive
 
