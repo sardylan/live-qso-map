@@ -7,6 +7,8 @@ which becomes the GitHub release notes (`docs/releasing.md`).
 
 ## [Unreleased]
 
+## [3.1.2] - 2026-10-14
+
 ### Fixed
 - The release browser test turns the globe with drags sized from what each drag actually did, so
   it reaches its target at any zoom, takes every on/off reading only once the map has repainted,
