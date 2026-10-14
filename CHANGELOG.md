@@ -9,8 +9,9 @@ which becomes the GitHub release notes (`docs/releasing.md`).
 
 ### Fixed
 - The release browser test turns the globe with drags sized from what each drag actually did, so
-  it reaches its target at any zoom. 3.1.1 was tagged but never published: in CI the globe step
-  ran out of drags.
+  it reaches its target at any zoom, and measures the Sun symbol only once the map has repainted.
+  3.1.1 was tagged but never published: in CI, where the map renders in software at a few frames
+  per second, the globe step ran out of drags.
 
 ## [3.1.1] - 2026-10-14
 
