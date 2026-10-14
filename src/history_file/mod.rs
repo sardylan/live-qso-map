@@ -17,3 +17,15 @@ pub const POS_REJECTED_FIELD: &str = "APP_LIVEQSOMAP_POS_REJECTED";
 
 /// The QARTest logger id (feature 001).
 pub const LOGGER_ID_FIELD: &str = "APP_LIVEQSOMAP_LOGGER_ID";
+
+/// Counts of one load, logged at the end of it (data-model "LoadReport").
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct LoadReport {
+    /// Records kept: reused, to enrich and parked.
+    pub loaded: usize,
+    /// Malformed records, and records without a valid `CALL`, `QSO_DATE` and `TIME_ON`.
+    pub skipped: usize,
+    pub reused: usize,
+    pub to_enrich: usize,
+    pub parked: usize,
+}

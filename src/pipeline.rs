@@ -1,11 +1,14 @@
 //! Service wiring: history, broadcast (channel 2), listeners and task lifecycle
 //! (plan "Summary", research R2/R4).
 
+use crate::adif::AdifRecord;
 use crate::enrich::cty::CountryData;
 use crate::entity_extents::ExtentTable;
 use crate::web::protocol::{EntityView, HelloStation};
+use std::collections::HashMap;
 use std::future::Future;
 use std::net::SocketAddr;
+use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -77,6 +80,9 @@ pub struct Pipeline {
     history: Arc<Mutex<History>>,
     score: Arc<Mutex<Option<Arc<ScoreState>>>>,
     changes: broadcast::Sender<HistoryChange>,
+    /// QSOs handed to the workers and not yet published: id → revision and record to save if
+    /// the service stops first (feature 014, R9).
+    pending: Arc<Mutex<HashMap<String, (u32, AdifRecord)>>>,
 }
 
 impl Pipeline {
@@ -86,7 +92,66 @@ impl Pipeline {
             history: Arc::new(Mutex::new(History::new())),
             score: Arc::new(Mutex::new(None)),
             changes,
+            pending: Arc::new(Mutex::new(HashMap::new())),
         }
+    }
+
+    fn lock_pending(&self) -> MutexGuard<'_, HashMap<String, (u32, AdifRecord)>> {
+        self.pending
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
+    /// Remembers a queued QSO until a worker is done with it. An older revision never replaces
+    /// a newer one.
+    pub fn pending_insert(&self, id: &str, rev: u32, record: AdifRecord) {
+        let mut pending = self.lock_pending();
+        if pending.get(id).is_none_or(|(held, _)| *held <= rev) {
+            pending.insert(id.to_string(), (rev, record));
+        }
+    }
+
+    /// Forgets a QSO once a worker published it or dropped it as stale, unless a newer revision
+    /// is waiting.
+    pub fn pending_remove(&self, id: &str, rev: u32) {
+        let mut pending = self.lock_pending();
+        if pending.get(id).is_some_and(|(held, _)| *held == rev) {
+            pending.remove(id);
+        }
+    }
+
+    /// Every record to write to the history file, in QSO time order: the history, a pending
+    /// version when it is newer or the QSO is not in the history yet, and the parked records
+    /// whose id is in neither (feature 014, R8, R9).
+    pub fn records_to_save(&self, parked: &[(String, AdifRecord)]) -> Vec<AdifRecord> {
+        let history = self.lock_history();
+        let pending = self.lock_pending();
+        let mut out: Vec<AdifRecord> = history
+            .iter_in_order()
+            .map(|q| match pending.get(&q.id) {
+                Some((rev, record)) if *rev > q.rev => record.clone(),
+                _ => q.record.clone(),
+            })
+            .collect();
+        out.extend(
+            pending
+                .iter()
+                .filter(|(id, _)| history.get(id).is_none())
+                .map(|(_, (_, record))| record.clone()),
+        );
+        out.extend(
+            parked
+                .iter()
+                .filter(|(id, _)| history.get(id).is_none() && !pending.contains_key(id))
+                .map(|(_, record)| record.clone()),
+        );
+        out.sort_by_key(|r| {
+            r.get("QSO_DATE")
+                .zip(r.get("TIME_ON"))
+                .and_then(|(d, t)| crate::history::qso_timestamp(d, t))
+                .unwrap_or(i64::MAX)
+        });
+        out
     }
 
     fn lock_score(&self) -> MutexGuard<'_, Option<Arc<ScoreState>>> {
@@ -162,6 +227,10 @@ pub struct RunningService {
     pipeline: Pipeline,
     shutdown: watch::Sender<bool>,
     tasks: JoinSet<()>,
+    /// Where the history is saved at the stop (feature 014); `None` when there is no file.
+    history_file: Option<PathBuf>,
+    /// File records on bands not considered, written back verbatim (R8).
+    parked: Vec<(String, AdifRecord)>,
 }
 
 impl RunningService {
@@ -181,7 +250,9 @@ impl RunningService {
         &self.pipeline
     }
 
-    /// Signals every task to stop and waits up to 2 s for them; stragglers are aborted.
+    /// Signals every task to stop and waits up to 2 s for them; stragglers are aborted. Then
+    /// saves the history file, if any (feature 014, FR-012): always, even if the file was
+    /// deleted meanwhile (FR-003). A failed save is logged; the stop still completes.
     pub async fn shutdown(mut self) {
         let _ = self.shutdown.send(true);
         let drained = tokio::time::timeout(Duration::from_secs(2), async {
@@ -191,6 +262,134 @@ impl RunningService {
         if drained.is_err() {
             tracing::warn!("tasks did not stop within 2 s; aborting");
             self.tasks.abort_all();
+            while self.tasks.join_next().await.is_some() {}
+        }
+        if let Some(path) = &self.history_file {
+            save_history(path, &self.pipeline, &self.parked);
+        }
+    }
+}
+
+/// Unix seconds now; a clock before 1970 counts as 1970.
+fn now_unix() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX))
+        .unwrap_or_default()
+}
+
+/// Writes the history file and logs the outcome (contracts/history-file.md).
+fn save_history(path: &Path, pipeline: &Pipeline, parked: &[(String, AdifRecord)]) -> bool {
+    let records = pipeline.records_to_save(parked);
+    match crate::history_file::write::save(path, &records, now_unix()) {
+        Ok(()) => {
+            tracing::info!(
+                "history saved to {}: {} QSOs",
+                path.display(),
+                records.len()
+            );
+            true
+        }
+        Err(e) => {
+            tracing::error!("cannot save the history: {e}");
+            false
+        }
+    }
+}
+
+/// Reads the history file into events (feature 014, R2, R11). A missing file is an empty
+/// history. An unreadable one is moved aside in the service, and is an error in enrich-only
+/// mode or when it cannot be moved.
+fn load_history(
+    path: &Path,
+    config: &Config,
+    mode: crate::history_file::restore::Mode,
+) -> Result<crate::ingest::Restored> {
+    use crate::history_file::read::{Read, move_aside, read};
+    use crate::history_file::restore::Mode;
+    let error = |message: String| crate::errors::Error::HistoryFile {
+        path: path.to_path_buf(),
+        message,
+    };
+    let (records, malformed) = match (read(path), mode) {
+        (Read::Missing, Mode::Service) => {
+            tracing::info!("history file {}: none yet, starting empty", path.display());
+            return Ok(crate::ingest::Restored::default());
+        }
+        (Read::Missing, Mode::EnrichOnly) => return Err(error("no such file".to_string())),
+        (Read::Unreadable(reason), Mode::EnrichOnly) => return Err(error(reason)),
+        (Read::Unreadable(reason), Mode::Service) => match move_aside(path, now_unix()) {
+            Ok(moved) => {
+                tracing::warn!(
+                    "history file {} is unreadable ({reason}); moved to {}",
+                    path.display(),
+                    moved.display()
+                );
+                return Ok(crate::ingest::Restored::default());
+            }
+            Err(e) => return Err(error(format!("{reason}; {e}"))),
+        },
+        (Read::Records { records, malformed }, _) => (records, malformed),
+    };
+    let filter = match mode {
+        Mode::Service => config.band_filter.as_ref(),
+        Mode::EnrichOnly => None,
+    };
+    let source = path.display().to_string();
+    let mut restored =
+        crate::ingest::restored_events(records, &config.station, mode, filter, &source);
+    restored.report.skipped += malformed;
+    let r = &restored.report;
+    tracing::info!(
+        "history file {source}: loaded {} QSOs ({} reused, {} to enrich, {} on other bands), \
+         skipped {} malformed",
+        r.loaded,
+        r.reused,
+        r.to_enrich,
+        r.parked,
+        r.skipped
+    );
+    Ok(restored)
+}
+
+/// Passes restored events through `gate` in file order (R2): forwarded events are remembered as
+/// pending with the record as loaded; parked ones are returned with their history id.
+fn gate_restored(
+    restored: crate::ingest::Restored,
+    gate: &mut crate::ingest::gate::ResendGate,
+    pipeline: &Pipeline,
+) -> (Vec<crate::ingest::QsoEvent>, Vec<(String, AdifRecord)>) {
+    use crate::ingest::gate::GateDecision;
+    let mut forwarded = Vec::with_capacity(restored.events.len());
+    for (mut event, loaded) in restored.events {
+        if gate.check(&mut event) == GateDecision::Drop {
+            continue;
+        }
+        pipeline.pending_insert(&event.id, event.rev, loaded);
+        forwarded.push(event);
+    }
+    let mut parked = Vec::with_capacity(restored.parked.len());
+    for mut event in restored.parked {
+        if gate.check(&mut event) == GateDecision::Drop {
+            continue;
+        }
+        if let Some(record) = event.saved {
+            parked.push((event.id, record));
+        }
+    }
+    (forwarded, parked)
+}
+
+/// Sends restored events to the restore queue, stopping at shutdown.
+async fn feed(
+    events: Vec<crate::ingest::QsoEvent>,
+    queue: async_channel::Sender<crate::ingest::QsoEvent>,
+    mut shutdown: watch::Receiver<bool>,
+) {
+    for event in events {
+        tokio::select! {
+            _ = shutdown.wait_for(|stop| *stop) => return,
+            sent = queue.send(event) => if sent.is_err() { return },
         }
     }
 }
@@ -311,16 +510,32 @@ pub async fn start_with_country(
     let http_addr = http.local_addr()?;
 
     let pipeline = Pipeline::new(config.broadcast_queue);
+    let history_file = config.history_file.clone();
+    let restored = match &history_file {
+        Some(path) => load_history(path, &config, crate::history_file::restore::Mode::Service)?,
+        None => crate::ingest::Restored::default(),
+    };
+    let mut gate = crate::ingest::gate::ResendGate::new();
+    let (restored, parked) = gate_restored(restored, &mut gate, &pipeline);
     let (shutdown_tx, shutdown_rx) = watch::channel(false);
     let mut tasks = JoinSet::new();
+    let config = Arc::new(config);
+    spawn_restore(
+        &mut tasks,
+        Arc::clone(&config),
+        pipeline.clone(),
+        shutdown_rx.clone(),
+        lookups.clone(),
+        restored,
+    );
     spawn_tasks(
         &mut tasks,
-        Arc::new(config),
+        config,
         pipeline.clone(),
         shutdown_rx,
         (udp, http),
         lookups,
-        hello_station,
+        (hello_station, gate),
     );
 
     tracing::info!(%udp_addr, %http_addr, "live-qso-map started");
@@ -330,7 +545,28 @@ pub async fn start_with_country(
         pipeline,
         shutdown: shutdown_tx,
         tasks,
+        history_file,
+        parked,
     })
+}
+
+/// Restored QSOs have their own queue and worker, so live QSOs never wait for them (R2).
+fn spawn_restore(
+    tasks: &mut JoinSet<()>,
+    config: Arc<Config>,
+    pipeline: Pipeline,
+    shutdown: watch::Receiver<bool>,
+    lookups: crate::enrich::Lookups,
+    restored: Vec<crate::ingest::QsoEvent>,
+) {
+    if restored.is_empty() {
+        return;
+    }
+    let (restore_tx, restore_rx) = async_channel::bounded(config.ingest_queue);
+    tasks.spawn(feed(restored, restore_tx, shutdown.clone()));
+    tasks.spawn(crate::enrich::run_worker(
+        restore_rx, pipeline, config, lookups, shutdown,
+    ));
 }
 
 fn spawn_tasks(
@@ -340,13 +576,14 @@ fn spawn_tasks(
     shutdown: watch::Receiver<bool>,
     (udp, http): (UdpSocket, TcpListener),
     lookups: crate::enrich::Lookups,
-    hello_station: HelloStation,
+    (hello_station, gate): (HelloStation, crate::ingest::gate::ResendGate),
 ) {
     let (queue_tx, queue_rx) = async_channel::bounded(config.ingest_queue);
     tasks.spawn(crate::ingest::run(
         udp,
         config.station.clone(),
         queue_tx,
+        gate,
         config.band_filter.clone(),
         pipeline.clone(),
         shutdown.clone(),
@@ -580,5 +817,80 @@ mod tests {
         assert!(pipeline.latest_score().unwrap().received > first);
         assert!(matches!(rx.try_recv(), Ok(HistoryChange::Score(_))));
         assert!(matches!(rx.try_recv(), Ok(HistoryChange::Score(_))));
+    }
+
+    // --- pending QSOs and what is saved (feature 014, T025, R9) -----------------------------
+
+    fn rec(call: &str, time: &str) -> AdifRecord {
+        let mut r = AdifRecord::new();
+        r.set("CALL", call);
+        r.set("QSO_DATE", "20261010");
+        r.set("TIME_ON", time);
+        r
+    }
+
+    fn placed(id: &str, rev: u32, call: &str, time: &str) -> EnrichedQso {
+        let record = rec(call, time);
+        EnrichedQso {
+            id: id.to_string(),
+            rev,
+            sort_ts: crate::history::qso_timestamp("20261010", time).unwrap(),
+            record,
+            remote: None,
+            station: None,
+            entity: None,
+        }
+    }
+
+    fn calls(records: &[AdifRecord]) -> Vec<&str> {
+        records.iter().map(|r| r.get("CALL").unwrap()).collect()
+    }
+
+    #[test]
+    fn records_to_save_merge_history_pending_and_parked_in_qso_time_order() {
+        let pipeline = Pipeline::new(16);
+        pipeline.publish(placed("B", 1, "B", "1202"));
+        pipeline.publish(placed("D", 1, "D", "1204"));
+        pipeline.pending_insert("A", 1, rec("A", "1201"));
+        let parked = vec![("C".to_string(), rec("C", "1203"))];
+        assert_eq!(
+            calls(&pipeline.records_to_save(&parked)),
+            ["A", "B", "C", "D"]
+        );
+    }
+
+    #[test]
+    fn a_newer_pending_version_beats_the_history() {
+        let pipeline = Pipeline::new(16);
+        pipeline.publish(placed("A", 1, "OLD", "1200"));
+        pipeline.pending_insert("A", 2, rec("NEW", "1200"));
+        assert_eq!(calls(&pipeline.records_to_save(&[])), ["NEW"]);
+    }
+
+    #[test]
+    fn an_older_pending_version_loses_and_published_ones_are_forgotten() {
+        let pipeline = Pipeline::new(16);
+        pipeline.pending_insert("A", 1, rec("PENDING", "1200"));
+        pipeline.publish(placed("A", 2, "PLACED", "1200"));
+        assert_eq!(calls(&pipeline.records_to_save(&[])), ["PLACED"]);
+        pipeline.pending_remove("A", 1);
+        pipeline.pending_insert("B", 1, rec("B", "1201"));
+        pipeline.pending_insert("B", 2, rec("B2", "1201"));
+        pipeline.pending_remove("B", 1);
+        assert_eq!(
+            calls(&pipeline.records_to_save(&[])),
+            ["PLACED", "B2"],
+            "removing rev 1 keeps the pending rev 2"
+        );
+        pipeline.pending_remove("B", 2);
+        assert_eq!(calls(&pipeline.records_to_save(&[])), ["PLACED"]);
+    }
+
+    #[test]
+    fn a_parked_record_loses_to_a_qso_with_its_id() {
+        let pipeline = Pipeline::new(16);
+        pipeline.publish(placed("A", 2, "MOVED", "1200"));
+        let parked = vec![("A".to_string(), rec("PARKED", "1200"))];
+        assert_eq!(calls(&pipeline.records_to_save(&parked)), ["MOVED"]);
     }
 }

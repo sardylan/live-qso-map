@@ -152,7 +152,7 @@ with no new lookups; resends and corrections after the restart merge as before.
 
 ### Tests for User Story 1 (write first, confirm they FAIL)
 
-- [ ] T019 [P] [US1] Write failing integration tests in `tests/history_file.rs`, each with its own
+- [X] T019 [P] [US1] Write failing integration tests in `tests/history_file.rs`, each with its own
   `temp_dir` and `config.history_file = Some(…)`:
   - **round trip** (SC-001, SC-002): send 5 QSOs (2 with `GRIDSQUARE`, 3 looked up through a
     `FakeProvider`), shut down, check the file has 5 records with `APP_LIVEQSOMAP_ADDED`; start a
@@ -176,47 +176,47 @@ with no new lookups; resends and corrections after the restart merge as before.
   - **correction pending at shutdown**: a QSO is placed, then a correction is sent while the
     provider hangs, then shutdown; the file holds the correction as received, not the old
     version.
-- [ ] T020 [P] [US1] Write a failing integration test in `tests/history_file.rs` for **live
+- [X] T020 [P] [US1] Write a failing integration test in `tests/history_file.rs` for **live
   first** (FR-008, R2), with `workers = 1`: restore 20 records that need lookups from a `Hang` provider; send a live
   QSO with a `GRIDSQUARE`; its upsert arrives while the restored lookups are still hanging, and
   `/healthz` answers.
-- [ ] T021 [P] [US1] Write a failing integration test in `tests/history_file.rs` for **scale**
+- [X] T021 [P] [US1] Write a failing integration test in `tests/history_file.rs` for **scale**
   (SC-003): a generated file of 10 000 saved records (all `Reuse`) — the service answers
   `/healthz` within 5 s of `start_with_country`, all 10 000 are in the history within 5 s, and
   shutdown (including the save) completes within 5 s.
 
 ### Implementation for User Story 1
 
-- [ ] T022 [US1] Extend `QsoEvent` in `src/ingest/mod.rs` with `saved: Option<AdifRecord>`
+- [X] T022 [US1] Extend `QsoEvent` in `src/ingest/mod.rs` with `saved: Option<AdifRecord>`
   (data-model). Add `restored_events(records, station, mode, filter) -> (Vec<QsoEvent>,
   Vec<(String, AdifRecord)>, LoadReport)`: `normalise` with `from` = the file (log the file
   path, not an address), logger id from `APP_LIVEQSOMAP_LOGGER_ID` (R5), `record` =
   `as_received`, `saved` = the full record for `Reuse`, parked records returned separately.
   Unit tests first in the same file (identity with and without logger id; parked by band).
-- [ ] T023 [US1] Change `ingest::run` in `src/ingest/mod.rs` to take the restored events, run them
+- [X] T023 [US1] Change `ingest::run` in `src/ingest/mod.rs` to take the restored events, run them
   through the gate in file order **before** the UDP loop (R2), and hand the forwarded ones to a
   feeder that sends them to a second channel (`restore_tx`); parked records also pass through the
   gate. Keep the live path unchanged.
-- [ ] T024 [US1] In `src/enrich/mod.rs`: `run_worker` is unchanged for live events; in
+- [X] T024 [US1] In `src/enrich/mod.rs`: `run_worker` is unchanged for live events; in
   `spawn_tasks` (`src/pipeline.rs`) spawn **one more** `run_worker` on the restore receiver (R2: no
   worker reads both queues); add `reuse(event, config, lookups) ->
   EnrichedQso` for events with `saved` (R4: remote from `saved_position`, station from
   `apply_station` on the as-received record and the current configuration, entity from the
   country data, record = saved). Unit tests first (reuse keeps every saved field, keeps `cty`
   precision, recomputes the entity, makes no lookup).
-- [ ] T025 [US1] Add the pending map to `Pipeline` in `src/pipeline.rs` (R9): insert when an event
+- [X] T025 [US1] Add the pending map to `Pipeline` in `src/pipeline.rs` (R9): insert when an event
   is queued, as `id → (rev, record)` (live and restored; the saved record when present, else the
   record as received); remove when a worker publishes or drops the result as stale. Add
   `Pipeline::records_to_save(parked) -> Vec<AdifRecord>`: history `iter_in_order()` records; a
   pending record replaces or joins them when its id is not in the history or its rev is higher
   (R9); parked records whose id is not in the history; all merged by `QSO_DATE` + `TIME_ON`. Unit
   tests first, including "pending rev 2 beats history rev 1".
-- [ ] T026 [US1] Wire startup in `start_with_country` (`src/pipeline.rs`): when
+- [X] T026 [US1] Wire startup in `start_with_country` (`src/pipeline.rs`): when
   `config.history_file` is `Some`, `read` it (`Mode::Service`); `Missing` → empty;
   `Unreadable` → `move_aside` and warn, or return `Error::HistoryFile` with both reasons when the
   move fails (FR-011); log the load line of contracts/history-file.md; pass restored events and
   parked records to the tasks. Keep `RunningService` holding the parked records and the path.
-- [ ] T027 [US1] Save on stop in `RunningService::shutdown` (`src/pipeline.rs`): after the tasks
+- [X] T027 [US1] Save on stop in `RunningService::shutdown` (`src/pipeline.rs`): after the tasks
   stop, `save(path, records_to_save(parked), now)`; log `history saved to <path>: N QSOs` or the
   error (the service still exits normally). Make T019–T021 pass.
 
