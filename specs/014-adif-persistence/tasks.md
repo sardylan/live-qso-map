@@ -357,7 +357,7 @@ records on other bands are kept untouched.
   warning).
 - [X] T045 Run the local gates: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`,
   `cargo test --locked`, `node --test 'web/*.test.js'`, and quickstart §1–§6.
-- [ ] T046 Mark the tasks done, commit per phase, push `feature/014-adif-persistence`, and open the
+- [X] T046 Mark the tasks done, commit per phase, push `feature/014-adif-persistence`, and open the
   pull request. Merge it once the gates are green; delete the branch afterwards (constitution,
   Development Workflow).
 
