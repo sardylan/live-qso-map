@@ -34,6 +34,7 @@ we deliberately gave up. Records the *why*, not just the *what*.
 | TR-019 | superseded by TR-021 | The globe's glow lit by an Earth-fixed light over the subsolar point | 2026-10-14 |
 | TR-020 | accepted | The grayline as raster tiles drawn by the page | 2026-10-14 |
 | TR-021 | accepted | The globe's glow as a rim lit from behind, towards the Sun, recomputed on every move | 2026-10-14 |
+| TR-022 | proposed | Saved records list the fields the service added (APP_LIVEQSOMAP_ADDED) | 2026-10-14 |
 
 ## Decisions
 
@@ -856,6 +857,48 @@ In the context of the globe's atmosphere glow, facing a glow that must follow th
 
 - Positive: the glow follows hand moves and auto-zoom flights frame by frame; the map under it is unchanged (SC-011, tested).
 - Negative / debt accepted: the light math copies MapLibre 5.24.0's `getSunPos` conventions; re-check them on a MapLibre upgrade (the replay tests in `web/view.test.js` will fail if they change).
+
+## TR-022: Saved records list the fields the service added (APP_LIVEQSOMAP_ADDED)
+
+- Status: proposed
+- Date: 2026-10-14
+- Phase: plan
+- Deciders: project owner, Claude
+- Links: specs/014-adif-persistence/research.md (R3, R4, R6, R7); spec FR-005, FR-006, FR-013, FR-028, FR-029; HR-11
+<!-- key: b0f30ac2b786 -->
+
+### Context & problem
+
+Feature 014 saves the enriched history as ADIF and reloads it at startup. Lookups merge fields into the record with set_if_absent (QTH, NAME, GRIDSQUARE, COUNTRY...) and the station step fills MY_GRIDSQUARE; once saved, these look exactly like the logger's fields. The reload must give the resend gate the record as received (or every resend after a restart becomes a correction and costs a lookup), and retries of failed or rejected lookups must start from the logger's fields only.
+
+### Decision drivers
+
+- HR-11: logger values are never overwritten, and that must stay checkable
+- resends after a restart must be recognised without new lookups
+- one ADIF record per QSO, readable by any logger
+- no new crate, fingerprints stable across Rust releases
+
+### Options considered
+
+| Option | Pros | Cons / what it sacrifices |
+|--------|------|---------------------------|
+| List added field names in APP_LIVEQSOMAP_ADDED (chosen) | exact strip back to the record as received; external logs (no list) count as all-logger; one extra field | one more APP field in every record; a hand edit that removes a listed field is harmless but one that adds an unlisted derived value is taken as the logger's |
+| Save the gate fingerprint | tiny | DefaultHasher is not stable across Rust releases; does not help retries |
+| Save the record twice (as received and enriched) | no bookkeeping field | doubles the file; breaks one record per QSO for other loggers |
+| Treat every APP_LIVEQSOMAP_* field as derived, the rest as the logger's | no new field | wrong for QTH, GRIDSQUARE, NAME and the other merged fields |
+
+### Decision
+
+We chose to list the added field names in APP_LIVEQSOMAP_ADDED.
+
+### Y-statement
+
+In the context of reloading an enriched ADIF history, facing derived fields indistinguishable from the logger's, we chose an explicit list of added field names over saved fingerprints or duplicated records, to keep resends recognisable and retries clean under HR-11, accepting one more bookkeeping field in every saved record.
+
+### Consequences
+
+- Positive: resends after a restart are dropped by the gate; retries of failed or rejected lookups start from the logger's fields; HR-11 is checkable on the file
+- Negative / debt accepted: every enriched record carries one more field; revisit if a logger chokes on long APP fields
 
 ## Archive
 

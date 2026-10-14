@@ -13,10 +13,13 @@ each answer before asking the next. Never batch several questions in one message
 
 ### Active Technologies
 
+- Rust (edition 2024) + browser ES modules; no new crates (014-adif-persistence)
+- one ADIF history file (`history_file`, next to cty.dat), replaced atomically at a graceful stop (014-adif-persistence)
+
 ### Recent Changes
 
+- 014-adif-persistence: QSO history in a local ADIF file (load and re-enrich at startup, save at graceful stop, `--enrich-only [FILE]`); no server history limit, page capped at 1000
 - 013-atmosphere-follows-globe: the globe's glow is a backlit rim brightest towards the Sun, recomputed on every move (never a haze over the map); grayline as page-drawn raster tiles (smooth night fade, 0° to −12°) on both views; optional Sun symbol; release browser steps `atmosphere` and `grayline` on a test clock
 - 012-page-fixes-browser-tests: page fixes (served modules, toggle outline, opaque panel, no duplicate band groups); release-only real-browser tests over the Chrome DevTools Protocol, Node built-ins only
-- 011-theme-settings-panel: Added Rust (edition 2024, latest stable toolchain; see `docs/rust-guidelines.md` §2); browser ES modules + none new; themes (light/dim/dark), sun-based auto theme, atmosphere, settings panel, band-group choice, default bands hf-contest
 
 <!-- SPECKIT END -->
