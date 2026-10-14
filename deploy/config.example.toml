@@ -15,7 +15,7 @@
 # bind_address = "0.0.0.0"     # UDP and HTTP listeners
 # udp_port = 12060             # QSO messages (ADIF, QARTest)
 # http_port = 8080             # map page, WebSocket, /healthz
-# history_size = 10000         # QSOs kept in memory; 0 = unbounded
+# history_file = "/var/lib/live-qso-map/qso-history.adi"   # default: next to the country data
 # workers = 1                  # enrichment workers
 # ingest_queue = 1024
 # broadcast_queue = 1024

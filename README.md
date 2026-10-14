@@ -66,6 +66,11 @@ updates the existing map entry in place. QARTest's QSO id even follows callsign 
    base callsign.
 4. **Nothing found**: the QSO is still kept, but it isn't drawn.
 
+When every online provider fails instead of answering (network error, timeout, used-up quota,
+refused login), the QSO uses the country centre and its field `APP_LIVEQSOMAP_LOOKUP_FAILED` says
+why, for example `qrz:timeout,hamqth:error`. The next start looks it up again (see
+[History file](#history-file)).
+
 Notes:
 
 - Every popup shows where the position came from and how precise it is.
@@ -89,7 +94,7 @@ checked with Subresource Integrity. It is laid out for windows 1024 px wide or w
 
 - **Settings panel**: the gear at the top right opens a panel on the right edge (full width on
   narrow screens), with every viewer setting in four groups:
-  - **Map**: "Last N QSOs", **Atmosphere on the globe**, **Grayline (day and night)** and
+  - **Map**: "Last N QSOs" (10 to 1000), **Atmosphere on the globe**, **Grayline (day and night)** and
     **Sun position**;
   - **Last QSOs box**: shown or hidden, its size and where the newest row goes;
   - **Appearance**: the theme;
@@ -183,7 +188,7 @@ The most common settings:
 | UDP port | `--udp-port` / `LQM_UDP_PORT` | 12060 |
 | HTTP port | `--http-port` / `LQM_HTTP_PORT` | 8080 |
 | Station callsign and locator (used when a QSO lacks them) | `--station-callsign`, `--station-locator` | none |
-| QSOs kept in memory (0 = unbounded) | `--history-size` | 10000 |
+| History file (see [History file](#history-file)) | `--history-file` / `LQM_HISTORY_FILE` | `qso-history.adi` next to `cty.dat` |
 | QRZ.com credentials | `LQM_QRZ_USERNAME`, `LQM_QRZ_PASSWORD` | none |
 | HamQTH credentials | `LQM_HAMQTH_USERNAME`, `LQM_HAMQTH_PASSWORD` | none |
 | QRZCQ credentials | `LQM_QRZCQ_USERNAME`, `LQM_QRZCQ_PASSWORD` | none |
@@ -246,7 +251,49 @@ lookups and never reach the map, and the legend lists only the considered bands.
   unknown or the selection leaves no bands. `--save-config` always writes `bands`.
 - **Corrections**: when a logger corrects a QSO onto an ignored band, it disappears from the map.
 
-The history lives in memory only and is lost on restart.
+### History file
+
+The service keeps every QSO in memory and shows it live, as before. It also keeps them in one ADIF
+file, so a restart doesn't empty the map:
+
+- **At startup** it reads the file. QSOs that already have a position are back on the map at once,
+  with no new lookup. The others are looked up like QSOs from the logger, on their own worker,
+  so live QSOs never wait for them. The page and the UDP port are available straight away.
+- **At a graceful stop** (Ctrl+C, `systemctl stop`, `docker stop`) it writes every QSO back,
+  including the positions it found. The file is replaced only once the new one is complete.
+- **Not saved**: QSOs received since the last graceful stop are lost on a crash or a power cut;
+  the logger can resend them. The contest score and the viewers' settings aren't saved either.
+- **Where**: `--history-file` / `LQM_HISTORY_FILE` / `history_file`. By default `qso-history.adi`
+  in the folder of `cty.dat`: `/var/lib/live-qso-map/` for the Debian package and the container,
+  the program's folder on Windows and macOS.
+- **Reset**: stop the service, delete the file, start it again. Deleting the file while the service
+  runs does nothing: the stop writes it again.
+- **Your own log**: you can put an ADIF log there while the service is stopped. Records with
+  `GRIDSQUARE` or `LAT`/`LON` keep them; the others are looked up. Your fields are never changed;
+  the service only adds fields, and lists them in `APP_LIVEQSOMAP_ADDED`. Records on bands outside
+  `--bands` stay in the file untouched and aren't shown.
+- **Retries**: a QSO whose lookups failed (`APP_LIVEQSOMAP_LOOKUP_FAILED`) is looked up again at
+  each start. A rejected position (`APP_LIVEQSOMAP_POS_REJECTED`) isn't, to save quota.
+- **Unreadable file**: if the file can't be read, it is renamed to
+  `qso-history.adi.unreadable-<UTC time>` and the service starts empty.
+- **No limit**: the service keeps every QSO; a page shows at most the newest 1000. The old
+  `history_size` setting is ignored, with a warning.
+
+### Completing a log file
+
+`--enrich-only [FILE]` completes the QSOs in `FILE` (by default the history file) and writes it
+back, then exits. It opens no port, so it can run next to the service on another file:
+
+```bash
+live-qso-map --enrich-only my-contest.adi --qrz-username IS0MZK --qrz-password …
+```
+
+- Every band is completed, whatever `--bands` says. Rejected and failed lookups are tried again.
+- It logs a summary: QSOs placed from the record, by lookup, with a failed lookup, and without a
+  position.
+- Ctrl+C saves what was completed so far.
+- Exit code 0 when the file was written; 1 when it is missing, unreadable or can't be written, and
+  then the file is left as it was.
 
 ## Deployment
 
@@ -262,7 +309,8 @@ docker run -p 12060:12060/udp -p 8080:8080 \
 - **Configuration**: a file mounted at `/etc/live-qso-map/config.toml` is used as is. Without
   one, settings come from `LQM_*` environment variables (`-e LQM_STATION_CALLSIGN=IS0MZK`) or
   options after the image name.
-- **Data**: `cty.dat` is kept in the `/var/lib/live-qso-map` volume, so it survives restarts.
+- **Data**: `cty.dat` and the history file `qso-history.adi` are kept in the
+  `/var/lib/live-qso-map` volume, so they survive restarts.
 - **User**: the process runs as the unprivileged user `10001`, not root.
 - **Tags**: `2.0.0` for a release, `latest` for the newest one.
 - **Building locally**: `docker build -t live-qso-map .` builds the same image from source on any
@@ -291,8 +339,8 @@ sudo systemctl enable --now live-qso-map
 ```
 
 - **Layout**: the program is `/usr/bin/live-qso-map`, the configuration is
-  `/etc/live-qso-map/config.toml`, and downloaded data (`cty.dat`) goes to
-  `/var/lib/live-qso-map/`.
+  `/etc/live-qso-map/config.toml`, and data (`cty.dat` and the history file `qso-history.adi`)
+  goes to `/var/lib/live-qso-map/`.
 - **Account**: the service runs as the unprivileged `live-qso-map` account, created at install.
   The configuration file is readable only by root and that account, because it may hold
   provider passwords. `--save-config` over it keeps its owner and permissions.
@@ -308,7 +356,8 @@ window opens and the map starts at `http://localhost:8080/`. No installer and no
 rights are needed.
 
 - **One folder**: everything stays in the program's folder. It reads `live-qso-map.toml` from
-  there, and downloads `cty.dat` there, whatever folder the terminal starts in. Create the file
+  there, downloads `cty.dat` there and keeps the history file `qso-history.adi` there, whatever
+  folder the terminal starts in. Create the file
   with `--save-config live-qso-map.toml` from a terminal in that folder (`.\live-qso-map.exe` on
   Windows, `./live-qso-map` on macOS).
 - **Windows errors**: if the program stops with an error, the message stays visible until you
