@@ -7,6 +7,8 @@ which becomes the GitHub release notes (`docs/releasing.md`).
 
 ## [Unreleased]
 
+## [3.1.0] - 2026-10-14
+
 ### Security
 - rustls 0.23.46: fixes RUSTSEC-2026-0346 (TLS secrets in `Debug` output), RUSTSEC-2026-0347,
   RUSTSEC-2026-0348 and RUSTSEC-2026-0349, which affect the HTTPS connections to the callbooks and
