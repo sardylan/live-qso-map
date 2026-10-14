@@ -77,6 +77,9 @@ if (!chrome || !existsSync(chrome)) usageExit('Chrome or Chromium not found: ins
 const out = path.resolve(options.out);
 rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
+// The program's history file (feature 014) lives in the output folder: it never lands next to the
+// cty.dat fixture, and it is kept as an artifact.
+const HISTORY = path.join(out, 'qso-history.adi');
 // Chrome's throwaway profile lives outside the output folder, so it never becomes an artifact.
 const profileDir = mkdtempSync(path.join(tmpdir(), 'lqm-browser-test-'));
 
@@ -117,6 +120,7 @@ async function startProgram(phase, extraArgs) {
       '--udp-port', String(ports.udp),
       '--cty-path', CTY,
       '--cty-max-age-days', '0',
+      '--history-file', HISTORY,
       '--station-callsign', 'IS0GVH',
       '--station-locator', 'JM49OF',
       ...extraArgs,
@@ -579,15 +583,22 @@ const steps = {
     await until(`document.getElementById('status').hidden`, 'the banner to go away after the restart', LOAD_MS);
     fatalSinceLastCheck();
     allowWebSocketErrors = false;
-    // The history starts empty after a restart.
+    // The QSOs of step 02 come back from the history file (feature 014).
+    await waitFor(
+      async () => {
+        const calls = await boxCalls();
+        return calls.includes('DL1AAA') && calls.includes('K1AAA') && (await markerCount()) === 2;
+      },
+      { timeout: STEP_MS, what: 'the QSOs restored from the history file after the restart' },
+    );
     await sendQso({ call: 'DL2BBB', band: '40m', grid: 'JO62' });
     await sendQso({ call: 'I3BBB', band: '30m', grid: 'JN45' });
     await waitFor(
       async () => {
         const calls = await boxCalls();
-        return calls.includes('DL2BBB') && calls.includes('I3BBB') && (await markerCount()) === 2;
+        return calls.includes('DL2BBB') && calls.includes('I3BBB') && (await markerCount()) === 4;
       },
-      { timeout: STEP_MS, what: 'the QSOs sent after the restart' },
+      { timeout: STEP_MS, what: 'the QSOs sent after the restart, next to the restored ones' },
     );
     await shot('08-reconnect');
   },
@@ -606,7 +617,7 @@ const steps = {
     if ((await markerCount()) !== 1) throw new Error(`expected 1 marker with WARC, got ${await markerCount()}`);
     await shot('09-legend-group');
     await q(`document.querySelector('#legend-groups input[value="warc"]').click()`);
-    await waitFor(async () => (await legendRows()).length === 10 && (await markerCount()) === 2, {
+    await waitFor(async () => (await legendRows()).length === 10 && (await markerCount()) === 4, {
       timeout: STEP_MS,
       what: 'every band shown again after unticking WARC',
     });
