@@ -35,9 +35,11 @@ and macOS, feature 008). A relative `history_file` that is set explicitly is res
 already skips the header and reports malformed records). Each record becomes a `QsoEvent` exactly
 like a datagram's record: `normalise` (CALL, QSO_DATE, TIME_ON, band from FREQ), identity
 (`APP_LIVEQSOMAP_LOGGER_ID` as logger id when present, R5), then the **resend gate**, in file order,
-before the UDP loop starts. The events the gate forwards go on a **second queue (restore queue)**;
-workers take from the live queue first (`tokio::select!` with `biased`), and from the restore queue
-only when no live QSO is waiting.
+before the UDP loop starts. The events the gate forwards go on a **restore queue** served by **one
+dedicated restore worker**, spawned in addition to the `workers` live workers. Live workers read
+only the live queue, so a live QSO never waits for a restored lookup, even one in flight; the
+restore worker reads only the restore queue. In enrich-only mode there is no live traffic, so
+`workers` restore workers serve the restore queue.
 
 **Rationale**:
 
@@ -46,8 +48,8 @@ only when no live QSO is waiting.
   live correction gets the next revision (US1 scenario 5). Passing them through the gate before the
   UDP loop starts is synchronous and fast (no lookups), so the gate stays a plain struct owned by the
   ingest task.
-- Live QSOs never wait behind thousands of restored lookups (FR-008): the restore queue is drained
-  only when the live queue is empty.
+- Live QSOs never wait behind restored lookups (FR-008): restored events have their own worker, so
+  even a slow or hanging restored lookup cannot hold a live worker.
 - Restored records that need no lookup (R4) cost microseconds, so the map refills in well under a
   second for 10 000 QSOs (SC-003).
 
@@ -55,6 +57,9 @@ only when no live QSO is waiting.
 
 - Feeding restored events into the live queue: a contest QSO would wait behind every pending lookup
   of the file.
+- Two queues read by the same workers with a biased `select!`: a worker already busy with a
+  restored lookup cannot take a live QSO, so with the default single worker a live QSO waits up to
+  the lookup timeout.
 - A shared gate behind a mutex, filled by a separate loader task: needs locking on every datagram for
   a one-off startup step.
 
@@ -180,9 +185,10 @@ Enrich-only mode — the band filter is not applied at all (FR-026).
 
 ## R9 — Records waiting at shutdown
 
-**Decision**: a **pending map** (`id → record as received or as loaded`) holds every event handed to
-the workers, live or restored, until a worker publishes (or drops as stale) its result. At save, a
-pending entry whose id is not in the history is written as it was received or loaded: a restored
+**Decision**: a **pending map** (`id → (rev, record as received or as loaded)`) holds every event
+handed to the workers, live or restored, until a worker publishes (or drops as stale) its result. At
+save, a pending entry is written as it was received or loaded when its id is not in the history,
+**or when its revision is higher than the history's** (a correction still waiting at the stop): a restored
 record not yet re-enriched is written back exactly as loaded; a live record not yet enriched is
 written as received, and the next start enriches it.
 

@@ -10,7 +10,7 @@ replaced at a graceful stop.
 
 - **Load (R2, R4, R5, R8):** every file record goes through `normalise`, the identity and the
   resend gate, like a datagram. Records with a saved position are **reused** without a lookup;
-  the others are **enriched** like live QSOs on a second, lower-priority queue, so the page and
+  the others are **enriched** like live QSOs on a restore queue with its own worker, so the page and
   the listener are up at once and live QSOs never wait. Records on bands not considered are
   **parked** and written back verbatim.
 - **Telling the logger's fields from ours (R3):** each enriched record lists the fields the
@@ -135,12 +135,12 @@ src/
 │   ├── read.rs            read + unreadable detection + move aside (R11)
 │   ├── write.rs           header, ordering, tmp + sync + rename (R10)
 │   └── restore.rs         as-received strip (R3), classify (data-model), reuse (R4)
-├── enrich/mod.rs          APP_LIVEQSOMAP_ADDED, LOOKUP_FAILED, worker biased on two queues
+├── enrich/mod.rs          APP_LIVEQSOMAP_ADDED, LOOKUP_FAILED, reuse path
 ├── enrich/resolve.rs      resolve_remote reports failed vs answered sources (R7)
 ├── ingest/mod.rs          restored events through the gate before the UDP loop; parked records
 ├── ingest/gate.rs         unbounded
 ├── history.rs             no capacity; iter_in_order()
-├── pipeline.rs            pending map; save on stop; run_enrich_only (R12)
+├── pipeline.rs            restore worker; pending map; save on stop; enrich_only (R12)
 ├── config.rs              history_file, deprecated history_size, --enrich-only (R1, R13, R14)
 ├── config_export.rs       drop history_size, write history_file when set
 ├── errors.rs              Error::HistoryFile

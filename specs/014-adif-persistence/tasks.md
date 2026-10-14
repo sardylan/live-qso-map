@@ -167,13 +167,17 @@ with no new lookups; resends and corrections after the restart merge as before.
   - **deleted while running**: delete the file after startup; shutdown writes it again (FR-003);
   - **unreadable**: start on a copy of `history-not-adif.txt`; the service starts empty, the
     original is now `<name>.unreadable-…` with the same bytes, and a warning names it;
-  - **save failure**: make the save fail (T013's method); shutdown logs an error and the previous
-    file is unchanged;
+  - **save failure**: remove the history file's folder while the service runs, so the temporary
+    file can't be created; shutdown logs an error and doesn't recreate the folder. On Unix only
+    (`#[cfg(unix)]`), a second variant: a read-only folder leaves the previous file byte-identical;
   - **pending at shutdown**: with a `Hang` provider, send a QSO and shut down before it is
     released; the file holds it as received (no `APP_LIVEQSOMAP_ADDED`), and the next start
-    enriches it.
+    enriches it;
+  - **correction pending at shutdown**: a QSO is placed, then a correction is sent while the
+    provider hangs, then shutdown; the file holds the correction as received, not the old
+    version.
 - [ ] T020 [P] [US1] Write a failing integration test in `tests/history_file.rs` for **live
-  first** (FR-008, R2): restore 20 records that need lookups from a `Hang` provider; send a live
+  first** (FR-008, R2), with `workers = 1`: restore 20 records that need lookups from a `Hang` provider; send a live
   QSO with a `GRIDSQUARE`; its upsert arrives while the restored lookups are still hanging, and
   `/healthz` answers.
 - [ ] T021 [P] [US1] Write a failing integration test in `tests/history_file.rs` for **scale**
@@ -193,18 +197,20 @@ with no new lookups; resends and corrections after the restart merge as before.
   through the gate in file order **before** the UDP loop (R2), and hand the forwarded ones to a
   feeder that sends them to a second channel (`restore_tx`); parked records also pass through the
   gate. Keep the live path unchanged.
-- [ ] T024 [US1] In `src/enrich/mod.rs`: `run_worker` takes both receivers and uses
-  `tokio::select! { biased; … }` with the live queue first; add `reuse(event, config, lookups) ->
+- [ ] T024 [US1] In `src/enrich/mod.rs`: `run_worker` is unchanged for live events; in
+  `spawn_tasks` (`src/pipeline.rs`) spawn **one more** `run_worker` on the restore receiver (R2: no
+  worker reads both queues); add `reuse(event, config, lookups) ->
   EnrichedQso` for events with `saved` (R4: remote from `saved_position`, station from
   `apply_station` on the as-received record and the current configuration, entity from the
   country data, record = saved). Unit tests first (reuse keeps every saved field, keeps `cty`
   precision, recomputes the entity, makes no lookup).
 - [ ] T025 [US1] Add the pending map to `Pipeline` in `src/pipeline.rs` (R9): insert when an event
-  is queued (live and restored; the saved record when present, else the record as received);
-  remove when a worker publishes or drops the result as stale. Add
-  `Pipeline::records_to_save(parked) -> Vec<AdifRecord>`: history `iter_in_order()` records, plus
-  pending records and parked records whose id is not in the history, merged by `QSO_DATE` +
-  `TIME_ON`. Unit tests first.
+  is queued, as `id → (rev, record)` (live and restored; the saved record when present, else the
+  record as received); remove when a worker publishes or drops the result as stale. Add
+  `Pipeline::records_to_save(parked) -> Vec<AdifRecord>`: history `iter_in_order()` records; a
+  pending record replaces or joins them when its id is not in the history or its rev is higher
+  (R9); parked records whose id is not in the history; all merged by `QSO_DATE` + `TIME_ON`. Unit
+  tests first, including "pending rev 2 beats history rev 1".
 - [ ] T026 [US1] Wire startup in `start_with_country` (`src/pipeline.rs`): when
   `config.history_file` is `Some`, `read` it (`Mode::Service`); `Missing` → empty;
   `Unreadable` → `move_aside` and warn, or return `Error::HistoryFile` with both reasons when the
@@ -285,6 +291,8 @@ records on other bands are kept untouched.
     without a position (FR-020);
   - **missing file** → `Err(Error::HistoryFile)`, and no file is created; **unreadable file** →
     `Err`, the file is unchanged and not moved (FR-018);
+  - **duplicates in the file**: two records with the same identity, the second changed → one
+    record saved, the second version; an exact repeat → one record and one lookup;
   - **interrupt**: with a `Hang` provider and `stop` resolved after the first upsert, the file is
     written with the completed records and the others as loaded (FR-019).
 - [ ] T034 [P] [US3] Write a failing test in `tests/cli_help.rs` (or a new `tests/enrich_only_cli.rs`
@@ -295,7 +303,8 @@ records on other bands are kept untouched.
 
 - [ ] T035 [US3] Implement `pub async fn enrich_only(config, path, sources, country, stop) ->
   Result<LoadReport>` in `src/pipeline.rs` (R12): read with `Mode::EnrichOnly` (missing or
-  unreadable → `Error::HistoryFile`, no write); build lookups as `start_with_country` does; no
+  unreadable → `Error::HistoryFile`, no write); run the events through a fresh `ResendGate` in
+  file order, as `ingest::run` does; build lookups as `start_with_country` does; no
   sockets; spawn `config.workers` workers on the restore queue only; wait until the queue and the
   pending map are empty, or `stop`; stop the workers; save; log the final line of
   contracts/history-file.md; return the report. Make T033 pass.
@@ -313,7 +322,7 @@ records on other bands are kept untouched.
 - [ ] T037 [P] Write failing tests in `src/web/protocol.rs` and `src/web/session.rs`
   (contracts/websocket-protocol.md): `hello.limits` is `[10, 20, 50, 100, 200, 500, 1000]`;
   `set_limit` with `limit: null` answers a snapshot with `limit: 1000` and at most 1000 QSOs out of
-  1500; `set_limit` with 7 is still ignored. Update the existing `tests/ws_protocol.rs` case that
+  50 000, and `snapshot` returns within 100 ms (measured with `Instant`, SC-007); `set_limit` with 7 is still ignored. Update the existing `tests/ws_protocol.rs` case that
   expected all QSOs for `null`.
 - [ ] T038 Implement in `src/web/protocol.rs` (`LIMITS`, `is_allowed_limit`) and
   `src/web/session.rs` (`null` → `Some(1000)`). Make T037 pass.
@@ -370,7 +379,7 @@ records on other bands are kept untouched.
 - **Polish (T041–T046)** last.
 - **Shared files** (edit strictly in task order):
   - `src/enrich/mod.rs`: T011–T012, T024, T029, T032;
-  - `src/pipeline.rs`: T006, T025, T026, T027, T035;
+  - `src/pipeline.rs`: T006, T024, T025, T026, T027, T035;
   - `src/ingest/mod.rs`: T006, T022, T023;
   - `src/config.rs`: T007–T008;
   - `tests/history_file.rs`: T019, T020, T021, T030;
