@@ -110,6 +110,27 @@ fn run() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
+    // Feature 014: complete a file and exit, with no listener.
+    if let Some(file) = cli.enrich_only {
+        let Some(path) = file.or_else(|| config.history_file.clone()) else {
+            tracing::error!("no history file to enrich");
+            return ExitCode::FAILURE;
+        };
+        let run = live_qso_map::pipeline::enrich_only(
+            config,
+            &path,
+            None,
+            None,
+            live_qso_map::pipeline::wait_for_signal(),
+        );
+        return match runtime.block_on(run) {
+            Ok(_) => ExitCode::SUCCESS,
+            Err(e) => {
+                tracing::error!("{e}");
+                ExitCode::FAILURE
+            }
+        };
+    }
     match runtime.block_on(live_qso_map::run(config)) {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {

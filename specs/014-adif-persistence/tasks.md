@@ -279,7 +279,7 @@ records on other bands are kept untouched.
 
 ### Tests for User Story 3 (write first, confirm they FAIL)
 
-- [ ] T033 [P] [US3] Write failing integration tests in `tests/enrich_only.rs`, calling
+- [X] T033 [P] [US3] Write failing integration tests in `tests/enrich_only.rs`, calling
   `live_qso_map::pipeline::enrich_only(config, path, Some(sources), Some(country), stop)` where
   `stop` is a future (pending for a full run):
   - **no listeners**: hold the configured UDP and HTTP ports with sockets bound by the test; the
@@ -295,20 +295,20 @@ records on other bands are kept untouched.
     record saved, the second version; an exact repeat → one record and one lookup;
   - **interrupt**: with a `Hang` provider and `stop` resolved after the first upsert, the file is
     written with the completed records and the others as loaded (FR-019).
-- [ ] T034 [P] [US3] Write a failing test in `tests/cli_help.rs` (or a new `tests/enrich_only_cli.rs`
+- [X] T034 [P] [US3] Write a failing test in `tests/cli_help.rs` (or a new `tests/enrich_only_cli.rs`
   running the built binary): `--enrich-only <missing file>` exits with code 1 and prints the
   error; `--enrich-only --save-config x` exits with code 2.
 
 ### Implementation for User Story 3
 
-- [ ] T035 [US3] Implement `pub async fn enrich_only(config, path, sources, country, stop) ->
+- [X] T035 [US3] Implement `pub async fn enrich_only(config, path, sources, country, stop) ->
   Result<LoadReport>` in `src/pipeline.rs` (R12): read with `Mode::EnrichOnly` (missing or
   unreadable → `Error::HistoryFile`, no write); run the events through a fresh `ResendGate` in
   file order, as `ingest::run` does; build lookups as `start_with_country` does; no
   sockets; spawn `config.workers` workers on the restore queue only; wait until the queue and the
   pending map are empty, or `stop`; stop the workers; save; log the final line of
   contracts/history-file.md; return the report. Make T033 pass.
-- [ ] T036 [US3] Dispatch in `src/main.rs`: with `cli.enrich_only`, take the path (or the
+- [X] T036 [US3] Dispatch in `src/main.rs`: with `cli.enrich_only`, take the path (or the
   configured `history_file`), call `enrich_only` with `stop` = `wait_for_signal()` (make it
   `pub(crate)` or move it to a shared place), and map `Ok` → exit 0, `Err` → log and exit 1. Make
   T034 pass.

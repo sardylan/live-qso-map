@@ -265,7 +265,7 @@ impl RunningService {
             while self.tasks.join_next().await.is_some() {}
         }
         if let Some(path) = &self.history_file {
-            save_history(path, &self.pipeline, &self.parked);
+            save_history(path, &self.pipeline.records_to_save(&self.parked));
         }
     }
 }
@@ -279,9 +279,8 @@ fn now_unix() -> i64 {
 }
 
 /// Writes the history file and logs the outcome (contracts/history-file.md).
-fn save_history(path: &Path, pipeline: &Pipeline, parked: &[(String, AdifRecord)]) -> bool {
-    let records = pipeline.records_to_save(parked);
-    match crate::history_file::write::save(path, &records, now_unix()) {
+fn save_history(path: &Path, records: &[AdifRecord]) -> bool {
+    match crate::history_file::write::save(path, records, now_unix()) {
         Ok(()) => {
             tracing::info!(
                 "history saved to {}: {} QSOs",
@@ -614,6 +613,124 @@ fn spawn_tasks(
     ));
 }
 
+/// What an enrich-only run did (feature 014, FR-020).
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct EnrichReport {
+    pub load: crate::history_file::LoadReport,
+    /// Records whose position came from the record itself (`logger`).
+    pub placed_by_record: usize,
+    /// Records placed by a lookup (an online provider or the country data).
+    pub placed_by_lookup: usize,
+    /// Records with `APP_LIVEQSOMAP_LOOKUP_FAILED`.
+    pub lookup_failed: usize,
+    pub without_position: usize,
+}
+
+impl EnrichReport {
+    fn count(load: crate::history_file::LoadReport, records: &[AdifRecord]) -> Self {
+        let mut report = Self {
+            load,
+            ..Self::default()
+        };
+        for record in records {
+            if record
+                .get_non_empty(crate::history_file::LOOKUP_FAILED_FIELD)
+                .is_some()
+            {
+                report.lookup_failed += 1;
+                continue;
+            }
+            match record.get_non_empty("APP_LIVEQSOMAP_POS_SOURCE") {
+                None => report.without_position += 1,
+                Some("logger") => report.placed_by_record += 1,
+                Some(_) => report.placed_by_lookup += 1,
+            }
+        }
+        report
+    }
+}
+
+/// `--enrich-only`: loads `path`, completes every record on every band, writes it back and
+/// returns (feature 014, R12). No listener is opened. A missing or unreadable file is an error
+/// and nothing is written. When `stop` resolves first, what was completed is saved.
+pub async fn enrich_only(
+    config: Config,
+    path: &Path,
+    sources: LookupSources,
+    country: Option<Arc<CountryData>>,
+    stop: impl Future<Output = ()>,
+) -> Result<EnrichReport> {
+    crate::install_crypto_provider();
+    let restored = load_history(
+        path,
+        &config,
+        crate::history_file::restore::Mode::EnrichOnly,
+    )?;
+    let load = restored.report.clone();
+    let extents = ExtentTable::embedded()?;
+    let (sources, names, country) = match sources {
+        Some(sources) => (sources, Vec::new(), country),
+        None => build_sources(&config).await?,
+    };
+    let lookups =
+        crate::enrich::Lookups::new(sources, country, Arc::new(extents), &config).with_names(names);
+    let pipeline = Pipeline::new(config.broadcast_queue);
+    let mut gate = crate::ingest::gate::ResendGate::new();
+    let (events, _) = gate_restored(restored, &mut gate, &pipeline);
+
+    let config = Arc::new(config);
+    let (shutdown_tx, shutdown_rx) = watch::channel(false);
+    let (queue_tx, queue_rx) = async_channel::bounded(config.ingest_queue);
+    let mut tasks = JoinSet::new();
+    tasks.spawn(feed(events, queue_tx, shutdown_rx.clone()));
+    for _ in 0..config.workers {
+        tasks.spawn(crate::enrich::run_worker(
+            queue_rx.clone(),
+            pipeline.clone(),
+            Arc::clone(&config),
+            lookups.clone(),
+            shutdown_rx.clone(),
+        ));
+    }
+    drop(queue_rx);
+    tokio::pin!(stop);
+    let finished = tokio::select! {
+        _ = async { while tasks.join_next().await.is_some() {} } => true,
+        _ = &mut stop => false,
+    };
+    if !finished {
+        tracing::info!("interrupted; saving what was completed");
+        let _ = shutdown_tx.send(true);
+        let drained = tokio::time::timeout(Duration::from_secs(2), async {
+            while tasks.join_next().await.is_some() {}
+        })
+        .await;
+        if drained.is_err() {
+            tasks.abort_all();
+            while tasks.join_next().await.is_some() {}
+        }
+    }
+    let records = pipeline.records_to_save(&[]);
+    if !save_history(path, &records) {
+        return Err(crate::errors::Error::HistoryFile {
+            path: path.to_path_buf(),
+            message: "cannot save the completed file".to_string(),
+        });
+    }
+    let report = EnrichReport::count(load, &records);
+    tracing::info!(
+        "enriched {}: {} QSOs, {} placed from the record, {} by lookup, {} with a failed \
+         lookup, {} without a position",
+        path.display(),
+        records.len(),
+        report.placed_by_record,
+        report.placed_by_lookup,
+        report.lookup_failed,
+        report.without_position
+    );
+    Ok(report)
+}
+
 /// Starts the service and runs it until Ctrl+C or SIGTERM.
 pub async fn run(config: Config) -> Result<()> {
     let service = start(config, None).await?;
@@ -623,7 +740,8 @@ pub async fn run(config: Config) -> Result<()> {
     Ok(())
 }
 
-async fn wait_for_signal() {
+/// Resolves on Ctrl+C or, on Unix, SIGTERM.
+pub async fn wait_for_signal() {
     let ctrl_c = tokio::signal::ctrl_c();
     #[cfg(unix)]
     {

@@ -1,5 +1,6 @@
 //! Feature 008: help and usage errors through the real binary (contracts/command-line.md).
 
+use std::path::Path;
 use std::process::{Command, Output};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -64,5 +65,26 @@ fn help_lists_the_history_options_of_feature_014() -> TestResult {
         !text.contains("--history-size"),
         "removed option still in help"
     );
+    Ok(())
+}
+
+#[test]
+fn enrich_only_on_a_missing_file_fails_with_exit_code_1() -> TestResult {
+    let dir = std::env::temp_dir().join(format!("lqm-cli-enrich-{}", std::process::id()));
+    std::fs::create_dir_all(&dir)?;
+    let missing = dir.join("missing.adi");
+    let missing = missing.to_string_lossy();
+    let out = run(&["--enrich-only", &missing], &[("NO_COLOR", "1")])?;
+    assert_eq!(out.status.code(), Some(1));
+    let text = String::from_utf8(out.stdout)? + &String::from_utf8(out.stderr)?;
+    assert!(text.contains("history file"), "{text}");
+    assert!(!Path::new(missing.as_ref()).exists());
+    Ok(())
+}
+
+#[test]
+fn enrich_only_and_save_config_conflict() -> TestResult {
+    let out = run(&["--enrich-only", "--save-config", "-"], &[])?;
+    assert_eq!(out.status.code(), Some(2));
     Ok(())
 }
