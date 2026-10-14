@@ -34,7 +34,7 @@ node tests/browser/run.mjs [--binary PATH] [--chrome PATH] [--out DIR] [--headed
 | 05 | `panel-escape` | A | Escape: the panel is hidden; focus on the gear; `aria-expanded="false"` | US3 2 |
 | 06 | `reload-keeps-settings` | A | after a reload, the theme choice (Dark) is kept | US3 6 |
 | 07 | `device-dark` | A | with `lqm.theme` = `auto-device` and dark emulated, a reload shows `data-theme="dark"` | US3 4 |
-| 08 | `reconnect` | A→B | the program stops: the reconnection banner shows within 5 s. It restarts with `--bands hf`: the banner goes away within 15 s, and a 40m and a 30m QSO sent then appear (the history starts empty after a restart) | US3 7 |
+| 08 | `reconnect` | A→B | the program stops: the reconnection banner shows within 5 s. It restarts with `--bands hf`: the banner goes away within 15 s, the two QSOs of step 02 come back from the history file (feature 014), and a 40m and a 30m QSO sent then appear next to them (4 markers) | US3 7 |
 | 09 | `legend-group` | B | Legend offers HF (10), HF contest (6), WARC (3). Ticking WARC: the legend lists only 30m 17m 12m, and the box and markers show only the 30m QSO, and the 40m one is hidden. Unticking it: everything is shown again | US3 5 |
 
 Steps with several states share their number: `04-theme-light.png`, `04-theme-dim.png`,
