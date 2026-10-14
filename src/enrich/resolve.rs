@@ -101,7 +101,9 @@ pub async fn resolve_remote(
                 }
                 candidates.push(candidate);
             }
-            Ok(Ok(Ok(None))) => answered_online += 1,
+            // The country data not knowing the call is no online answer (FR-029).
+            Ok(Ok(Ok(None))) if name != Some("cty") => answered_online += 1,
+            Ok(Ok(Ok(None))) => {}
             Ok(Ok(Err(e))) => {
                 tracing::warn!(call, "lookup failed: {e}");
                 let named = match &e {
@@ -699,5 +701,12 @@ mod tests {
         .await;
         assert_eq!(cty_only.answered_online, 0);
         assert!(cty_only.failed.is_empty());
+    }
+
+    #[tokio::test]
+    async fn the_country_data_not_knowing_the_call_is_no_online_answer() {
+        let lookup = named(&[failing(), empty()], &[None, Some("cty")]).await;
+        assert_eq!(lookup.answered_online, 0);
+        assert_eq!(lookup.failed, [("qrz".to_string(), FailKind::Error)]);
     }
 }

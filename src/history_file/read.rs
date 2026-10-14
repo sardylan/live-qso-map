@@ -14,10 +14,10 @@ pub enum Read {
     Missing,
     /// The file cannot be read, or holds neither a header nor a record: the reason.
     Unreadable(String),
-    /// Every record that parsed, in file order, and the number that did not.
+    /// Every record that parsed, in file order, and why each of the others did not.
     Records {
         records: Vec<AdifRecord>,
-        malformed: usize,
+        malformed: Vec<String>,
     },
 }
 
@@ -34,7 +34,7 @@ pub fn read(path: &Path) -> Read {
     let (records, errors) = parse_datagram(&data);
     Read::Records {
         records,
-        malformed: errors.len(),
+        malformed: errors.iter().map(ToString::to_string).collect(),
     }
 }
 
@@ -98,7 +98,7 @@ mod tests {
         match read(&path) {
             Read::Records { records, malformed } => {
                 assert!(records.is_empty());
-                assert_eq!(malformed, 0);
+                assert!(malformed.is_empty(), "{malformed:?}");
             }
             _ => panic!("an empty file is readable"),
         }
@@ -110,7 +110,7 @@ mod tests {
             Read::Records { records, malformed } => {
                 // The record without TIME_ON parses; the restore step skips it.
                 assert_eq!(records.len(), 8);
-                assert_eq!(malformed, 0);
+                assert!(malformed.is_empty(), "{malformed:?}");
                 assert_eq!(records[0].get("CALL"), Some("DL1ABC"));
             }
             _ => panic!("the fixture is readable"),
@@ -125,7 +125,8 @@ mod tests {
         match read(&path) {
             Read::Records { records, malformed } => {
                 assert_eq!(records.len(), 1);
-                assert_eq!(malformed, 1);
+                assert_eq!(malformed.len(), 1);
+                assert!(malformed[0].contains("CALL"), "{malformed:?}");
             }
             _ => panic!("a partly broken file is readable"),
         }

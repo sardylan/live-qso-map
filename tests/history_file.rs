@@ -677,3 +677,53 @@ async fn a_lookup_that_fails_again_keeps_its_note() -> TestResult {
     );
     Ok(())
 }
+
+// --- convergence (T049, FR-009) -------------------------------------------------------------
+
+#[tokio::test]
+async fn restored_qsos_are_ordered_by_qso_time_not_file_order() -> TestResult {
+    let path = file_in(&temp_dir("order"));
+    let mut text = String::from("<EOH>\n");
+    for (call, time) in [
+        ("K3AA", "1203"),
+        ("K0AA", "1200"),
+        ("K2AA", "1202"),
+        ("K1AA", "1201"),
+    ] {
+        let mut r = AdifRecord::new();
+        r.set("CALL", call);
+        r.set("QSO_DATE", "20261010");
+        r.set("TIME_ON", time);
+        r.set("BAND", "20m");
+        r.set("MODE", "CW");
+        r.set("GRIDSQUARE", "FN20");
+        text.push_str(&live_qso_map::adif::write::to_adif_string(&r));
+        text.push('\n');
+    }
+    std::fs::write(&path, text)?;
+    let provider = us_provider();
+    let service = start_on(&path, &provider, |_| {}).await?;
+    assert_eq!(wait_for_len(&service, 4).await, 4);
+    let expected = ["K0AA", "K1AA", "K2AA", "K3AA"];
+    {
+        let history = service.pipeline().lock_history();
+        let order: Vec<String> = history
+            .iter_in_order()
+            .filter_map(|q| q.record.get("CALL").map(str::to_string))
+            .collect();
+        assert_eq!(order, expected);
+        let window: Vec<String> = history
+            .latest_matching(Some(4), None)
+            .iter()
+            .filter_map(|q| q.record.get("CALL").map(str::to_string))
+            .collect();
+        assert_eq!(window, expected, "the page's snapshot order");
+    }
+    service.shutdown().await;
+    let saved: Vec<String> = read_records(&path)
+        .iter()
+        .filter_map(|r| r.get("CALL").map(str::to_string))
+        .collect();
+    assert_eq!(saved, expected, "the file is written in QSO time order");
+    Ok(())
+}

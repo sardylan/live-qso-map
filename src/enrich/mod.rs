@@ -787,4 +787,25 @@ mod tests {
         assert_eq!(q.record.get(crate::history_file::LOOKUP_FAILED_FIELD), None);
         assert_eq!(q.remote.unwrap().source, PositionSource::Cty);
     }
+
+    #[tokio::test]
+    async fn the_note_is_written_when_the_country_data_does_not_know_the_call_either() {
+        let config = short_timeout();
+        let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let unknown_to_cty: LookupSource = Arc::new(|_call: String| Box::pin(async { Ok(None) }));
+        let areas = Arc::new(ExtentTable::embedded().expect("embedded entity extents"));
+        let l = Lookups::new(
+            vec![named_failure("qrz", calls), unknown_to_cty],
+            None,
+            areas,
+            &config,
+        )
+        .with_names(vec![None, Some("cty")]);
+        let q = enrich(event("QQ9QQ", &[]), &config, &l).await;
+        assert_eq!(
+            q.record.get(crate::history_file::LOOKUP_FAILED_FIELD),
+            Some("qrz:error")
+        );
+        assert_eq!(q.remote, None);
+    }
 }
