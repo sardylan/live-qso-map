@@ -135,7 +135,8 @@ impl ProviderClient {
         }
     }
 
-    fn name(&self) -> &'static str {
+    /// The provider's name, as in `APP_LIVEQSOMAP_POS_SOURCE` (`qrz`, `hamqth`, `qrzcq`).
+    pub fn name(&self) -> &'static str {
         self.kind.as_str()
     }
 
