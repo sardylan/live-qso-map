@@ -168,6 +168,69 @@ function createPage(socket, child) {
         await send('Input.dispatchKeyEvent', { type, key, code: key, windowsVirtualKeyCode: code });
       }
     },
+    /** A PNG screenshot as base64, also written to `file` when given. */
+    async capture(file) {
+      const r = await send('Page.captureScreenshot', { format: 'png' });
+      if (file) writeFileSync(file, Buffer.from(r.data, 'base64'));
+      return r.data;
+    },
+    /**
+     * The average `[r, g, b, a]` of each box (CSS pixels) in a `capture()`d PNG. Chrome decodes
+     * the PNG itself, on a 2D canvas, so the runner needs no image library (research R5).
+     */
+    async measure(png, boxes) {
+      return this.eval(`(async () => {
+        const image = new Image();
+        image.src = 'data:image/png;base64,${png}';
+        await image.decode();
+        const canvas = new OffscreenCanvas(image.width, image.height);
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(image, 0, 0);
+        const scale = image.width / window.innerWidth;
+        return ${JSON.stringify(boxes)}.map((b) => {
+          const x = Math.round(b.x * scale), y = Math.round(b.y * scale);
+          const w = Math.max(1, Math.round(b.w * scale)), h = Math.max(1, Math.round(b.h * scale));
+          const data = ctx.getImageData(x, y, w, h).data;
+          const sum = [0, 0, 0, 0];
+          for (let i = 0; i < data.length; i += 4) for (let c = 0; c < 4; c++) sum[c] += data[i + c];
+          return sum.map((v) => v / (data.length / 4));
+        });
+      })()`);
+    },
+    /** A left-button drag from `from` to `to` (CSS pixels), in `steps` moves 16 ms apart. */
+    async drag(from, to, steps = 20) {
+      const mouse = (type, [x, y], extra = {}) => send('Input.dispatchMouseEvent', { type, x, y, button: 'left', ...extra });
+      await mouse('mouseMoved', from, { button: 'none' });
+      await mouse('mousePressed', from, { buttons: 1, clickCount: 1 });
+      for (let i = 1; i <= steps; i++) {
+        const f = i / steps;
+        await mouse('mouseMoved', [from[0] + (to[0] - from[0]) * f, from[1] + (to[1] - from[1]) * f], { buttons: 1 });
+        await new Promise((resolve) => setTimeout(resolve, 16));
+      }
+      // Hold still before releasing, so MapLibre adds no inertia.
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      await mouse('mouseReleased', to, { buttons: 0, clickCount: 1 });
+    },
+    /**
+     * The test clock (feature 013, contracts/browser-test.md): from the next page load on, the
+     * page's `Date` runs `offset` ms ahead of the real one, starting at `iso` now. Returns the
+     * offset, so the runner computes the same "now".
+     */
+    async setClock(iso) {
+      const offset = Date.parse(iso) - Date.now();
+      await send('Page.addScriptToEvaluateOnNewDocument', {
+        source: `(() => {
+          const RealDate = Date;
+          const offset = ${offset};
+          class ShiftedDate extends RealDate {
+            constructor(...args) { if (args.length === 0) super(RealDate.now() + offset); else super(...args); }
+            static now() { return RealDate.now() + offset; }
+          }
+          globalThis.Date = ShiftedDate;
+        })();`,
+      });
+      return offset;
+    },
     close() {
       try {
         socket.close();

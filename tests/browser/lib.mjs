@@ -4,6 +4,9 @@
 
 import path from 'node:path';
 
+import { subsolarPoint } from '../../src/web/assets/sun.js';
+import { destination } from '../../src/web/assets/geodesic.js';
+
 const USAGE = 'usage: node tests/browser/run.mjs [--binary PATH] [--chrome PATH] [--out DIR] [--headed]';
 
 /** Command-line options, with the contract's defaults; `{ ok: false, error }` on bad usage. */
@@ -167,4 +170,162 @@ export function qsoAdif({ call, band, mode, grid, at }) {
     field('GRIDSQUARE', grid),
     '<EOR>',
   ].join(' ');
+}
+
+// --- the glow and the grayline measured on screen (feature 013, contracts/browser-test.md) --
+
+/** Rec. 709 luma of an `[r, g, b, a]` pixel, 0–255. */
+export function luminance([r, g, b]) {
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** `#map`'s `data-view` ("lat,lon,zoom") as `{ lat, lon, zoom }`, or `null`. */
+export function parseView(text) {
+  const parts = String(text ?? '').split(',').map(Number);
+  if (parts.length !== 3 || parts.some((n) => !Number.isFinite(n))) return null;
+  const [lat, lon, zoom] = parts;
+  return { lat, lon, zoom };
+}
+
+/** The globe's radius on screen, as MapLibre 5 sizes it (`getGlobeRadiusPixels`). */
+export function globeRadiusPx({ lat, zoom }) {
+  return (512 * 2 ** zoom) / (2 * Math.PI) / Math.cos((lat * Math.PI) / 180);
+}
+
+/**
+ * The globe's visible radius on a map `height` px tall: the perspective camera (MapLibre's
+ * default 36.87° field of view) sees less than the sphere's radius.
+ */
+export function apparentRadiusPx(view, height) {
+  const focal = height / 2 / Math.tan(((36.87 / 2) * Math.PI) / 180);
+  const r = globeRadiusPx(view);
+  return focal * Math.tan(Math.asin(r / (focal + r)));
+}
+
+/**
+ * Two boxes in the atmosphere's thin band just outside the visible limb (0.3–1.4 % of its
+ * radius; the shader's atmosphere is 1.6 % of the Earth's), left and right, at the globe
+ * centre's height (`centre`, page pixels), in page pixels; `null` when either would leave the
+ * map (`rect`: its box).
+ */
+export function limbSamples(view, rect, centre = null) {
+  const r = apparentRadiusPx(view, rect.height);
+  // The globe's centre on screen: the map centre's projection (`data-centre`), or the map's
+  // middle when the page uses no padding.
+  const [cx, cy] = centre ?? [rect.left + rect.width / 2, rect.top + rect.height / 2];
+  const w = r * 0.011;
+  const h = Math.max(4, r * 0.04);
+  const boxes = [
+    { x: cx - r * 1.014, y: cy - h / 2, w, h },
+    { x: cx + r * 1.003, y: cy - h / 2, w, h },
+  ];
+  const inside = (b) => b.x >= rect.left && b.x + b.w <= rect.left + rect.width && b.y >= rect.top && b.y + b.h <= rect.top + rect.height;
+  return boxes.every(inside) ? boxes : null;
+}
+
+/**
+ * The Sun's direction in camera space for a view (bearing and pitch 0): the subsolar point on
+ * MapLibre's globe axes, turned by the globe's rotations Rx(lat)·Ry(−lng) (research R2).
+ */
+function sunDirection(subsolar, view) {
+  const D = Math.PI / 180;
+  const φ = subsolar.lat * D;
+  const λ = subsolar.lon * D;
+  let [x, y, z] = [Math.cos(φ) * Math.sin(λ), Math.sin(φ), Math.cos(φ) * Math.cos(λ)];
+  const tY = -view.lon * D;
+  [x, z] = [x * Math.cos(tY) + z * Math.sin(tY), -x * Math.sin(tY) + z * Math.cos(tY)];
+  const tX = view.lat * D;
+  [y, z] = [y * Math.cos(tX) - z * Math.sin(tX), y * Math.sin(tX) + z * Math.cos(tX)];
+  return [x, y, z];
+}
+
+/** Which limb the glow should be brighter on, for the view and the Sun: `{ side, x }`. */
+export function sunSide(view, subsolar) {
+  const [x] = sunDirection(subsolar, view);
+  return { side: x < 0 ? 'left' : 'right', x };
+}
+
+/**
+ * Which way the light in `#map`'s `data-light` ("azimuthal,polar") points on screen: MapLibre's
+ * sun direction is −sphericalToCartesian, so its x is sin(az)·sin(polar). `{ side, x }` or null.
+ */
+export function lightSide(text) {
+  const parts = String(text ?? '').split(',').map(Number);
+  if (parts.length !== 2 || parts.some((n) => !Number.isFinite(n))) return null;
+  const [az, polar] = parts.map((d) => (d * Math.PI) / 180);
+  const x = Math.sin(az) * Math.sin(polar);
+  return { side: x < 0 ? 'left' : 'right', x };
+}
+
+/**
+ * The test clock's start (contracts/browser-test.md): the instant on the June solstice of `year`
+ * when the subsolar longitude is the house's minus 90° (18:00 local solar time at the house).
+ */
+export function testInstant(house, year) {
+  const target = ((((house.lon - 90 + 180) % 360) + 360) % 360) - 180;
+  const day = Date.UTC(year, 5, 21);
+  let minutes = 720 - 4 * target;
+  for (let i = 0; i < 3; i++) {
+    const when = new Date(day + ((((minutes % 1440) + 1440) % 1440) * 60_000));
+    const error = ((((subsolarPoint(when).lon - target + 180) % 360) + 360) % 360) - 180;
+    minutes += 4 * error; // 1° west is 4 minutes later
+  }
+  return new Date(day + ((((Math.round(minutes * 60) / 60) % 1440) + 1440) % 1440) * 60_000);
+}
+
+const DEG = Math.PI / 180;
+const middle = (rect, centre) => centre ?? [rect.left + rect.width / 2, rect.top + rect.height / 2];
+
+/** `[lat, lon]` on the flat map (Web Mercator, nearest world copy), in page pixels. */
+export function toScreenMercator(view, rect, [lat, lon], centre = null) {
+  const [cx, cy] = middle(rect, centre);
+  const world = 512 * 2 ** view.zoom;
+  const dLon = ((((lon - view.lon + 180) % 360) + 360) % 360) - 180;
+  const merc = (φ) => Math.log(Math.tan(Math.PI / 4 + (φ * DEG) / 2));
+  return [cx + (dLon / 360) * world, cy + ((merc(view.lat) - merc(lat)) / (2 * Math.PI)) * world];
+}
+
+/**
+ * `[lat, lon]` on the globe (MapLibre's perspective camera, bearing and pitch 0), in page
+ * pixels; `null` on the hidden side.
+ */
+export function toScreenGlobe(view, rect, [lat, lon], centre = null) {
+  const [cx, cy] = middle(rect, centre);
+  const focal = rect.height / 2 / Math.tan((36.87 / 2) * DEG);
+  const r = globeRadiusPx(view);
+  let [x, y, z] = [Math.cos(lat * DEG) * Math.sin(lon * DEG), Math.sin(lat * DEG), Math.cos(lat * DEG) * Math.cos(lon * DEG)];
+  const tY = -view.lon * DEG;
+  [x, z] = [x * Math.cos(tY) + z * Math.sin(tY), -x * Math.sin(tY) + z * Math.cos(tY)];
+  const tX = view.lat * DEG;
+  [y, z] = [y * Math.cos(tX) - z * Math.sin(tX), y * Math.sin(tX) + z * Math.cos(tX)];
+  if (z <= r / (focal + r)) return null; // beyond the horizon the camera sees
+  const depth = focal + r - r * z;
+  return [cx + (focal * r * x) / depth, cy - (focal * r * y) / depth];
+}
+
+/**
+ * A point in deep night (Sun below −12°) and one in full day (above +10°), both at least 20 px
+ * inside `rect`, from the subsolar point and a projection; `null` when none fits (step 11).
+ */
+export function nightAndDayPoints(subsolar, project, rect) {
+  const antisolar = [-subsolar.lat, ((((subsolar.lon + 360) % 360) + 360) % 360) - 180];
+  const pick = (from) => {
+    for (const distance of [0, 15, 30, 45]) {
+      for (let bearing = 0; bearing < 360; bearing += 30) {
+        const at = destination(from, bearing, distance);
+        if (Math.abs(at[0]) > 70) continue;
+        const xy = project(at);
+        if (!xy) continue;
+        const [x, y] = xy;
+        if (x >= rect.left + 20 && x <= rect.left + rect.width - 20 && y >= rect.top + 20 && y <= rect.top + rect.height - 20) {
+          return { at, xy };
+        }
+        if (distance === 0) break;
+      }
+    }
+    return null;
+  };
+  const night = pick(antisolar);
+  const day = pick([subsolar.lat, subsolar.lon]);
+  return night && day ? { night, day } : null;
 }
