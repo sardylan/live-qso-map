@@ -414,11 +414,12 @@ async function setBox(id, on) {
  * agree on every box (CI renders in software at a few frames per second, so a fixed delay can
  * still show the previous frame). The last capture is saved to `file` when given.
  */
-async function settledMeasure(boxes, file) {
+async function settledMeasure(boxes, file, read = luminance) {
   let previous = null;
+  const same = (a, b) => [a].flat().every((v, k) => Math.abs(v - [b].flat()[k]) < 0.5);
   for (let i = 0; i < 20; i++) {
-    const values = (await page.measure(await page.capture(file), boxes)).map(luminance);
-    if (previous && values.every((v, k) => Math.abs(v - previous[k]) < 0.5)) return values;
+    const values = (await page.measure(await page.capture(file), boxes)).map(read);
+    if (previous && values.every((v, k) => same(v, previous[k]))) return values;
     previous = values;
     await sleep(500);
   }
@@ -745,12 +746,16 @@ const steps = {
     const sunXy = toScreenMercator(parseView(viewText), rect, [sunNow().lat, sunNow().lon], await globeCentre(rect));
     const sunBox = boxesAt([sunXy], 13);
     await setBox('sun-marker', true);
-    const [withSun] = await settledMeasure(sunBox, path.join(out, '11-grayline-sun.png'));
+    // Colour, not brightness: the yellow symbol can be as bright as the land under it.
+    const rgb = ([red, green, blue]) => [red, green, blue];
+    const [withSun] = await settledMeasure(sunBox, path.join(out, '11-grayline-sun.png'), rgb);
     if (currentStep) addScreenshot(currentStep, '11-grayline-sun.png');
     await setBox('sun-marker', false);
-    const [withoutSun] = await settledMeasure(sunBox);
-    console.log(`   11-sun: subsolar box with/without the symbol ${withSun.toFixed(1)}/${withoutSun.toFixed(1)}, at ${sunXy.map((v) => v.toFixed(0))}`);
-    if (Math.abs(withSun - withoutSun) < 0.1 * Math.max(withSun, withoutSun)) throw new Error(`no Sun symbol at the subsolar point (${withSun.toFixed(1)}/${withoutSun.toFixed(1)})`);
+    const [withoutSun] = await settledMeasure(sunBox, undefined, rgb);
+    const distance = Math.hypot(...withSun.map((v, k) => v - withoutSun[k]));
+    const fmt = (c) => c.map((v) => v.toFixed(0)).join(',');
+    console.log(`   11-sun: subsolar box with/without the symbol rgb ${fmt(withSun)} / ${fmt(withoutSun)}, distance ${distance.toFixed(1)}, at ${sunXy.map((v) => v.toFixed(0))}`);
+    if (distance < 30) throw new Error(`no Sun symbol at the subsolar point (rgb ${fmt(withSun)} / ${fmt(withoutSun)})`);
 
     // Item 8: the choices survive a reload.
     await setBox('grayline', false);
