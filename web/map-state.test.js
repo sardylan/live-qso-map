@@ -177,12 +177,13 @@ test('a snapshot does not change the map limit', () => {
   assert.equal(visible(s).length, 10);
 });
 
-test('serverLimit asks for at least 20, or everything (TR-006)', () => {
+test('serverLimit asks for at least 20 (TR-006), at most 1000 (feature 014)', () => {
   assert.equal(serverLimit(10), 20);
   assert.equal(serverLimit(20), 20);
   assert.equal(serverLimit(50), 50);
   assert.equal(serverLimit(500), 500);
-  assert.equal(serverLimit(null), null);
+  assert.equal(serverLimit(1000), 1000);
+  assert.equal(serverLimit(null), 1000, 'an old "All" becomes 1000');
 });
 
 test('late arrivals are placed by sort_key, not arrival', () => {

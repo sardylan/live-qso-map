@@ -1050,9 +1050,9 @@ function setupSelector() {
   document.getElementById('legend-all').addEventListener('change', () => changeLegend('all'));
 
   const select = document.getElementById('limit');
-  select.value = connection.limit === null ? 'all' : String(connection.limit);
+  select.value = String(connection.limit);
   select.addEventListener('change', () => {
-    connection.limit = select.value === 'all' ? null : Number.parseInt(select.value, 10);
+    connection.limit = Number.parseInt(select.value, 10);
     saveLimit(localStore(), connection.limit);
     if (state) {
       // The map takes its own window at once; the box keeps its own (FR-009).

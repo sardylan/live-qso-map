@@ -10,7 +10,7 @@ use crate::errors::Result;
 use crate::history::History;
 use crate::pipeline::{HistoryChange, Pipeline, ScoreState};
 use crate::web::protocol::{
-    ClientMessage, DEFAULT_LIMIT, HelloStation, QsoView, ServerMessage, is_allowed_limit,
+    ClientMessage, DEFAULT_LIMIT, HelloStation, MAX_LIMIT, QsoView, ServerMessage, is_allowed_limit,
 };
 
 /// Keeps the valid band names, in canonical form; unknown names are dropped (logged at debug
@@ -84,6 +84,12 @@ impl Session {
 
     pub fn on_client(&mut self, message: ClientMessage, history: &History) -> Vec<ServerMessage> {
         match message {
+            // An older page's "All" (`null`) means the most a page receives (feature 014).
+            ClientMessage::SetLimit { limit: None, bands } => {
+                self.limit = Some(MAX_LIMIT);
+                self.bands = clean_bands(bands);
+                vec![self.snapshot(history)]
+            }
             ClientMessage::SetLimit { limit, bands } if is_allowed_limit(limit) => {
                 self.limit = limit;
                 self.bands = clean_bands(bands);
@@ -317,7 +323,32 @@ mod tests {
             },
             &p.lock_history(),
         );
-        assert_eq!(snapshot_len(&msgs[0]), (None, 150));
+        assert_eq!(
+            snapshot_len(&msgs[0]),
+            (Some(1000), 150),
+            "an older page asking for every QSO gets at most 1000 (FR-025)"
+        );
+        assert_eq!(session.limit(), Some(1000));
+    }
+
+    #[test]
+    fn snapshots_hold_at_most_1000_of_50000_quickly() {
+        let p = pipeline_with(50_000, 16);
+        let mut session = Session::new();
+        let begin = std::time::Instant::now();
+        let msgs = session.on_client(
+            ClientMessage::SetLimit {
+                limit: Some(1000),
+                bands: None,
+            },
+            &p.lock_history(),
+        );
+        assert!(
+            begin.elapsed() < std::time::Duration::from_millis(100),
+            "SC-007: {:?}",
+            begin.elapsed()
+        );
+        assert_eq!(snapshot_len(&msgs[0]), (Some(1000), 1000));
     }
 
     #[test]

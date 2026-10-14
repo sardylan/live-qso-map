@@ -319,18 +319,18 @@ records on other bands are kept untouched.
 
 ## Phase 6: The page's count menu tops out at 1000 (FR-024, FR-025)
 
-- [ ] T037 [P] Write failing tests in `src/web/protocol.rs` and `src/web/session.rs`
+- [X] T037 [P] Write failing tests in `src/web/protocol.rs` and `src/web/session.rs`
   (contracts/websocket-protocol.md): `hello.limits` is `[10, 20, 50, 100, 200, 500, 1000]`;
   `set_limit` with `limit: null` answers a snapshot with `limit: 1000` and at most 1000 QSOs out of
   50 000, and `snapshot` returns within 100 ms (measured with `Instant`, SC-007); `set_limit` with 7 is still ignored. Update the existing `tests/ws_protocol.rs` case that
   expected all QSOs for `null`.
-- [ ] T038 Implement in `src/web/protocol.rs` (`LIMITS`, `is_allowed_limit`) and
+- [X] T038 Implement in `src/web/protocol.rs` (`LIMITS`, `is_allowed_limit`) and
   `src/web/session.rs` (`null` → `Some(1000)`). Make T037 pass.
-- [ ] T039 [P] Write failing tests in `web/connection.test.js` and `web/map-state.test.js`:
+- [X] T039 [P] Write failing tests in `web/connection.test.js` and `web/map-state.test.js`:
   `LIMITS` is `[10, 20, 50, 100, 200, 500, 1000]`; `loadLimit` reads `"all"` as 1000 and the page
   saves `"1000"` back (constitution IV); `saveLimit(1000)` stores `"1000"`; `serverLimit(1000)` is
   1000; replace the old `null` expectations.
-- [ ] T040 Implement in `src/web/assets/connection.js` (`LIMITS`, `loadLimit` migration and
+- [X] T040 Implement in `src/web/assets/connection.js` (`LIMITS`, `loadLimit` migration and
   save-back), `src/web/assets/map-state.js` (`serverLimit` without the `null` branch),
   `src/web/assets/index.html` (option `1000` replaces `All`) and `src/web/assets/app.js` (the
   select no longer maps `all`). Make T039 pass; check `tests/browser/run.mjs` has no step that
