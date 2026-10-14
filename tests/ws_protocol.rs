@@ -299,7 +299,10 @@ async fn pages_choose_their_own_window() {
 
     set_limit(&mut a, Value::Null).await;
     let snapshot = next_json(&mut a, Duration::from_secs(2)).await.unwrap();
-    assert_eq!(snapshot["limit"], Value::Null);
+    assert_eq!(
+        snapshot["limit"], 1000,
+        "null is read as 1000 (feature 014)"
+    );
     assert_eq!(ids(&snapshot).len(), 150);
 
     set_limit(&mut a, serde_json::json!(7)).await;

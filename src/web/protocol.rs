@@ -14,7 +14,10 @@ use crate::recent_columns::Column;
 
 pub const PROTOCOL_VERSION: u32 = 4;
 pub const DEFAULT_LIMIT: usize = 20;
-/// Limits a page may select; `None` means All.
+/// The most QSOs a page receives (feature 014, FR-024): the history itself is not limited.
+pub const MAX_LIMIT: usize = 1000;
+/// Limits a page may select. "All" is gone since feature 014: `null` from an older page is read
+/// as [`MAX_LIMIT`].
 pub const LIMITS: [Option<usize>; 7] = [
     Some(10),
     Some(20),
@@ -22,7 +25,7 @@ pub const LIMITS: [Option<usize>; 7] = [
     Some(100),
     Some(200),
     Some(500),
-    None,
+    Some(MAX_LIMIT),
 ];
 
 pub fn is_allowed_limit(limit: Option<usize>) -> bool {
@@ -339,7 +342,7 @@ mod tests {
             json!({
                 "type": "hello",
                 "protocol": 4,
-                "limits": [10, 20, 50, 100, 200, 500, null],
+                "limits": [10, 20, 50, 100, 200, 500, 1000],
                 "default_limit": 20,
                 "bands": [
                     {"band": "160m", "color": "#8c564b"},
@@ -455,8 +458,13 @@ mod tests {
     fn allowed_limits() {
         assert!(is_allowed_limit(Some(10)));
         assert!(is_allowed_limit(Some(500)));
-        assert!(is_allowed_limit(None));
+        assert!(is_allowed_limit(Some(1000)));
+        assert!(
+            !is_allowed_limit(None),
+            "the session reads null as 1000 first"
+        );
         assert!(!is_allowed_limit(Some(7)));
+        assert!(!is_allowed_limit(Some(2000)));
     }
 
     #[test]

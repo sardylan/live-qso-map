@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createConnection, backoffDelay, onOpen, onClose, onHello, loadLimit, saveLimit } from '../src/web/assets/connection.js';
+import { createConnection, backoffDelay, onOpen, onClose, onHello, loadLimit, saveLimit, LIMITS } from '../src/web/assets/connection.js';
 
 test('backoff doubles from 1 s and caps at 30 s', () => {
   const noJitter = () => 0.5;
@@ -26,8 +26,8 @@ test('attempts grow on close and reset on open', () => {
 test('hello triggers set_limit with the current selection', () => {
   const c = createConnection(100);
   assert.deepEqual(onHello(c), [{ type: 'set_limit', limit: 100 }]);
-  c.limit = null;
-  assert.deepEqual(onHello(c), [{ type: 'set_limit', limit: null }]);
+  c.limit = 1000;
+  assert.deepEqual(onHello(c), [{ type: 'set_limit', limit: 1000 }]);
 });
 
 test('hello re-sends the chosen bands, and null for every band (feature 011)', () => {
@@ -68,15 +68,27 @@ test('loadLimit falls back to 20', () => {
 
 test('loadLimit returns a stored allowed value', () => {
   assert.equal(loadLimit(memoryStorage({ 'lqm.limit': '200' })), 200);
-  assert.equal(loadLimit(memoryStorage({ 'lqm.limit': 'all' })), null);
+  assert.equal(loadLimit(memoryStorage({ 'lqm.limit': '1000' })), 1000);
+});
+
+test('the menu tops out at 1000, with no All (feature 014)', () => {
+  assert.deepEqual(LIMITS, [10, 20, 50, 100, 200, 500, 1000]);
+});
+
+test('a saved "all" is read as 1000 and saved back as 1000 (feature 014, Principle IV)', () => {
+  const storage = memoryStorage({ 'lqm.limit': 'all' });
+  assert.equal(loadLimit(storage), 1000);
+  assert.equal(storage.data['lqm.limit'], '1000');
+  const readOnly = { getItem: () => 'all', setItem() { throw new Error('denied'); } };
+  assert.equal(loadLimit(readOnly), 1000);
 });
 
 test('saveLimit stores and swallows storage errors', () => {
   const storage = memoryStorage();
   saveLimit(storage, 50);
   assert.equal(storage.data['lqm.limit'], '50');
-  saveLimit(storage, null);
-  assert.equal(storage.data['lqm.limit'], 'all');
+  saveLimit(storage, 1000);
+  assert.equal(storage.data['lqm.limit'], '1000');
   assert.doesNotThrow(() => saveLimit(throwing, 10));
   assert.doesNotThrow(() => saveLimit(null, 10));
 });
@@ -86,8 +98,8 @@ test('the map limit behaves the same in any storage (moved to local storage, Pri
     assert.equal(loadLimit(storage), 20);
     saveLimit(storage, 50);
     assert.equal(loadLimit(storage), 50);
-    saveLimit(storage, null);
-    assert.equal(loadLimit(storage), null);
+    saveLimit(storage, 1000);
+    assert.equal(loadLimit(storage), 1000);
   }
   assert.equal(loadLimit(throwing), 20);
 });

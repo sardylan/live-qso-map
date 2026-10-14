@@ -60,7 +60,8 @@ export function setMapLimit(state, limit) {
 
 /** The window to ask the server for: at least 20, the largest box (feature 006, TR-006). */
 export function serverLimit(mapLimit) {
-  return mapLimit == null ? null : Math.max(mapLimit, 20);
+  // An old "All" (null) is the most a page receives (feature 014).
+  return mapLimit == null ? 1000 : Math.max(mapLimit, 20);
 }
 
 /** Shows only QSOs on `bands` (case-insensitive), or every QSO for `null` (feature 011). */
