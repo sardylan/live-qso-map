@@ -49,7 +49,7 @@ Node, so page and runner agree on the Sun. Steps 01–09 run on the real clock, 
    the house. On every frame of the flight (until `data-view` changes, at `moveend`), read
    `#map`'s `data-camera` and `data-light`, which the page writes together on every `move`. The
    light's on-screen side must match the Sun's side for that camera, worked out independently in
-   the runner, wherever the Sun's `|x| ≥ 0.3`. At least 3 frames are needed. One mid-flight frame is kept
+   the runner, wherever the Sun's `|x| ≥ 0.3`. At least 2 frames are needed (CI renders in software at a few frames per second). One mid-flight frame is kept
    as a screenshot, because a capture takes longer than a frame. Screen pixels can't be checked mid-flight: the zoom changes faster than the glow
    band is wide. After the flight, do items 2 to 5 around the globe's on-screen centre
    (`data-centre`, which auto-zoom's padding moves). Then switch to Flat and back to Globe, and
