@@ -68,14 +68,7 @@ pub async fn enrich(event: QsoEvent, config: &Config, lookups: &Lookups) -> Enri
     let call = record.get("CALL").unwrap_or_default().trim().to_string();
     // The entity always comes from cty.dat for the call as logged, whatever gave the position
     // (feature 005, FR-002); feature 010 judges remote positions against it.
-    let entity = lookups.country.as_ref().and_then(|country| {
-        let info = country.entity_info(&call)?;
-        Some(QsoEntity {
-            prefix: info.prefix.to_string(),
-            name: info.name.to_string(),
-            cq_zone: info.cq_zone,
-        })
-    });
+    let entity = qso_entity(lookups, &call);
     let prefix = entity.as_ref().map(|e| e.prefix.as_str());
     // (source, found through the base callsign, reason), in the order they happened.
     let mut rejections: Vec<(&'static str, bool, acceptance::RejectReason)> = Vec::new();
@@ -160,11 +153,7 @@ pub async fn enrich(event: QsoEvent, config: &Config, lookups: &Lookups) -> Enri
         None => tracing::warn!(call, "no position found; the QSO is kept but not drawn"),
     }
     list_added_fields(&mut record, &before);
-    let sort_ts = record
-        .get("QSO_DATE")
-        .zip(record.get("TIME_ON"))
-        .and_then(|(d, t)| qso_timestamp(d, t))
-        .unwrap_or_default();
+    let sort_ts = sort_timestamp(&record);
     EnrichedQso {
         id: event.id,
         rev: event.rev,
@@ -173,6 +162,44 @@ pub async fn enrich(event: QsoEvent, config: &Config, lookups: &Lookups) -> Enri
         remote,
         station,
         entity,
+    }
+}
+
+/// The DXCC/WAE entity of `call` from the country data (feature 005).
+fn qso_entity(lookups: &Lookups, call: &str) -> Option<QsoEntity> {
+    let info = lookups.country.as_ref()?.entity_info(call)?;
+    Some(QsoEntity {
+        prefix: info.prefix.to_string(),
+        name: info.name.to_string(),
+        cq_zone: info.cq_zone,
+    })
+}
+
+fn sort_timestamp(record: &AdifRecord) -> i64 {
+    record
+        .get("QSO_DATE")
+        .zip(record.get("TIME_ON"))
+        .and_then(|(d, t)| qso_timestamp(d, t))
+        .unwrap_or_default()
+}
+
+/// Builds the QSO for a restored record with a saved position, with no lookup (feature 014,
+/// R4): the record as saved, the remote position with its saved precision and source, the
+/// station position from the record as received and the current configuration, and the entity
+/// from the current country data.
+pub fn reuse(event: QsoEvent, config: &Config, lookups: &Lookups) -> EnrichedQso {
+    let mut received = event.record;
+    let station = station::apply_station(&mut received, &config.station);
+    let record = event.saved.unwrap_or(received);
+    let call = record.get("CALL").unwrap_or_default().trim().to_string();
+    EnrichedQso {
+        id: event.id,
+        rev: event.rev,
+        sort_ts: sort_timestamp(&record),
+        remote: crate::history_file::restore::saved_position(&record),
+        entity: qso_entity(lookups, &call),
+        record,
+        station,
     }
 }
 
@@ -207,10 +234,16 @@ pub async fn run_worker(
                 Err(_) => return,
             },
         };
-        let qso = enrich(event, &config, &lookups).await;
+        let (id, rev) = (event.id.clone(), event.rev);
+        let qso = if event.saved.is_some() {
+            reuse(event, &config, &lookups)
+        } else {
+            enrich(event, &config, &lookups).await
+        };
         if !pipeline.publish(qso) {
             tracing::debug!("dropping a stale QSO version");
         }
+        pipeline.pending_remove(&id, rev);
     }
 }
 
@@ -591,5 +624,50 @@ mod tests {
                 "QTH",
             ]
         );
+    }
+
+    // --- reusing a saved position (feature 014, T024, R4) ------------------------------------
+
+    fn counting_source(calls: Arc<std::sync::atomic::AtomicUsize>) -> LookupSource {
+        Arc::new(move |_call: String| {
+            calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Box::pin(async { Ok(None) })
+        })
+    }
+
+    #[tokio::test]
+    async fn reuse_keeps_the_saved_record_and_makes_no_lookup() {
+        let mut config = Config::default();
+        config.station.locator = Some("JM49NH".into());
+        let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let areas = Arc::new(ExtentTable::embedded().expect("embedded entity extents"));
+        let country = Some(Arc::new(CountryData::parse(CTY)));
+        let l = Lookups::new(
+            vec![counting_source(calls.clone())],
+            country,
+            areas,
+            &config,
+        );
+
+        let mut ev = event("HB9ABC", &[]);
+        let mut saved = ev.record.clone();
+        for (k, v) in [
+            ("LAT", "N046 57.000"),
+            ("LON", "E007 27.000"),
+            ("APP_LIVEQSOMAP_POS_SOURCE", "cty"),
+            ("APP_LIVEQSOMAP_POS_PRECISION", "country"),
+            ("QTH", "Bern"),
+        ] {
+            saved.set(k, v);
+        }
+        ev.saved = Some(saved.clone());
+        let q = reuse(ev, &config, &l);
+        assert_eq!(q.record, saved, "every saved field kept");
+        let remote = q.remote.unwrap();
+        assert_eq!(remote.source, PositionSource::Cty);
+        assert_eq!(remote.precision, crate::position::Precision::Country);
+        assert_eq!(named(q.entity), entity("HB", "Switzerland"));
+        assert_eq!(q.station.unwrap().source, PositionSource::Config);
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 0);
     }
 }

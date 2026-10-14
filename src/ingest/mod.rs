@@ -43,6 +43,9 @@ pub struct QsoEvent {
     pub id: String,
     pub rev: u32,
     pub received_at: Instant,
+    /// The record as saved in the history file, when it is reused without a lookup or parked
+    /// (feature 014, R4, R8). `record` is always the record as received.
+    pub saved: Option<AdifRecord>,
 }
 
 impl QsoEvent {
@@ -63,6 +66,7 @@ impl QsoEvent {
             identity,
             rev: 1,
             received_at: Instant::now(),
+            saved: None,
         }
     }
 }
@@ -130,7 +134,7 @@ fn qartest_items(data: &[u8], from: SocketAddr, station: &StationConfig) -> Inge
 /// This is the only place that does it, because the identity needs it.
 pub(crate) fn normalise(
     mut record: AdifRecord,
-    from: SocketAddr,
+    from: impl std::fmt::Display,
     station: &StationConfig,
 ) -> Option<AdifRecord> {
     let date = record.get_non_empty("QSO_DATE");
@@ -156,6 +160,64 @@ pub(crate) fn normalise(
     Some(record)
 }
 
+/// The records of the history file as QSO events (feature 014, R2–R8), in file order.
+#[derive(Debug, Default)]
+pub struct Restored {
+    /// Events to queue, each with the record as loaded (written back if the service stops
+    /// before a worker is done with it). `saved` is set for those reused without a lookup.
+    pub events: Vec<(QsoEvent, AdifRecord)>,
+    /// Records on bands not considered (service only), `saved` holding the verbatim record.
+    pub parked: Vec<QsoEvent>,
+    pub report: crate::history_file::LoadReport,
+}
+
+/// Turns loaded records into events like a datagram's: `normalise` on the record as received,
+/// the identity with `APP_LIVEQSOMAP_LOGGER_ID` as logger id (R5), and the restore action.
+/// `source` names the file in log lines.
+pub fn restored_events(
+    records: Vec<AdifRecord>,
+    station: &StationConfig,
+    mode: crate::history_file::restore::Mode,
+    filter: Option<&BandSet>,
+    source: &str,
+) -> Restored {
+    use crate::history_file::restore::{RestoreAction, as_received, classify};
+    let mut restored = Restored::default();
+    for saved in records {
+        let action = classify(&saved, mode, filter);
+        let normalised = match action {
+            RestoreAction::Skip => None,
+            _ => normalise(as_received(&saved), source, station),
+        };
+        let Some(record) = normalised else {
+            restored.report.skipped += 1;
+            continue;
+        };
+        let logger_id = record
+            .get_non_empty(crate::history_file::LOGGER_ID_FIELD)
+            .map(str::to_string);
+        let mut event = QsoEvent::new(EventKind::New, record, logger_id, station);
+        restored.report.loaded += 1;
+        match action {
+            RestoreAction::Reuse => {
+                restored.report.reused += 1;
+                event.saved = Some(saved.clone());
+                restored.events.push((event, saved));
+            }
+            RestoreAction::Park => {
+                restored.report.parked += 1;
+                event.saved = Some(saved);
+                restored.parked.push(event);
+            }
+            RestoreAction::Enrich | RestoreAction::Skip => {
+                restored.report.to_enrich += 1;
+                restored.events.push((event, saved));
+            }
+        }
+    }
+    restored
+}
+
 /// Whether a normalised record's band is considered (feature 003, FR-007). With a filter
 /// active, an unknown band is not.
 pub fn band_allowed(record: &AdifRecord, filter: Option<&BandSet>) -> bool {
@@ -178,15 +240,16 @@ pub fn split_by_band(
 }
 
 /// Receives datagrams until shutdown, queues their events on channel 1 and publishes scores.
+/// `gate` already knows the QSOs restored from the history file (feature 014, R2).
 pub async fn run(
     socket: UdpSocket,
     station: StationConfig,
     queue: async_channel::Sender<QsoEvent>,
+    mut gate: gate::ResendGate,
     filter: Option<BandSet>,
     pipeline: Pipeline,
     mut shutdown: watch::Receiver<bool>,
 ) {
-    let mut gate = gate::ResendGate::new();
     let mut buffer = vec![0u8; 65_535];
     loop {
         let received = tokio::select! {
@@ -226,6 +289,7 @@ pub async fn run(
                 tracing::debug!(id = %event.id, "dropping an identical resend");
                 continue;
             }
+            pipeline.pending_insert(&event.id, event.rev, event.record.clone());
             if queue.send(event).await.is_err() {
                 return;
             }
@@ -439,5 +503,93 @@ mod tests {
         let warnings = warnings.lock().unwrap();
         assert_eq!(warnings.len(), 1, "{warnings:?}");
         assert!(warnings[0].contains("<score>"), "{}", warnings[0]);
+    }
+
+    // --- restored records (feature 014, T022) ------------------------------------------------
+
+    fn saved_record(call: &str, extra: &[(&str, &str)]) -> AdifRecord {
+        let mut r = record(&[("BAND", "20m"), ("MODE", "CW")]);
+        r.set("CALL", call);
+        for (k, v) in extra {
+            r.set(k, *v);
+        }
+        r
+    }
+
+    #[test]
+    fn restored_records_become_events_with_their_action() {
+        use crate::history_file::restore::Mode;
+        let station = StationConfig {
+            callsign: Some("IS0MZK".into()),
+            ..StationConfig::default()
+        };
+        let reused = saved_record(
+            "K2ABC",
+            &[
+                ("LAT", "N040 00.000"),
+                ("LON", "W075 00.000"),
+                ("APP_LIVEQSOMAP_POS_SOURCE", "qrz"),
+                ("APP_LIVEQSOMAP_POS_PRECISION", "locator6"),
+                (
+                    crate::history_file::ADDED_FIELD,
+                    "APP_LIVEQSOMAP_POS_PRECISION,APP_LIVEQSOMAP_POS_SOURCE,LAT,LON",
+                ),
+            ],
+        );
+        let qartest = saved_record(
+            "K6QA",
+            &[(crate::history_file::LOGGER_ID_FIELD, "3809734F4")],
+        );
+        let vhf = saved_record("IS0AAA", &[("BAND", "2m")]);
+        let mut invalid = saved_record("DL2XX", &[]);
+        invalid.remove("TIME_ON");
+        let restored = restored_events(
+            vec![reused.clone(), qartest, vhf.clone(), invalid],
+            &station,
+            Mode::Service,
+            Some(&contest()),
+            "test.adi",
+        );
+        assert_eq!(restored.events.len(), 2);
+        assert_eq!(restored.parked.len(), 1);
+        assert_eq!(
+            restored.report,
+            crate::history_file::LoadReport {
+                loaded: 3,
+                skipped: 1,
+                reused: 1,
+                to_enrich: 1,
+                parked: 1,
+            }
+        );
+
+        let (first, loaded) = &restored.events[0];
+        assert_eq!(loaded, &reused);
+        assert_eq!(
+            first.saved.as_ref(),
+            Some(&reused),
+            "Reuse keeps the saved record"
+        );
+        assert_eq!(
+            first.record.get("LAT"),
+            None,
+            "the event carries the record as received"
+        );
+        assert_eq!(first.record.get("STATION_CALLSIGN"), Some("IS0MZK"));
+
+        let (second, loaded) = &restored.events[1];
+        assert_eq!(second.saved, None, "Enrich");
+        assert_eq!(
+            loaded.get(crate::history_file::LOGGER_ID_FIELD),
+            Some("3809734F4")
+        );
+        assert_eq!(second.logger_id.as_deref(), Some("3809734F4"));
+        assert!(second.id.starts_with("L|"), "{}", second.id);
+
+        assert_eq!(
+            restored.parked[0].saved.as_ref(),
+            Some(&vhf),
+            "parked verbatim"
+        );
     }
 }
