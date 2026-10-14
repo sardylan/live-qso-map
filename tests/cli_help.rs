@@ -53,3 +53,16 @@ fn version_exits_zero() -> TestResult {
     assert!(String::from_utf8(out.stdout)?.starts_with("live-qso-map "));
     Ok(())
 }
+
+#[test]
+fn help_lists_the_history_options_of_feature_014() -> TestResult {
+    let out = run(&["--help"], &[("NO_COLOR", "1")])?;
+    let text = String::from_utf8(out.stdout)?;
+    assert!(text.contains("--history-file <PATH>"), "{text}");
+    assert!(text.contains("--enrich-only [<FILE>]"), "{text}");
+    assert!(
+        !text.contains("--history-size"),
+        "removed option still in help"
+    );
+    Ok(())
+}

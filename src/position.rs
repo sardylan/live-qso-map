@@ -23,6 +23,18 @@ impl Precision {
             Precision::Coordinates => "coordinates",
         }
     }
+
+    /// The inverse of [`Precision::as_str`] (feature 014: restoring a saved position).
+    pub fn parse(text: &str) -> Option<Self> {
+        [
+            Precision::Country,
+            Precision::Locator4,
+            Precision::Locator6,
+            Precision::Coordinates,
+        ]
+        .into_iter()
+        .find(|p| p.as_str() == text.trim())
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
@@ -46,6 +58,20 @@ impl PositionSource {
             PositionSource::Cty => "cty",
             PositionSource::Config => "config",
         }
+    }
+
+    /// The inverse of [`PositionSource::as_str`] (feature 014: restoring a saved position).
+    pub fn parse(text: &str) -> Option<Self> {
+        [
+            PositionSource::Logger,
+            PositionSource::Qrz,
+            PositionSource::HamQth,
+            PositionSource::QrzCq,
+            PositionSource::Cty,
+            PositionSource::Config,
+        ]
+        .into_iter()
+        .find(|s| s.as_str() == text.trim())
     }
 }
 
@@ -114,6 +140,16 @@ mod tests {
         assert_eq!(Precision::Locator6.as_str(), "locator6");
         assert_eq!(Precision::Locator4.as_str(), "locator4");
         assert_eq!(Precision::Country.as_str(), "country");
+        for p in [
+            Precision::Country,
+            Precision::Locator4,
+            Precision::Locator6,
+            Precision::Coordinates,
+        ] {
+            assert_eq!(Precision::parse(p.as_str()), Some(p));
+        }
+        assert_eq!(Precision::parse("exact"), None);
+        assert_eq!(PositionSource::parse("telepathy"), None);
         assert_eq!(
             serde_json::to_string(&Precision::Locator6).unwrap(),
             "\"locator6\""
@@ -132,6 +168,7 @@ mod tests {
         ];
         for (source, s) in all {
             assert_eq!(source.as_str(), s);
+            assert_eq!(PositionSource::parse(s), Some(source));
             assert_eq!(serde_json::to_string(&source).unwrap(), format!("\"{s}\""));
         }
     }

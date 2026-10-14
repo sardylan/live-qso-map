@@ -11,6 +11,7 @@ pub mod enrich;
 pub mod entity_extents;
 pub mod errors;
 pub mod history;
+pub mod history_file;
 pub mod ingest;
 pub mod maidenhead;
 pub mod mode;

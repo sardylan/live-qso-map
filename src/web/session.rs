@@ -222,7 +222,7 @@ mod tests {
     }
 
     fn pipeline_with(n: i64, queue: usize) -> Pipeline {
-        let p = Pipeline::new(0, queue);
+        let p = Pipeline::new(queue);
         for i in 0..n {
             p.publish(qso(i));
         }
@@ -381,7 +381,7 @@ mod tests {
 
     #[tokio::test]
     async fn driver_recovers_from_lag_with_one_snapshot() {
-        let pipeline = Pipeline::new(0, 4);
+        let pipeline = Pipeline::new(4);
         let gate = Arc::new(Notify::new());
         let open = Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (sent_tx, mut sent_rx) = mpsc::unbounded_channel();
@@ -489,7 +489,7 @@ mod tests {
 
     #[tokio::test]
     async fn driver_forwards_a_score_published_after_connect() {
-        let pipeline = Pipeline::new(0, 16);
+        let pipeline = Pipeline::new(16);
         let gate = Arc::new(Notify::new());
         let open = Arc::new(std::sync::atomic::AtomicBool::new(true));
         let (sent_tx, mut sent_rx) = mpsc::unbounded_channel();
@@ -559,7 +559,7 @@ mod tests {
     }
 
     fn mixed_pipeline() -> Pipeline {
-        let p = Pipeline::new(0, 16);
+        let p = Pipeline::new(16);
         for i in 0..30 {
             p.publish(qso_on(i, if i % 3 == 0 { "40m" } else { "30m" }));
         }

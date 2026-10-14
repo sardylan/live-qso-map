@@ -28,9 +28,7 @@ async fn fifty_pages_receive_every_qso() {
         .and_then(|s| s.parse().ok())
         .unwrap_or(60);
     let total = seconds * RATE;
-    let mut config = test_config();
-    config.history_size = 0;
-    let service = start(config, Some(vec![])).await.unwrap();
+    let service = start(test_config(), Some(vec![])).await.unwrap();
     let sent_at: Arc<Mutex<HashMap<String, Instant>>> = Arc::default();
     let latencies: Arc<Mutex<Vec<Duration>>> = Arc::default();
 

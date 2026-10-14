@@ -7,3 +7,6 @@
 | `cty-overrides.dat` | **synthetic** entities exercising `<lat/lon>`, `{cont}`, `~utc~`, `(cq)`, `[itu]` and `=EXACT` overrides, which the current AD1C file does not use | hand-made from the CTY format description |
 | `qrz/`, `hamqth/`, `qrzcq/` | provider XML responses (T047) | reconstructed from the providers' published API documentation, with fictitious data |
 | `malformed/` | malformed-input corpus (T085): truncated/overflowing/negative/huge ADIF lengths, binary noise, empty datagram, half and invalid QARTest XML, 65,000 `<`, invalid UTF-8, bad date | hand-made; `binary_noise.bin` from /dev/urandom |
+| `history-external.adi` | an exported log for feature 014 (T001): 2 records with `GRIDSQUARE`, 1 with `LAT`/`LON`, 3 with no position, 1 on `2m`, 1 malformed (no `TIME_ON`) | hand-made, fictitious calls |
+| `history-saved.adi` | a history file as the service writes it (feature 014, contracts/history-file.md): reused qrz and cty positions, a rejected position, a failed lookup, a QARTest record with `APP_LIVEQSOMAP_LOGGER_ID` | hand-made, fictitious calls |
+| `history-not-adif.txt` | plain text with neither `<EOH>` nor `<EOR>` (feature 014, R11) | hand-made |
