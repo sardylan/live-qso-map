@@ -7,6 +7,11 @@ which becomes the GitHub release notes (`docs/releasing.md`).
 
 ## [Unreleased]
 
+### Security
+- rustls 0.23.46: fixes RUSTSEC-2026-0346 (TLS secrets in `Debug` output), RUSTSEC-2026-0347,
+  RUSTSEC-2026-0348 and RUSTSEC-2026-0349, which affect the HTTPS connections to the callbooks and
+  the cty.dat download.
+
 ### Fixed
 - The globe's atmosphere turns with the Earth: its glow no longer stays in the same corner of
   the window when the globe is dragged or auto-zoom moves it. It is now brightest on the edge
