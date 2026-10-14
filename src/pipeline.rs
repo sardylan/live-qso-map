@@ -337,7 +337,10 @@ fn load_history(
     let source = path.display().to_string();
     let mut restored =
         crate::ingest::restored_events(records, &config.station, mode, filter, &source);
-    restored.report.skipped += malformed;
+    for reason in &malformed {
+        tracing::warn!("history file {source}: skipping a malformed record: {reason}");
+    }
+    restored.report.skipped += malformed.len();
     let r = &restored.report;
     tracing::info!(
         "history file {source}: loaded {} QSOs ({} reused, {} to enrich, {} on other bands), \
@@ -422,7 +425,7 @@ type BuiltSources = (
 async fn build_sources(config: &Config) -> Result<BuiltSources> {
     let http = crate::enrich::provider::http_client(config.lookup.timeout)?;
     let clients = crate::enrich::provider::clients(&config.lookup, &http);
-    let names: Vec<Option<&'static str>> = clients.iter().map(|c| Some(c.name())).collect();
+    let mut names: Vec<Option<&'static str>> = clients.iter().map(|c| Some(c.name())).collect();
     let mut sources: Vec<LookupSource> = clients.into_iter().map(provider_source).collect();
     let cty = &config.country_data;
     let refresh = crate::enrich::cty::load_or_refresh(
@@ -437,6 +440,7 @@ async fn build_sources(config: &Config) -> Result<BuiltSources> {
         Ok(Some(data)) => {
             let data = Arc::new(data);
             sources.push(cty_source(Arc::clone(&data)));
+            names.push(Some("cty"));
             country = Some(data);
         }
         Ok(None) => {}

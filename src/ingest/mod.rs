@@ -183,10 +183,17 @@ pub fn restored_events(
 ) -> Restored {
     use crate::history_file::restore::{RestoreAction, as_received, classify};
     let mut restored = Restored::default();
-    for saved in records {
+    for (index, saved) in records.into_iter().enumerate() {
         let action = classify(&saved, mode, filter);
         let normalised = match action {
-            RestoreAction::Skip => None,
+            RestoreAction::Skip => {
+                tracing::warn!(
+                    "history file {source}: skipping record {} without a valid CALL, QSO_DATE \
+                     and TIME_ON",
+                    index + 1
+                );
+                None
+            }
             _ => normalise(as_received(&saved), source, station),
         };
         let Some(record) = normalised else {
@@ -590,6 +597,36 @@ mod tests {
             restored.parked[0].saved.as_ref(),
             Some(&vhf),
             "parked verbatim"
+        );
+    }
+
+    #[test]
+    fn every_skipped_file_record_is_logged() {
+        use crate::history_file::restore::Mode;
+        let mut invalid = saved_record("DL2XX", &[]);
+        invalid.remove("TIME_ON");
+        let records = vec![
+            saved_record("K1AA", &[]),
+            invalid,
+            saved_record("K2BB", &[]),
+        ];
+        let warnings = Arc::new(Mutex::new(Vec::new()));
+        let subscriber = tracing_subscriber::registry().with(Warnings(warnings.clone()));
+        let restored = tracing::subscriber::with_default(subscriber, || {
+            restored_events(
+                records,
+                &StationConfig::default(),
+                Mode::Service,
+                None,
+                "test.adi",
+            )
+        });
+        assert_eq!(restored.report.skipped, 1);
+        let warnings = warnings.lock().unwrap();
+        assert_eq!(warnings.len(), 1, "{warnings:?}");
+        assert!(
+            warnings[0].contains("test.adi") && warnings[0].contains("record 2"),
+            "{warnings:?}"
         );
     }
 }
