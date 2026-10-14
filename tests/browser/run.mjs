@@ -302,9 +302,8 @@ async function glowOnSunSide(shotName, { minAbsX = 0.5 } = {}) {
   const boxes = limbSamples(view, rect, await globeCentre(rect));
   if (!boxes) throw new Error(`the limb is off the map at ${viewText}`);
   const expected = sunSide(view, sunNow());
-  const png = await page.capture(path.join(out, `${shotName}.png`));
+  const [left, right] = await settledMeasure(boxes, path.join(out, `${shotName}.png`));
   if (currentStep) addScreenshot(currentStep, `${shotName}.png`);
-  const [left, right] = (await page.measure(png, boxes)).map(luminance);
   const brighter = left > right ? 'left' : 'right';
   const reading = `glow brighter on the ${brighter} (L ${left.toFixed(1)} / R ${right.toFixed(1)}), Sun on the ${expected.side} (x ${expected.x.toFixed(2)}), view ${viewText}`;
   console.log(`   ${shotName}: ${reading}`);
@@ -329,10 +328,10 @@ async function noHaze() {
     { x: cx + side * r * 0.5 - 10, y: cy - 10, w: 20, h: 20 },
     { x: cx + side * r * 0.85 - 10, y: cy - 10, w: 20, h: 20 },
   ];
-  const on = (await page.measure(await page.capture(), boxes)).map(luminance);
+  const on = await settledMeasure(boxes);
   await q(`document.getElementById('atmosphere').click()`);
   await sleep(500);
-  const off = (await page.measure(await page.capture(), boxes)).map(luminance);
+  const off = await settledMeasure(boxes);
   await q(`document.getElementById('atmosphere').click()`);
   const reading = on.map((v, i) => `${v.toFixed(1)}/${off[i].toFixed(1)}`).join(', ');
   console.log(`   10-no-haze: on/off at centre, half, 85 %: ${reading}`);
@@ -370,7 +369,7 @@ async function turnToLongitude(target) {
 /**
  * Item 7: switches auto-zoom on and samples every frame of the flight: the light the page set
  * (`data-light`) must point to the Sun's side for that frame's camera (`data-camera`), worked
- * out independently here (FR-003, SC-003). Three of the frames are kept as screenshots.
+ * out independently here (FR-003, SC-003). One frame is kept as a screenshot.
  */
 async function flightFollowsSun() {
   const before = await q(`document.getElementById('map').dataset.view`);
@@ -386,8 +385,8 @@ async function flightFollowsSun() {
       const expected = sunSide(parseView(now.camera), sunNow());
       const actual = lightSide(now.light);
       frames.push({ camera: now.camera, expected: expected.side, x: expected.x, actual: actual?.side });
-      // One screenshot, once 3 frames are in: a capture takes longer than a frame.
-      if (frames.length === 3) {
+      // One screenshot, once 2 frames are in: a capture takes longer than a frame.
+      if (frames.length === 2) {
         const name = '10-atmosphere-flight';
         await page.capture(path.join(out, `${name}.png`));
         if (currentStep) addScreenshot(currentStep, `${name}.png`);
@@ -395,7 +394,9 @@ async function flightFollowsSun() {
     }
   }
   console.log(`   10-flight: ${frames.length} frames, ${frames.map((f) => `${f.camera}→${f.actual}`).slice(0, 4).join(' | ')}`);
-  if (frames.length < 3) throw new Error(`only ${frames.length} frames seen during the auto-zoom flight (need 3)`);
+  // CI renders in software at a few frames per second: a one-second flight may paint only two
+  // frames. Each frame seen is still checked against the Sun.
+  if (frames.length < 2) throw new Error(`only ${frames.length} frames seen during the auto-zoom flight (need 2)`);
   const wrong = frames.filter((f) => Math.abs(f.x) >= 0.3 && f.actual !== f.expected);
   if (wrong.length > 0) {
     throw new Error(`during the flight the glow was off the Sun's side: ${wrong.map((f) => `${f.camera} light ${f.actual}, Sun ${f.expected}`).join('; ')}`);
@@ -409,16 +410,16 @@ async function setBox(id, on) {
 }
 
 /**
- * The luminance of one box once the map has repainted: captures until two readings 500 ms apart
- * agree (CI renders in software at a few frames per second, so a fixed delay can still show the
- * previous frame). The last capture is saved to `file` when given.
+ * The luminance of each box once the map has repainted: captures until two readings 500 ms apart
+ * agree on every box (CI renders in software at a few frames per second, so a fixed delay can
+ * still show the previous frame). The last capture is saved to `file` when given.
  */
-async function settledLuminance(box, file) {
+async function settledMeasure(boxes, file) {
   let previous = null;
   for (let i = 0; i < 20; i++) {
-    const [value] = (await page.measure(await page.capture(file), [box])).map(luminance);
-    if (previous !== null && Math.abs(value - previous) < 0.5) return value;
-    previous = value;
+    const values = (await page.measure(await page.capture(file), boxes)).map(luminance);
+    if (previous && values.every((v, k) => Math.abs(v - previous[k]) < 0.5)) return values;
+    previous = values;
     await sleep(500);
   }
   return previous;
@@ -440,10 +441,10 @@ async function shadingAt(shotName, project) {
   if (!points) throw new Error(`no deep-night and full-day points on screen at ${viewText}`);
   const boxes = boxesAt([points.night.xy, points.day.xy]);
   await setBox('grayline', true);
-  const on = (await page.measure(await page.capture(path.join(out, `${shotName}.png`)), boxes)).map(luminance);
+  const on = await settledMeasure(boxes, path.join(out, `${shotName}.png`));
   if (currentStep) addScreenshot(currentStep, `${shotName}.png`);
   await setBox('grayline', false);
-  const off = (await page.measure(await page.capture(), boxes)).map(luminance);
+  const off = await settledMeasure(boxes);
   await setBox('grayline', true);
   const reading = `night ${points.night.at.map((v) => v.toFixed(1))} on/off ${on[0].toFixed(1)}/${off[0].toFixed(1)}, day ${points.day.at.map((v) => v.toFixed(1))} on/off ${on[1].toFixed(1)}/${off[1].toFixed(1)}, view ${viewText}`;
   console.log(`   ${shotName}: ${reading}`);
@@ -458,10 +459,10 @@ async function centreShading(shotName) {
   const [x, y] = (await globeCentre(rect)) ?? centre(rect);
   const boxes = boxesAt([[x, y]], 15);
   await setBox('grayline', true);
-  const [on] = (await page.measure(await page.capture(path.join(out, `${shotName}.png`)), boxes)).map(luminance);
+  const [on] = await settledMeasure(boxes, path.join(out, `${shotName}.png`));
   if (currentStep) addScreenshot(currentStep, `${shotName}.png`);
   await setBox('grayline', false);
-  const [off] = (await page.measure(await page.capture(), boxes)).map(luminance);
+  const [off] = await settledMeasure(boxes);
   await setBox('grayline', true);
   console.log(`   ${shotName}: centre on/off ${on.toFixed(1)}/${off.toFixed(1)}, view ${viewText}`);
   return { on, off, viewText };
@@ -744,10 +745,10 @@ const steps = {
     const sunXy = toScreenMercator(parseView(viewText), rect, [sunNow().lat, sunNow().lon], await globeCentre(rect));
     const sunBox = boxesAt([sunXy], 13);
     await setBox('sun-marker', true);
-    const withSun = await settledLuminance(sunBox[0], path.join(out, '11-grayline-sun.png'));
+    const [withSun] = await settledMeasure(sunBox, path.join(out, '11-grayline-sun.png'));
     if (currentStep) addScreenshot(currentStep, '11-grayline-sun.png');
     await setBox('sun-marker', false);
-    const withoutSun = await settledLuminance(sunBox[0]);
+    const [withoutSun] = await settledMeasure(sunBox);
     console.log(`   11-sun: subsolar box with/without the symbol ${withSun.toFixed(1)}/${withoutSun.toFixed(1)}, at ${sunXy.map((v) => v.toFixed(0))}`);
     if (Math.abs(withSun - withoutSun) < 0.1 * Math.max(withSun, withoutSun)) throw new Error(`no Sun symbol at the subsolar point (${withSun.toFixed(1)}/${withoutSun.toFixed(1)})`);
 
