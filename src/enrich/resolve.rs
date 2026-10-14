@@ -47,13 +47,36 @@ pub struct Lookup {
     pub rejections: Vec<(PositionSource, RejectReason)>,
     /// Whether an online source (anything but the country data) knew the callsign.
     pub known_online: bool,
+    /// Sources that gave no answer: name and why, in the configured order (feature 014, R7).
+    pub failed: Vec<(String, FailKind)>,
+    /// Answers other than the country data's: "found" and "not found" both count.
+    pub answered_online: usize,
+}
+
+/// Why a source gave no answer (feature 014, R7).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FailKind {
+    Error,
+    Timeout,
+}
+
+impl FailKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            FailKind::Error => "error",
+            FailKind::Timeout => "timeout",
+        }
+    }
 }
 
 /// Queries every source concurrently, each bounded by `timeout`, and judges every position
-/// with `accept` (feature 010). It doesn't choose a winner: see [`select`].
+/// with `accept` (feature 010). It doesn't choose a winner: see [`select`]. `names` names the
+/// sources by index for failure reports (missing entries fall back to the provider named in the
+/// error, then to `lookup`).
 pub async fn resolve_remote(
     call: &str,
     sources: &[LookupSource],
+    names: &[Option<&'static str>],
     order: &[PositionSource],
     timeout: Duration,
     accept: &(dyn Fn(&Position) -> Verdict + Sync),
@@ -67,15 +90,39 @@ pub async fn resolve_remote(
         .collect();
 
     let mut candidates = Vec::new();
-    for handle in handles {
+    let mut failed = Vec::new();
+    let mut answered_online = 0;
+    for (index, handle) in handles.into_iter().enumerate() {
+        let name = names.get(index).copied().flatten();
         match handle.await {
-            Ok(Ok(Ok(Some(candidate)))) => candidates.push(candidate),
-            Ok(Ok(Ok(None))) => {}
-            Ok(Ok(Err(e))) => tracing::warn!(call, "lookup failed: {e}"),
-            Ok(Err(_)) => tracing::warn!(call, "lookup timed out after {timeout:?}"),
-            Err(e) => tracing::warn!(call, "lookup task failed: {e}"),
+            Ok(Ok(Ok(Some(candidate)))) => {
+                if candidate.source != PositionSource::Cty {
+                    answered_online += 1;
+                }
+                candidates.push(candidate);
+            }
+            Ok(Ok(Ok(None))) => answered_online += 1,
+            Ok(Ok(Err(e))) => {
+                tracing::warn!(call, "lookup failed: {e}");
+                let named = match &e {
+                    crate::errors::Error::Provider { provider, .. } => Some(*provider),
+                    _ => name,
+                };
+                failed.push((named.unwrap_or("lookup").to_string(), FailKind::Error));
+            }
+            Ok(Err(_)) => {
+                tracing::warn!(call, "lookup timed out after {timeout:?}");
+                failed.push((name.unwrap_or("lookup").to_string(), FailKind::Timeout));
+            }
+            Err(e) => {
+                tracing::warn!(call, "lookup task failed: {e}");
+                failed.push((name.unwrap_or("lookup").to_string(), FailKind::Error));
+            }
         }
     }
+    failed.sort_by_key(|(name, _)| {
+        PositionSource::parse(name).map_or(order.len(), |source| rank(order, source))
+    });
     candidates.sort_by_key(|c| rank(order, c.source));
 
     let known_online = candidates.iter().any(|c| c.source != PositionSource::Cty);
@@ -96,6 +143,8 @@ pub async fn resolve_remote(
         candidates,
         rejections,
         known_online,
+        failed,
+        answered_online,
     }
 }
 
@@ -284,7 +333,15 @@ mod tests {
         sources: &[LookupSource],
         accept: &(dyn Fn(&Position) -> Verdict + Sync),
     ) -> Lookup {
-        resolve_remote("K1ABC", sources, &ORDER, Duration::from_millis(200), accept).await
+        resolve_remote(
+            "K1ABC",
+            sources,
+            &[],
+            &ORDER,
+            Duration::from_millis(200),
+            accept,
+        )
+        .await
     }
 
     /// Resolve with an accept-all filter, then select: the behaviour before feature 010.
@@ -567,5 +624,80 @@ mod tests {
             rejected.known_online,
             "a rejected record is still a known callsign"
         );
+    }
+
+    // --- failed lookups (feature 014, T028, R7) ----------------------------------------------
+
+    fn hanging() -> LookupSource {
+        Arc::new(|_call: String| Box::pin(std::future::pending()))
+    }
+
+    fn unnamed_failure() -> LookupSource {
+        Arc::new(|_call: String| {
+            Box::pin(async {
+                Err(crate::errors::Error::InvalidPosition {
+                    lat: 99.0,
+                    lon: 0.0,
+                })
+            })
+        })
+    }
+
+    async fn named(sources: &[LookupSource], names: &[Option<&'static str>]) -> Lookup {
+        resolve_remote(
+            "K1ABC",
+            sources,
+            names,
+            &ORDER,
+            Duration::from_millis(100),
+            &|_| Verdict::Accept,
+        )
+        .await
+    }
+
+    #[tokio::test]
+    async fn failures_are_named_and_kept_in_the_configured_order() {
+        let lookup = named(
+            &[failing(), hanging(), unnamed_failure()],
+            &[None, Some("hamqth"), None],
+        )
+        .await;
+        assert_eq!(
+            lookup.failed,
+            [
+                ("qrz".to_string(), FailKind::Error),
+                ("hamqth".to_string(), FailKind::Timeout),
+                ("lookup".to_string(), FailKind::Error),
+            ]
+        );
+        assert_eq!(lookup.answered_online, 0);
+    }
+
+    #[tokio::test]
+    async fn answers_count_but_the_country_data_does_not() {
+        let lookup = named(
+            &[
+                empty(),
+                fake(PositionSource::HamQth, Some(Precision::Locator4), NOW, &[]),
+                fake(PositionSource::Cty, Some(Precision::Country), NOW, &[]),
+                failing(),
+            ],
+            &[],
+        )
+        .await;
+        assert_eq!(lookup.answered_online, 2, "not found and found both answer");
+        assert_eq!(lookup.failed, [("qrz".to_string(), FailKind::Error)]);
+        let cty_only = named(
+            &[fake(
+                PositionSource::Cty,
+                Some(Precision::Country),
+                NOW,
+                &[],
+            )],
+            &[],
+        )
+        .await;
+        assert_eq!(cty_only.answered_online, 0);
+        assert!(cty_only.failed.is_empty());
     }
 }

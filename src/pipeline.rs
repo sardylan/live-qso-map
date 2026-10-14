@@ -410,15 +410,21 @@ pub fn provider_source(client: Arc<crate::enrich::provider::ProviderClient>) -> 
     })
 }
 
+/// The production sources, their names (feature 014, R7) and the country data.
+type BuiltSources = (
+    Vec<LookupSource>,
+    Vec<Option<&'static str>>,
+    Option<Arc<CountryData>>,
+);
+
 /// Builds the production sources: every provider with credentials, then the country data
 /// (downloaded or refreshed first, R13). The country data is also returned, to resolve the
 /// station's entity (feature 004).
-async fn build_sources(config: &Config) -> Result<(Vec<LookupSource>, Option<Arc<CountryData>>)> {
+async fn build_sources(config: &Config) -> Result<BuiltSources> {
     let http = crate::enrich::provider::http_client(config.lookup.timeout)?;
-    let mut sources: Vec<LookupSource> = crate::enrich::provider::clients(&config.lookup, &http)
-        .into_iter()
-        .map(provider_source)
-        .collect();
+    let clients = crate::enrich::provider::clients(&config.lookup, &http);
+    let names: Vec<Option<&'static str>> = clients.iter().map(|c| Some(c.name())).collect();
+    let mut sources: Vec<LookupSource> = clients.into_iter().map(provider_source).collect();
     let cty = &config.country_data;
     let refresh = crate::enrich::cty::load_or_refresh(
         &cty.path,
@@ -439,7 +445,7 @@ async fn build_sources(config: &Config) -> Result<(Vec<LookupSource>, Option<Arc
             tracing::warn!("country data not ready in time; country-level positions disabled")
         }
     }
-    Ok((sources, country))
+    Ok((sources, names, country))
 }
 
 /// The station's entity and its extent for `hello` (feature 004, FR-010, FR-025). `None` when
@@ -496,13 +502,14 @@ pub async fn start_with_country(
 ) -> Result<RunningService> {
     crate::install_crypto_provider();
     let extents = ExtentTable::embedded()?;
-    let (sources, country) = match sources {
-        Some(sources) => (sources, country),
+    let (sources, names, country) = match sources {
+        Some(sources) => (sources, Vec::new(), country),
         None => build_sources(&config).await?,
     };
     let entity = station_entity(&config.station, country.as_deref(), &extents);
     let hello_station = HelloStation::new(&config.station, entity);
-    let lookups = crate::enrich::Lookups::new(sources, country, Arc::new(extents), &config);
+    let lookups =
+        crate::enrich::Lookups::new(sources, country, Arc::new(extents), &config).with_names(names);
     tracing::info!("{}", bands_log_line(config.band_filter.as_ref()));
     let udp = UdpSocket::bind((config.bind_address, config.udp_port)).await?;
     let http = TcpListener::bind((config.bind_address, config.http_port)).await?;

@@ -234,16 +234,16 @@ records on other bands are kept untouched.
 
 ### Tests for User Story 2 (write first, confirm they FAIL)
 
-- [ ] T028 [P] [US2] Write failing unit tests in `src/enrich/resolve.rs` (R7): `resolve_remote`
+- [X] T028 [P] [US2] Write failing unit tests in `src/enrich/resolve.rs` (R7): `resolve_remote`
   reports each online source as answered (`Ok(Some)`, `Ok(None)`) or failed (`error`,
   `timeout`); the country data never counts as failed.
-- [ ] T029 [P] [US2] Write failing unit tests in `src/enrich/mod.rs` (R7, FR-029):
+- [X] T029 [P] [US2] Write failing unit tests in `src/enrich/mod.rs` (R7, FR-029):
   - every online source fails on the logged call → `APP_LIVEQSOMAP_LOOKUP_FAILED =
     "qrz:timeout,hamqth:error"` (configured order), the cty fallback is used, and the base-call
     round is not run;
   - one source answers "not found" and another fails → no note;
   - no online source configured → no note.
-- [ ] T030 [US2] Write failing integration tests in `tests/history_file.rs` (`history-external.adi`
+- [X] T030 [US2] Write failing integration tests in `tests/history_file.rs` (`history-external.adi`
   and `history-saved.adi`, with `band_filter = hf-contest`):
   - records with `GRIDSQUARE` or `LAT`/`LON` are placed with source `logger` and no provider call
     (US2 scenario 1);
@@ -260,10 +260,10 @@ records on other bands are kept untouched.
 
 ### Implementation for User Story 2
 
-- [ ] T031 [US2] Implement failure reporting in `resolve_remote` (`src/enrich/resolve.rs`): a
+- [X] T031 [US2] Implement failure reporting in `resolve_remote` (`src/enrich/resolve.rs`): a
   `failed: Vec<(PositionSource, FailKind)>` and an `answered_online` count on `Lookup`. Make T028
   pass.
-- [ ] T032 [US2] Write `APP_LIVEQSOMAP_LOOKUP_FAILED` in `enrich()` (`src/enrich/mod.rs`) when at
+- [X] T032 [US2] Write `APP_LIVEQSOMAP_LOOKUP_FAILED` in `enrich()` (`src/enrich/mod.rs`) when at
   least one online source is configured and none answered on the logged call; skip the base-call
   round in that case; log a warning per failed source as today. Make T029 and T030 pass.
 

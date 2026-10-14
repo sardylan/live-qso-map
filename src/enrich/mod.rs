@@ -29,6 +29,8 @@ pub struct Lookups {
     pub country: Option<Arc<CountryData>>,
     /// Entity rectangles, to judge remote positions (feature 010, research R5).
     pub areas: Arc<ExtentTable>,
+    /// Names of the sources by index, for failure notes (feature 014, R7); may be shorter.
+    pub names: Arc<Vec<Option<&'static str>>>,
 }
 
 impl Lookups {
@@ -54,7 +56,14 @@ impl Lookups {
             order: Arc::new(order),
             country,
             areas,
+            names: Arc::new(Vec::new()),
         }
+    }
+
+    /// Names the sources by index, for `APP_LIVEQSOMAP_LOOKUP_FAILED` (feature 014).
+    pub fn with_names(mut self, names: Vec<Option<&'static str>>) -> Self {
+        self.names = Arc::new(names);
+        self
     }
 }
 
@@ -94,6 +103,7 @@ pub async fn enrich(event: QsoEvent, config: &Config, lookups: &Lookups) -> Enri
         let round1 = resolve::resolve_remote(
             &call,
             &lookups.sources,
+            &lookups.names,
             &lookups.order,
             config.lookup.timeout,
             &accept,
@@ -102,17 +112,30 @@ pub async fn enrich(event: QsoEvent, config: &Config, lookups: &Lookups) -> Enri
         for (source, reason) in &round1.rejections {
             rejections.push((source.as_str(), false, *reason));
         }
+        // Every online source failed, none answered: note it for a retry at the next start, and
+        // don't try the base call, which would fail the same way (feature 014, R7).
+        let all_failed = !round1.failed.is_empty() && round1.answered_online == 0;
+        if all_failed {
+            let note: Vec<String> = round1
+                .failed
+                .iter()
+                .map(|(name, kind)| format!("{name}:{}", kind.as_str()))
+                .collect();
+            record.set(crate::history_file::LOOKUP_FAILED_FIELD, note.join(","));
+        }
         let mut candidates = round1.candidates;
         // No online service knows the call as logged: retry once with the base callsign
         // (research R3). The country data's answer for the base call is dropped: the entity
         // stays the logged call's.
         if !round1.known_online
+            && !all_failed
             && callsign::retry_allowed(&call)
             && let Some(base) = callsign::base_call(&call)
         {
             let round2 = resolve::resolve_remote(
                 &base,
                 &lookups.sources,
+                &lookups.names,
                 &lookups.order,
                 config.lookup.timeout,
                 &accept,
@@ -669,5 +692,99 @@ mod tests {
         assert_eq!(named(q.entity), entity("HB", "Switzerland"));
         assert_eq!(q.station.unwrap().source, PositionSource::Config);
         assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 0);
+    }
+
+    // --- failed lookups (feature 014, T029, R7) ----------------------------------------------
+
+    fn named_failure(
+        provider: &'static str,
+        calls: Arc<std::sync::atomic::AtomicUsize>,
+    ) -> LookupSource {
+        Arc::new(move |_call: String| {
+            calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Box::pin(async move {
+                Err(crate::errors::Error::Provider {
+                    provider,
+                    message: "down".into(),
+                })
+            })
+        })
+    }
+
+    fn never_answers(calls: Arc<std::sync::atomic::AtomicUsize>) -> LookupSource {
+        Arc::new(move |_call: String| {
+            calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Box::pin(std::future::pending())
+        })
+    }
+
+    fn failing_lookups(
+        sources: Vec<LookupSource>,
+        names: Vec<Option<&'static str>>,
+        config: &Config,
+    ) -> Lookups {
+        let country = Arc::new(CountryData::parse(CTY));
+        let mut all = sources;
+        all.push(crate::pipeline::cty_source(Arc::clone(&country)));
+        let areas = Arc::new(ExtentTable::embedded().expect("embedded entity extents"));
+        Lookups::new(all, Some(country), areas, config).with_names(names)
+    }
+
+    fn short_timeout() -> Config {
+        let mut config = Config::default();
+        config.lookup.timeout = std::time::Duration::from_millis(100);
+        config
+    }
+
+    #[tokio::test]
+    async fn every_online_source_failing_leaves_a_note_and_skips_the_base_call() {
+        let config = short_timeout();
+        let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let l = failing_lookups(
+            vec![
+                named_failure("hamqth", calls.clone()),
+                never_answers(calls.clone()),
+            ],
+            vec![None, Some("qrz")],
+            &config,
+        );
+        let q = enrich(event("K1ABC/P", &[]), &config, &l).await;
+        assert_eq!(
+            q.record.get(crate::history_file::LOOKUP_FAILED_FIELD),
+            Some("qrz:timeout,hamqth:error")
+        );
+        assert_eq!(
+            q.remote.unwrap().source,
+            PositionSource::Cty,
+            "the cty fallback"
+        );
+        assert_eq!(
+            calls.load(std::sync::atomic::Ordering::SeqCst),
+            2,
+            "no base-call round"
+        );
+    }
+
+    #[tokio::test]
+    async fn an_answer_from_any_online_source_means_no_note() {
+        let config = short_timeout();
+        let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let not_found: LookupSource = Arc::new(|_call: String| Box::pin(async { Ok(None) }));
+        let l = failing_lookups(
+            vec![named_failure("hamqth", calls), not_found],
+            vec![None, Some("qrz")],
+            &config,
+        );
+        let q = enrich(event("K1ABC", &[]), &config, &l).await;
+        assert_eq!(q.record.get(crate::history_file::LOOKUP_FAILED_FIELD), None);
+    }
+
+    #[tokio::test]
+    async fn no_online_source_means_no_note() {
+        let config = short_timeout();
+        let l = failing_lookups(Vec::new(), Vec::new(), &config);
+        let q = enrich(event("K1ABC", &[]), &config, &l).await;
+        assert_eq!(q.record.get(crate::history_file::LOOKUP_FAILED_FIELD), None);
+        assert_eq!(q.remote.unwrap().source, PositionSource::Cty);
     }
 }

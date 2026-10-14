@@ -516,3 +516,164 @@ async fn ten_thousand_qsos_load_and_save_within_five_seconds() -> TestResult {
     assert_eq!(read_records(&path).len(), 10_000);
     Ok(())
 }
+
+// --- User Story 2 (T030) ----------------------------------------------------------------------
+
+fn fixture_copy(name: &str, dir: &Path) -> std::io::Result<PathBuf> {
+    let path = file_in(dir);
+    std::fs::copy(
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures")
+            .join(name),
+        &path,
+    )?;
+    Ok(path)
+}
+
+fn contest_bands(config: &mut live_qso_map::config::Config) {
+    config.band_filter = live_qso_map::band_filter::parse_setting(&["hf-contest".to_string()])
+        .ok()
+        .flatten();
+}
+
+fn by_call(records: &[AdifRecord]) -> HashMap<String, AdifRecord> {
+    records
+        .iter()
+        .map(|r| (r.get("CALL").unwrap_or_default().to_string(), r.clone()))
+        .collect()
+}
+
+/// Waits until `check` holds or 5 s pass.
+async fn eventually(check: impl Fn() -> bool) -> bool {
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while !check() && Instant::now() < deadline {
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    check()
+}
+
+#[tokio::test]
+async fn an_exported_log_is_completed_and_its_fields_are_kept() -> TestResult {
+    let dir = temp_dir("external");
+    let path = fixture_copy("history-external.adi", &dir)?;
+    let original = by_call(&read_records(&path));
+    let provider = FakeProvider::new(PositionSource::Qrz)
+        .found("K2ABC", 40.0, -75.0, Precision::Locator6)
+        .found("HB9ABC", 46.95, 7.45, Precision::Locator6)
+        .found("I2XYZ", 45.46, 9.19, Precision::Locator6);
+    let service = start_on(&path, &provider, contest_bands).await?;
+    assert_eq!(
+        wait_for_len(&service, 6).await,
+        6,
+        "the 2m and malformed records stay out"
+    );
+    assert!(eventually(|| snapshot(&service).len() == 6).await);
+    let placed = snapshot(&service);
+    for call in ["DL1ABC", "F5XYZ", "K1ABC"] {
+        assert_eq!(placed[call].3, PositionSource::Logger, "{call}");
+    }
+    for call in ["K2ABC", "HB9ABC", "I2XYZ"] {
+        assert_eq!(placed[call].3, PositionSource::Qrz, "{call}");
+    }
+    assert_eq!(
+        provider.calls(),
+        3,
+        "lookups only for records without a position"
+    );
+    service.shutdown().await;
+
+    let saved = read_records(&path);
+    assert_eq!(saved.len(), 7, "the 2m record is written back too");
+    let saved = by_call(&saved);
+    assert_eq!(
+        saved["IS0AAA"], original["IS0AAA"],
+        "the 2m record is untouched (FR-026)"
+    );
+    for (call, before) in &original {
+        if call == "IS0AAA" || call == "DL2XX" {
+            continue;
+        }
+        let after = &saved[call];
+        for (name, value) in before.iter() {
+            assert_eq!(after.get(name), Some(value), "{call} {name} (HR-11)");
+        }
+        let listed: Vec<&str> = after
+            .get(ADDED_FIELD)
+            .unwrap_or_default()
+            .split(',')
+            .collect();
+        for (name, _) in after.iter() {
+            let expected = before.get(name).is_some()
+                || listed.contains(&name)
+                || name == ADDED_FIELD
+                || name == "STATION_CALLSIGN";
+            assert!(expected, "{call}: {name} added but not listed");
+        }
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn failed_lookups_are_retried_and_rejected_ones_are_not() -> TestResult {
+    let dir = temp_dir("saved");
+    let path = fixture_copy("history-saved.adi", &dir)?;
+    let provider =
+        FakeProvider::new(PositionSource::Qrz).found("K3ABC", 38.6, -90.2, Precision::Locator6);
+    let service = start_on(&path, &provider, contest_bands).await?;
+    assert_eq!(wait_for_len(&service, 5).await, 5);
+    assert!(
+        eventually(|| {
+            snapshot(&service)
+                .get("K3ABC")
+                .is_some_and(|q| q.3 == PositionSource::Qrz)
+        })
+        .await
+    );
+    assert_eq!(
+        provider.calls(),
+        1,
+        "only the failed lookup is retried (FR-028, FR-029)"
+    );
+    service.shutdown().await;
+
+    let saved = by_call(&read_records(&path));
+    assert_eq!(saved["K3ABC"].get("APP_LIVEQSOMAP_LOOKUP_FAILED"), None);
+    assert_eq!(saved["K3ABC"].get("APP_LIVEQSOMAP_POS_SOURCE"), Some("qrz"));
+    assert_eq!(
+        saved["I2XYZ"].get("APP_LIVEQSOMAP_POS_REJECTED"),
+        Some("qrz:outside-entity")
+    );
+    assert_eq!(
+        saved["K2ABC"].get("NAME"),
+        Some("Qrz"),
+        "reused records keep every field"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_lookup_that_fails_again_keeps_its_note() -> TestResult {
+    let dir = temp_dir("saved-fails");
+    let path = fixture_copy("history-saved.adi", &dir)?;
+    let provider = FakeProvider::new(PositionSource::Qrz).answer("K3ABC", Answer::Fail);
+    let service = start_on(&path, &provider, contest_bands).await?;
+    assert_eq!(wait_for_len(&service, 5).await, 5);
+    assert!(eventually(|| provider.calls() == 1).await);
+    let pipeline = service.pipeline().clone();
+    assert!(
+        eventually(|| {
+            pipeline
+                .lock_history()
+                .iter_in_order()
+                .any(|q| q.record.get("APP_LIVEQSOMAP_LOOKUP_FAILED") == Some("qrz:error"))
+        })
+        .await
+    );
+    service.shutdown().await;
+    let saved = by_call(&read_records(&path));
+    assert_eq!(
+        saved["K3ABC"].get("APP_LIVEQSOMAP_LOOKUP_FAILED"),
+        Some("qrz:error")
+    );
+    Ok(())
+}
