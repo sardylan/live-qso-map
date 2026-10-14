@@ -408,6 +408,22 @@ async function setBox(id, on) {
   await sleep(400);
 }
 
+/**
+ * The luminance of one box once the map has repainted: captures until two readings 500 ms apart
+ * agree (CI renders in software at a few frames per second, so a fixed delay can still show the
+ * previous frame). The last capture is saved to `file` when given.
+ */
+async function settledLuminance(box, file) {
+  let previous = null;
+  for (let i = 0; i < 20; i++) {
+    const [value] = (await page.measure(await page.capture(file), [box])).map(luminance);
+    if (previous !== null && Math.abs(value - previous) < 0.5) return value;
+    previous = value;
+    await sleep(500);
+  }
+  return previous;
+}
+
 /** 9×9 boxes around page points. */
 const boxesAt = (points, size = 9) => points.map(([x, y]) => ({ x: x - size / 2, y: y - size / 2, w: size, h: size }));
 
@@ -728,10 +744,10 @@ const steps = {
     const sunXy = toScreenMercator(parseView(viewText), rect, [sunNow().lat, sunNow().lon], await globeCentre(rect));
     const sunBox = boxesAt([sunXy], 13);
     await setBox('sun-marker', true);
-    const [withSun] = (await page.measure(await page.capture(path.join(out, '11-grayline-sun.png')), sunBox)).map(luminance);
+    const withSun = await settledLuminance(sunBox[0], path.join(out, '11-grayline-sun.png'));
     if (currentStep) addScreenshot(currentStep, '11-grayline-sun.png');
     await setBox('sun-marker', false);
-    const [withoutSun] = (await page.measure(await page.capture(), sunBox)).map(luminance);
+    const withoutSun = await settledLuminance(sunBox[0]);
     console.log(`   11-sun: subsolar box with/without the symbol ${withSun.toFixed(1)}/${withoutSun.toFixed(1)}, at ${sunXy.map((v) => v.toFixed(0))}`);
     if (Math.abs(withSun - withoutSun) < 0.1 * Math.max(withSun, withoutSun)) throw new Error(`no Sun symbol at the subsolar point (${withSun.toFixed(1)}/${withoutSun.toFixed(1)})`);
 
