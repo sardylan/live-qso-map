@@ -34,11 +34,13 @@ HTTP/WebSocket interface rules (binding): `docs/http-api.md`.
 - browser `localStorage`: `lqm.theme`, `lqm.atmosphere`, `lqm.legend`; protocol 4 (`hello.band_groups`, `set_limit.bands`) (011-theme-settings-panel)
 - Rust (edition 2024, latest stable toolchain); browser ES modules; Node 22+ built-ins for the browser test runner + no new crates, no npm packages; CI-only cimg/node:24.21.0-browsers and Chrome for Testing 154.0.8037.92 (pinned, SHA-256 verified) (012-page-fixes-browser-tests)
 - none; browser test artifacts in `target/browser-test/` (012-page-fixes-browser-tests)
+- browser ES modules; one `/grayline.js` route in Rust + none new (MapLibre GL JS 5.24.0 `setLight` per move, `addProtocol` raster tiles, `symbol` layer) (013-atmosphere-follows-globe)
+- browser `localStorage`: `lqm.grayline`, `lqm.sun`. No server state. (013-atmosphere-follows-globe)
 
 ### Recent Changes
 
+- 013-atmosphere-follows-globe: the globe's glow is a backlit rim brightest towards the Sun, recomputed on every move (never a haze over the map); grayline as page-drawn raster tiles (smooth night fade, 0° to −12°) on both views; optional Sun symbol; release browser steps `atmosphere` and `grayline` on a test clock
 - 012-page-fixes-browser-tests: page fixes (served modules, toggle outline, opaque panel, no duplicate band groups); release-only real-browser tests over the Chrome DevTools Protocol, Node built-ins only
 - 011-theme-settings-panel: Added Rust (edition 2024, latest stable toolchain; see `docs/rust-guidelines.md` §2); browser ES modules + none new; themes (light/dim/dark), sun-based auto theme, atmosphere, settings panel, band-group choice, default bands hf-contest
-- 010-portable-callsigns: Added Rust (edition 2024, latest stable toolchain; see `docs/rust-guidelines.md` §2) + none new; positions checked against the entity's rectangle, base-callsign retry for compound calls
 
 <!-- SPECKIT END -->
