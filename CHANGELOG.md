@@ -7,6 +7,8 @@ which becomes the GitHub release notes (`docs/releasing.md`).
 
 ## [Unreleased]
 
+## [3.1.1] - 2026-10-14
+
 ### Fixed
 - The release browser test expects the QSOs restored from the history file after a restart, and
   keeps its history file in its own output folder. 3.1.0 was tagged but never published: its
