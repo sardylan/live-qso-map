@@ -16,6 +16,8 @@ so the team replicates what worked and avoids what did not.
 | LL-001 | open | Inline lint suppressions are blocked by a project hook | 2026-10-11 |
 | LL-002 | open | A valid pipeline config had never run | 2026-10-12 |
 | LL-003 | open | cargo-release step subcommands skip the safety checks | 2026-10-12 |
+| LL-004 | open | A page file added to src/web/assets/ must also be served | 2026-10-13 |
+| LL-005 | open | Look at a map effect in the browser before designing around it | 2026-10-14 |
 
 ## Lessons
 
@@ -144,6 +146,41 @@ Page files are embedded and routed one by one in `src/web/mod.rs`, and no test c
 - Action: `every_page_asset_on_disk_is_served` fetches every `.js` and `.css` in `src/web/assets/` on every change. Owner: maintainer. Status: done (feature 012).
 - Action: the `browser-test` job opens the release build's page in Chrome before `publish-github-release`. Owner: maintainer. Status: done (feature 012).
 - Action: finish a feature's manual checks before tagging a release that contains it. Owner: maintainer. Status: open.
+
+## LL-005: Look at a map effect in the browser before designing around it
+
+- Status: open
+- Date: 2026-10-14
+- Phase: execute
+- Category: process
+- Owner: maintainer
+- Links: specs/013-atmosphere-follows-globe/research.md (R1–R2, R7, revised); TR-019, TR-020, TR-021
+<!-- key: 27af3a38f154 -->
+
+### What happened
+
+Feature 013 planned two rendering designs that passed analysis, review and their unit tests, and failed on first sight in Chrome:
+- the Earth-fixed light for the globe's glow put a pale haze over the whole day side (MapLibre's scattering shader lights the disc, not only the rim), dimming land, labels and markers;
+- the grayline as 25 stacked GeoJSON caps made the globe 3× slower to drag.
+
+Both were redesigned during implementation (TR-021, TR-020), and the spec, plan, research, contracts and tasks rewritten to match.
+
+### What went well / where we got lucky
+
+The release browser runner from feature 012 was already there: a screenshot and a frame-rate number showed each problem within minutes of wiring, before anything shipped. The pure maths (subsolar point, Sun height, replay tests) carried over to the new designs unchanged.
+
+### What did not work
+
+Research checked the geometry numerically (the light direction, the caps against `solarElevation`), but nothing looked at the rendered result or timed it until implementation. The research even rejected the final designs on assumptions that turned out wrong: that a per-move light lags a frame, and that raster tiles flash on refresh.
+
+### Root cause
+
+Rendering behaviour (shader lighting, how the globe subdivides polygons) isn't visible in source code or unit tests. The planning steps had no step that ran the effect in a browser.
+
+### Recommendation / action item
+
+- Action: for a new map rendering effect, run a throwaway browser spike during planning (one screenshot and one frame-rate reading through `tests/browser/`), and record what it showed in research before choosing. Owner: maintainer. Status: open.
+- Action: write down untested assumptions in research as assumptions, with how to check them. Owner: maintainer. Status: open.
 
 ## Archive
 
