@@ -412,3 +412,14 @@ Task: "T017 restore.rs tests" → "T018 restore.rs"
 3. **US3**: `--enrich-only [FILE]`.
 4. **Phase 6** whenever convenient: the page tops out at 1000.
 5. **Polish**: README, example config, domain document, changelog, gates, pull request.
+
+---
+
+## Phase 8: Convergence
+
+Appended by `/speckit-converge` on review of the current codebase against spec/plan/tasks.
+Complete with `/speckit-implement`.
+
+- [ ] T047 [US2] Log every skipped file record, not only the count (constitution II "invalid input MUST be logged and skipped", FR-010). Today `src/history_file/read.rs` counts parse errors without logging them, and `restored_events` in `src/ingest/mod.rs` skips records classified `Skip` silently (only records that fail `normalise` are logged). Tests first: in `src/history_file/read.rs`, `read` returns the parse errors (record number and message) alongside the count; in `src/ingest/mod.rs`, a record without `TIME_ON` produces one warning naming the file and the record's position, captured with the warning-counting `tracing_subscriber` layer used in `tests/qartest_replay.rs`. Then implement: one `warn!` per malformed record (`history file <path>: skipping record N: <reason>`), and one per invalid record. <!-- gap: constitution II; FR-010 -->
+- [ ] T048 [US2] Write `APP_LIVEQSOMAP_LOOKUP_FAILED` also when every online source failed and the country data does not know the callsign (FR-029). Today `resolve_remote` (`src/enrich/resolve.rs`) counts any `Ok(None)` as an online answer, so the country data's `Ok(None)` hides the failure. Tests first in `src/enrich/resolve.rs` and `src/enrich/mod.rs`: with a source named `cty` (via `Lookups::with_names`) answering `Ok(None)` and every online source failing, `answered_online` is 0 and the note is written. Then implement: a source named `cty` never counts as an online answer; `build_sources` in `src/pipeline.rs` names the country-data source `Some("cty")`. <!-- gap: FR-029 -->
+- [ ] T049 [US1] Add the missing test for FR-009 (constitution I: every behaviour needs a test): in `tests/history_file.rs`, restore a file whose records are in scrambled order (QSO times 1203, 1200, 1202, 1201) and check that `iter_in_order()` and a page snapshot list them by QSO time, and that the saved file is written in QSO time order. <!-- gap: FR-009; constitution I -->
