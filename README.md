@@ -89,7 +89,8 @@ checked with Subresource Integrity. It is laid out for windows 1024 px wide or w
 
 - **Settings panel**: the gear at the top right opens a panel on the right edge (full width on
   narrow screens), with every viewer setting in four groups:
-  - **Map**: "Last N QSOs" and **Atmosphere on the globe**;
+  - **Map**: "Last N QSOs", **Atmosphere on the globe**, **Grayline (day and night)** and
+    **Sun position**;
   - **Last QSOs box**: shown or hidden, its size and where the newest row goes;
   - **Appearance**: the theme;
   - **Legend**: which band groups to show.
@@ -105,8 +106,14 @@ checked with Subresource Integrity. It is laid out for windows 1024 px wide or w
     and why.
   - With the default base map, each theme has its own OpenFreeMap style (Liberty, Fiord, Dark); a
     configured base map is dimmed instead.
-- **Atmosphere**: on the globe, a sky and a glow around the Earth in the theme's colours. On by
-  default; the flat map has none.
+- **Atmosphere**: on the globe, a sky and a thin glow around the Earth in the theme's colours,
+  brightest on the edge towards the Sun, and turning with the globe as it moves. It never covers
+  the map, its markers or its lines. On by default; the flat map has none.
+- **Grayline**: the night side is shaded on the flat map and on the globe, fading from the
+  horizon to full night 12° below it, so the twilight band where low-band paths open shows at a
+  glance. It follows the Sun through the day. Place names, borders, QSO markers and paths stay
+  on top. On by default.
+- **Sun position**: a small Sun symbol where the Sun is overhead now. Off by default.
 - **Legend groups**: "All considered bands" (the default), or any mix of the band groups the
   service considers, such as "HF contest (6 bands)" or "WARC (3 bands)". The legend, the map and
   the box then show only those bands, and QSOs with no band are hidden.
@@ -149,8 +156,8 @@ checked with Subresource Integrity. It is laid out for windows 1024 px wide or w
 - **Scale**: a metric scale bar, shown on the flat map only.
 
 Each browser remembers every viewer choice across restarts: Globe/Flat, Auto-zoom, Last QSOs,
-the map's "Last N", the box size and order, the theme, the atmosphere and the legend groups. The
-panel itself always starts closed.
+the map's "Last N", the box size and order, the theme, the atmosphere, the grayline, the Sun
+position and the legend groups. The panel itself always starts closed.
 
 ## Configuration
 

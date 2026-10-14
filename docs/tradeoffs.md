@@ -30,6 +30,10 @@ we deliberately gave up. Records the *why*, not just the *what*.
 | TR-015 | accepted | Positions are judged against entity rectangles, excluding only fully nested ones | 2026-10-13 |
 | TR-016 | accepted | Viewer settings in a side panel opened by a gear button | 2026-10-13 |
 | TR-017 | accepted | The server computes "last N on the chosen bands" (protocol 4) | 2026-10-13 |
+| TR-018 | accepted | Real-browser release tests: Chrome for Testing in cimg/node-browsers, driven over the DevTools Protocol | 2026-10-13 |
+| TR-019 | superseded by TR-021 | The globe's glow lit by an Earth-fixed light over the subsolar point | 2026-10-14 |
+| TR-020 | accepted | The grayline as raster tiles drawn by the page | 2026-10-14 |
+| TR-021 | accepted | The globe's glow as a rim lit from behind, towards the Sun, recomputed on every move | 2026-10-14 |
 
 ## Decisions
 
@@ -770,9 +774,132 @@ In the context of release-time browser tests, facing the need for a pinned brows
 - Positive: the browser version is exact and verified; the tests add no npm or crate dependency; developers run them with any local Chrome or Chromium.
 - Negative / debt accepted: the Chrome pin needs a deliberate bump now and then; the driver covers only the protocol calls the tests use.
 
+## TR-020: The grayline as raster tiles drawn by the page
+
+- Status: accepted
+- Date: 2026-10-14
+- Phase: execute
+- Deciders: project owner, Claude
+- Links: specs/013-atmosphere-follows-globe/research.md (R7, revised; R8); src/web/assets/grayline.js; spec FR-009 to FR-016, SC-004, SC-006
+<!-- key: 061a9365dc15 -->
+
+### Context & problem
+
+Feature 013 shades the night side (the grayline) on the flat map and on the globe with a smooth fade from the Sun at the horizon to full night at −12°. The shading must stay attached to the map, sit under the base map's labels, follow the Sun every minute, and not slow the map down.
+
+### Decision drivers
+
+- A smooth fade, with no visible steps (FR-010)
+- The same picture on the flat map, every world copy and the globe (FR-012, FR-015)
+- The map stays as smooth as without it (FR-016)
+- No new dependency, no custom shaders (constitution III)
+
+### Options considered
+
+| Option | Pros | Cons / what it sacrifices |
+|--------|------|---------------------------|
+| Raster tiles drawn by the page through a `grayline://` protocol, each pixel shaded by its Sun height (chosen) | Pixel-exact, smooth fade; one raster layer, one draw pass; MapLibre repeats tiles on world copies and drapes them over the globe; `setTiles` on a new minute or theme swaps tiles without a flash | Tiles drawn in JavaScript each minute (a few 256 px tiles at contest zooms); shading stops at about 85° latitude, where Web Mercator ends |
+| 25 nested GeoJSON caps (one per 0.5° of Sun height) in one `fill` layer | Plain vector data; exact geometry; built and unit-tested first | On the globe, 3× slower to drag (8.3 against 24.8 frames/s in software rendering; 14 with only 5 caps): the huge polygons are subdivided for the globe; pole closing and date-line unwrapping to maintain |
+| A custom WebGL layer | Exact and smooth | Its own globe and Mercator shaders to write and keep in step with MapLibre; far more code |
+
+### Decision
+
+We draw the grayline as raster tiles the page generates through its own `grayline://` protocol, in one `raster` layer inserted before the base map's first boundary layer.
+
+### Y-statement
+
+In the context of shading the night side on both views, facing a smooth fade that must not slow the globe, we chose page-drawn raster tiles over stacked GeoJSON caps and a custom WebGL layer, to get a pixel-exact fade in a single draw pass, accepting per-minute tile drawing in JavaScript and no shading beyond 85° of latitude.
+
+### Consequences
+
+- Positive: the fade is exact (SC-006); one layer covers both views and every world copy; 60 frames/s on a real GPU with or without it.
+- Negative / debt accepted: about 20 % fewer frames in software rendering (recorded by the browser test, not judged: SC-004); polar caps beyond 85° stay unshaded.
+
+## TR-021: The globe's glow as a rim lit from behind, towards the Sun, recomputed on every move
+
+- Status: accepted
+- Date: 2026-10-14
+- Phase: execute
+- Deciders: project owner, Claude
+- Links: specs/013-atmosphere-follows-globe/research.md (R1–R2, revised; R4); src/web/assets/view.js (lightFor); spec FR-001 to FR-004, FR-019, clarification (implementation session)
+<!-- key: 4d87faa739a6 -->
+
+### Context & problem
+
+The globe's atmosphere glow stayed in the same corner of the window when the globe moved (bugs A1, A2): MapLibre's default light is fixed to the viewport. The glow must turn with the globe and be brightest towards the real Sun. The owner's rule, set during implementation: markers, great-circle lines and land must stay fully visible, and a little effect is fine.
+
+### Decision drivers
+
+- The glow follows every move, at every frame (FR-001 to FR-003)
+- It faces the real Sun (FR-004)
+- The displayed data stays fully visible (FR-019)
+- No new dependency, no custom shaders (constitution III)
+
+### Options considered
+
+| Option | Pros | Cons / what it sacrifices |
+|--------|------|---------------------------|
+| A `viewport` light recomputed on every `move`: the Sun's on-screen direction, from behind the globe (z ≤ −0.93) (chosen) | Feature 011's thin rim, brightest towards the Sun; never hazes the map; the `move` event runs inside the animation frame, so there is no lag | One `setLight` per frame while the map moves; the glow shows the Sun's direction, not the day side's real lighting |
+| An Earth-fixed light (`anchor: "map"`) over the subsolar point (TR-019) | Physically right; MapLibre turns it with no handler | When the day side faces the viewer, the scattering shader hazes the whole day half of the disc: land, labels and markers lose contrast (a red marker turned pink) |
+| The same, with the atmosphere strength turned down | Less haze | Still a haze over the data; a weaker rim |
+| A custom glow (WebGL layer or CSS gradient) | Full control | Duplicates the shader; tracks the globe's radius and offset every frame; much more code |
+
+### Decision
+
+We set a `viewport` light from the camera on every `move`, pointing towards the Sun's on-screen direction from behind the globe (`lightFor(subsolar, camera)`).
+
+### Y-statement
+
+In the context of the globe's atmosphere glow, facing a glow that must follow the globe and the Sun without dimming the map, we chose a backlit viewport light recomputed on every move over an Earth-fixed light, to keep the data fully visible, accepting a per-frame light update and a glow that shows the Sun's direction rather than physical day-side lighting.
+
+### Consequences
+
+- Positive: the glow follows hand moves and auto-zoom flights frame by frame; the map under it is unchanged (SC-011, tested).
+- Negative / debt accepted: the light math copies MapLibre 5.24.0's `getSunPos` conventions; re-check them on a MapLibre upgrade (the replay tests in `web/view.test.js` will fail if they change).
+
 ## Archive
 
 Superseded or deprecated entries sink here; nothing is deleted (git keeps history).
+
+## TR-019: The globe's glow lit by an Earth-fixed light over the subsolar point
+
+- Status: superseded by TR-021
+- Date: 2026-10-14
+- Phase: plan
+- Deciders: project owner, Claude
+- Links: specs/013-atmosphere-follows-globe/research.md (R1–R2, first decision)
+<!-- key: d2992325cb79 -->
+
+### Context & problem
+
+The globe's glow stayed fixed in the window (bugs A1, A2), because MapLibre's default light is anchored to the viewport. It had to turn with the globe and face the real Sun.
+
+### Decision drivers
+
+- Follow every move, at every frame
+- Face the real Sun
+- Little code
+
+### Options considered
+
+| Option | Pros | Cons / what it sacrifices |
+|--------|------|---------------------------|
+| `anchor: "map"`, placed over the subsolar point (chosen at planning) | MapLibre turns it with the globe; no handler | Untested look: physical lighting from the front |
+| Recompute a viewport light on every move | Full control of the look | Believed to lag a frame (wrong: `move` runs inside the frame) |
+| A custom glow | Full control | Much more code |
+
+### Decision
+
+We chose the Earth-fixed light at planning. The first browser run showed a haze over the whole day side, against the owner's rule that data stays visible; TR-021 replaced it.
+
+### Y-statement
+
+In the context of the globe's glow, facing a glow fixed to the window, we chose an Earth-fixed light over a per-move viewport light, to need no handler, accepting a look not yet seen in a browser.
+
+### Consequences
+
+- Positive: the replay tests and the subsolar maths carried over to TR-021.
+- Negative / debt accepted: superseded on first sight (LL-005).
 
 <!-- ENTRY TEMPLATE: copy a block into the Decisions section above the
 Archive heading, assign the next TR-NNN id, and fill it in. The journal_append

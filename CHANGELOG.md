@@ -7,6 +7,20 @@ which becomes the GitHub release notes (`docs/releasing.md`).
 
 ## [Unreleased]
 
+### Fixed
+- The globe's atmosphere turns with the Earth: its glow no longer stays in the same corner of
+  the window when the globe is dragged or auto-zoom moves it. It is now brightest on the edge
+  towards the real Sun, and stays a thin rim that never hazes the map.
+
+### Added
+- Grayline: the night side is shaded on the flat map and on the globe, with a smooth fade from
+  the horizon to full night 12° below it, following the Sun. A "Grayline (day and night)"
+  setting, on by default, switches it off.
+- Sun position: an optional Sun symbol where the Sun is overhead ("Sun position" setting, off by
+  default).
+- The release browser test checks the glow after hand moves and auto-zoom, and the grayline on
+  both views.
+
 ## [3.0.1] - 2026-10-13
 
 ### Fixed

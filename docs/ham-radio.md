@@ -288,9 +288,18 @@ Radio signals travel along the shortest path on the sphere, which is a great cir
 it appears as a curve. Paths that cross the 180° meridian must be drawn continuously, not wrapped
 across the map.
 
+### 2.11 Grayline
+
+The grayline is the twilight band along the day/night terminator, where the Sun is between 0°
+and 6° below the horizon (civil twilight). Low-band paths (160m, 80m, 40m) often open along it,
+between stations that are both near their sunrise or sunset. The map shades the night side with a
+fade that starts at the horizon and reaches full night at −12°, so the grayline is the lighter
+part of the fade. Sun heights come from the UTC time (HR-1).
+
 ## Changelog
 
 | Date | Change |
 |------|--------|
 | 2026-10-09 | Initial version: rules HR-1 to HR-11, concepts §2.1–§2.10. |
 | 2026-10-13 | HR-7: placeholder positions and positions outside the entity are discarded; §2.2: how compound callsigns are looked up online (feature 010). |
+| 2026-10-14 | §2.11 Grayline (feature 013). |
