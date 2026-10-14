@@ -5,6 +5,9 @@ Rust implementation rules (binding): `docs/rust-guidelines.md`.
 Ham radio domain rules (binding, §1) and glossary (§2): `docs/ham-radio.md`.
 HTTP/WebSocket interface rules (binding): `docs/http-api.md`.
 
+Questions to the user (spec-kit clarifications included): ask them one at a time and wait for
+each answer before asking the next. Never batch several questions in one message.
+
 <!-- SPECKIT START -->
 <!-- Managed by .specify/scripts/bash/update-agent-context.sh; edit outside these markers. -->
 
