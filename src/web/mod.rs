@@ -42,6 +42,7 @@ const THEMES_JS: &str = include_str!("assets/themes.js");
 const SUN_JS: &str = include_str!("assets/sun.js");
 const PANEL_JS: &str = include_str!("assets/panel.js");
 const LEGEND_JS: &str = include_str!("assets/legend.js");
+const GRAYLINE_JS: &str = include_str!("assets/grayline.js");
 
 #[derive(Clone)]
 struct AppState {
@@ -105,6 +106,10 @@ pub async fn serve(
         .route("/sun.js", get(|| asset("text/javascript", SUN_JS)))
         .route("/panel.js", get(|| asset("text/javascript", PANEL_JS)))
         .route("/legend.js", get(|| asset("text/javascript", LEGEND_JS)))
+        .route(
+            "/grayline.js",
+            get(|| asset("text/javascript", GRAYLINE_JS)),
+        )
         .route("/ws", get(ws_handler))
         .route("/healthz", get(healthz))
         .fallback(not_found)

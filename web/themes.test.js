@@ -225,3 +225,12 @@ test('an on toggle button has an accent outline; the panel is opaque (B2, B3)', 
   uses('.panel', 'background', '--panel-solid');
   assert.ok(declarations(':root')['--panel-solid'], ':root defines --panel-solid');
 });
+
+// --- grayline shading per theme (feature 013, research R12, T018) -------------------------
+
+test('every palette has a night colour and a night opacity for the grayline', () => {
+  for (const [name, palette] of Object.entries(PALETTES)) {
+    assert.match(palette.night ?? '', /^#[0-9a-f]{6}$/i, `${name}.night`);
+    assert.ok(palette.nightOpacity >= 0.2 && palette.nightOpacity <= 0.7, `${name}.nightOpacity ${palette.nightOpacity}`);
+  }
+});

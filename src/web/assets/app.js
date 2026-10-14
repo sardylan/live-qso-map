@@ -40,10 +40,16 @@ import {
   DEFAULT_STYLE_URL,
   loadAtmosphere,
   saveAtmosphere,
+  loadGrayline,
+  saveGrayline,
+  loadSunMarker,
+  saveSunMarker,
   skyFor,
+  lightFor,
 } from './view.js';
 import { PALETTES, applyPalette, resolveTheme, loadTheme, saveTheme, themeStatus } from './themes.js';
-import { solarElevation } from './sun.js';
+import { solarElevation, subsolarPoint } from './sun.js';
+import { tilePixels, graylineBeforeId, graylineTiles, parseGraylineUrl, rgbOf } from './grayline.js';
 import { recentQsos, headerCells, rowCells, markerKeyOf, entityLabel, onMap } from './recent.js';
 import { scoreText, isStale, updatedTitle } from './score.js';
 import { createAutoZoom } from './autozoom.js';
@@ -135,6 +141,9 @@ const darkQuery = typeof window.matchMedia === 'function' ? window.matchMedia('(
 const THEME_TICK_MS = 60_000;
 // The globe's atmosphere (feature 011, FR-010): on unless the viewer switched it off.
 let atmosphere = loadAtmosphere(localStore());
+// The grayline (on by default) and the Sun symbol (off by default), feature 013 (FR-009, FR-018).
+let grayline = loadGrayline(localStore());
+let sunMarker = loadSunMarker(localStore());
 // The Legend group (feature 011, US4): the groups from `hello`, every considered band (`hello.bands`,
 // frequency order) and the viewer's choice, `all` or group names.
 let bandGroups = [];
@@ -213,8 +222,54 @@ function addHouseImage() {
   image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(HOUSE_SVG)}`;
 }
 
+// The grayline's tiles, drawn in the page from the minute's Sun and the theme's night colour.
+maplibregl.addProtocol('grayline', async ({ url }) => {
+  const tile = parseGraylineUrl(url);
+  if (!tile) throw new Error(`not a grayline tile: ${url}`);
+  const palette = PALETTES[tile.theme] ?? PALETTES.light;
+  const size = 256;
+  const subsolar = subsolarPoint(new Date(tile.minute * 60_000));
+  const pixels = tilePixels(tile.z, tile.x, tile.y, size, subsolar, rgbOf(palette.night), palette.nightOpacity);
+  return { data: await createImageBitmap(new ImageData(pixels, size, size)) };
+});
+
+/** The Sun symbol (feature 013, research R10): a yellow disc with rays and a dark outline. */
+function addSunImage() {
+  if (map.hasImage('sun-icon')) return;
+  const size = 32;
+  const canvas = document.createElement('canvas');
+  canvas.width = size * 2;
+  canvas.height = size * 2;
+  const context = canvas.getContext('2d');
+  context.scale(2, 2);
+  context.translate(size / 2, size / 2);
+  context.lineCap = 'round';
+  for (let i = 0; i < 8; i++) {
+    const a = (i * Math.PI) / 4;
+    context.beginPath();
+    context.moveTo(Math.cos(a) * 9, Math.sin(a) * 9);
+    context.lineTo(Math.cos(a) * 14, Math.sin(a) * 14);
+    context.strokeStyle = '#5a3d00';
+    context.lineWidth = 4;
+    context.stroke();
+    context.strokeStyle = '#ffcc00';
+    context.lineWidth = 2;
+    context.stroke();
+  }
+  context.beginPath();
+  context.arc(0, 0, 7, 0, 2 * Math.PI);
+  context.fillStyle = '#ffcc00';
+  context.fill();
+  context.strokeStyle = '#5a3d00';
+  context.lineWidth = 1.5;
+  context.stroke();
+  map.addImage('sun-icon', context.getImageData(0, 0, size * 2, size * 2), { pixelRatio: 2 });
+}
+
 function addOverlays() {
   const empty = { type: 'FeatureCollection', features: [] };
+  // The base map's own layers, before ours: the grayline goes under its borders and names.
+  const basemapBefore = graylineBeforeId(map.getStyle().layers);
   map.addSource('qso-lines', { type: 'geojson', data: empty });
   map.addLayer({
     id: 'qso-lines',
@@ -246,6 +301,32 @@ function addOverlays() {
       'circle-stroke-width': 1,
     },
   });
+  // The grayline (feature 013, research R7–R9): raster tiles the page draws (`grayline://`),
+  // above land, sea and roads, below the base map's borders and names, and always below the QSO
+  // layers. No events are bound to it.
+  map.addSource('grayline', {
+    type: 'raster',
+    tiles: graylineTiles(currentTheme ?? 'light', new Date()),
+    tileSize: 256,
+    // The fade spans hundreds of kilometres: deeper zooms stretch zoom-6 tiles.
+    maxzoom: 6,
+  });
+  map.addLayer(
+    { id: 'grayline', type: 'raster', source: 'grayline', paint: { 'raster-fade-duration': 0 } },
+    basemapBefore ?? 'qso-lines',
+  );
+  // The Sun symbol (FR-018): just below the QSO layers, never clickable, never hidden by labels.
+  addSunImage();
+  map.addSource('sun', { type: 'geojson', data: empty });
+  map.addLayer(
+    {
+      id: 'sun',
+      type: 'symbol',
+      source: 'sun',
+      layout: { 'icon-image': 'sun-icon', 'icon-allow-overlap': true, 'icon-ignore-placement': true },
+    },
+    'qso-lines',
+  );
 }
 
 /** A map control with one button that switches between globe and flat (FR-010). */
@@ -648,6 +729,7 @@ function applyOverlayTheme() {
   const palette = PALETTES[currentTheme];
   map.setPaintProperty('qso-lines', 'line-color', palette.line);
   applySky();
+  applySun();
   const { dimOpacity } = basemapFor(basemap, palette, DEFAULT_STYLE_URL);
   if (dimOpacity > 0) {
     if (!map.getLayer('theme-dim')) {
@@ -655,7 +737,7 @@ function applyOverlayTheme() {
       // their colours.
       map.addLayer(
         { id: 'theme-dim', type: 'background', paint: { 'background-color': '#000000', 'background-opacity': dimOpacity } },
-        'qso-lines',
+        'sun',
       );
     } else {
       map.setPaintProperty('theme-dim', 'background-opacity', dimOpacity);
@@ -671,6 +753,42 @@ function applySky() {
   map.setSky(skyFor(PALETTES[currentTheme], { atmosphere, projection: shown }));
 }
 
+/**
+ * The light that makes the atmosphere's rim brightest towards the Sun (feature 013, FR-001–
+ * FR-004). It depends on the camera, so it runs on every `move` (inside the animation frame,
+ * before drawing: the glow never lags) and on the minute tick; `sun` caches the Sun's position.
+ */
+let sun = null;
+function applyLight() {
+  if (!loaded) return;
+  sun ??= subsolarPoint(new Date());
+  const { lat, lng } = map.getCenter();
+  const light = lightFor(sun, { lat, lng, bearing: map.getBearing(), pitch: map.getPitch() });
+  map.setLight(light);
+  // The camera and the light of this frame, read together by the browser tests (step 10).
+  const el = document.getElementById('map');
+  el.dataset.camera = [lat, lng, map.getZoom()].map((v) => v.toFixed(4)).join(',');
+  el.dataset.light = light.position.slice(1).map((v) => v.toFixed(2)).join(',');
+}
+
+/**
+ * Everything that follows the Sun (feature 013): its position, the glow's light, the grayline's
+ * caps and the Sun symbol, each shown or hidden by its choice. After every style load and on the
+ * minute tick; moving the map needs only `applyLight`.
+ */
+function applySun() {
+  if (!loaded) return;
+  sun = subsolarPoint(new Date());
+  applyLight();
+  // A new minute or theme names new tiles; the old ones stay on screen until those are drawn.
+  const tiles = graylineTiles(currentTheme ?? 'light', new Date());
+  const source = map.getSource('grayline');
+  if (source.tiles?.[0] !== tiles[0]) source.setTiles(tiles);
+  map.getSource('sun').setData({ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: [sun.lon, sun.lat] } });
+  map.setLayoutProperty('grayline', 'visibility', grayline ? 'visible' : 'none');
+  map.setLayoutProperty('sun', 'visibility', sunMarker ? 'visible' : 'none');
+}
+
 /** Everything the page adds to a style, again after every style switch. */
 function onStyleLoad() {
   map.setProjection({ type: shown });
@@ -680,6 +798,7 @@ function onStyleLoad() {
   qth = null;
   applyOverlayTheme();
   applySky();
+  applySun();
   render();
   autozoom.change();
 }
@@ -714,7 +833,11 @@ function createMap(hello) {
   map.on('moveend', () => {
     const { lat, lng } = map.getCenter();
     document.getElementById('map').dataset.view = [lat, lng, map.getZoom()].map((v) => v.toFixed(4)).join(',');
+    // Where the centre lies on screen (padding moves it), for the glow checks (feature 013).
+    const { x, y } = map.project([lng, lat]);
+    document.getElementById('map').dataset.centre = `${x.toFixed(1)},${y.toFixed(1)}`;
   });
+  map.on('move', applyLight);
   map.on('movestart', (event) => {
     if (event.originalEvent) runActions(autozoom.userMove());
   });
@@ -893,7 +1016,11 @@ function setupAppearance() {
   if (darkQuery && typeof darkQuery.addEventListener === 'function') {
     darkQuery.addEventListener('change', updateTheme);
   }
-  setInterval(updateTheme, THEME_TICK_MS);
+  // The Sun moves 0.25° a minute: the theme and the glow follow it on the same tick.
+  setInterval(() => {
+    updateTheme();
+    applySun();
+  }, THEME_TICK_MS);
   updateTheme();
 }
 
@@ -904,6 +1031,20 @@ function setupSelector() {
     atmosphere = atmosphereBox.checked;
     saveAtmosphere(localStore(), atmosphere);
     applySky();
+  });
+  const graylineBox = document.getElementById('grayline');
+  graylineBox.checked = grayline;
+  graylineBox.addEventListener('change', () => {
+    grayline = graylineBox.checked;
+    saveGrayline(localStore(), grayline);
+    applySun();
+  });
+  const sunBox = document.getElementById('sun-marker');
+  sunBox.checked = sunMarker;
+  sunBox.addEventListener('change', () => {
+    sunMarker = sunBox.checked;
+    saveSunMarker(localStore(), sunMarker);
+    applySun();
   });
 
   document.getElementById('legend-all').addEventListener('change', () => changeLegend('all'));

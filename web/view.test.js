@@ -252,3 +252,136 @@ test('the sky shows the atmosphere only on the globe, with the theme colours', (
   assert.equal(skyFor(palette, { atmosphere: false, projection: 'globe' })['atmosphere-blend'], 0);
   assert.equal(skyFor(palette, { atmosphere: true, projection: 'mercator' })['atmosphere-blend'], 0, 'flat map');
 });
+
+// --- the glow follows the Earth (feature 013, research R1–R2, T004) -----------------------
+
+import { lightFor } from '../src/web/assets/view.js';
+
+// Copied from maplibre-gl 5.24.0 dist/maplibre-gl-dev.js, getSunPos/sphericalToCartesian.
+// The rotations are gl-matrix's (right-handed, applied right to left). Re-check on upgrade.
+function sphericalToCartesian([r, azimuthal, polar]) {
+  azimuthal += 90;
+  azimuthal *= Math.PI / 180;
+  polar *= Math.PI / 180;
+  return { x: r * Math.cos(azimuthal) * Math.sin(polar), y: r * Math.sin(azimuthal) * Math.sin(polar), z: r * Math.cos(polar) };
+}
+const rotX = (t, [x, y, z]) => [x, y * Math.cos(t) - z * Math.sin(t), y * Math.sin(t) + z * Math.cos(t)];
+const rotY = (t, [x, y, z]) => [x * Math.cos(t) + z * Math.sin(t), y, -x * Math.sin(t) + z * Math.cos(t)];
+const rotZ = (t, [x, y, z]) => [x * Math.cos(t) - y * Math.sin(t), x * Math.sin(t) + y * Math.cos(t), z];
+function getSunPos(light, view) {
+  const lp = sphericalToCartesian(light.position);
+  let v = [-lp.x, -lp.y, -lp.z];
+  if (light.anchor === 'map') {
+    const D = Math.PI / 180;
+    // lightMat = Rz(roll)·Rx(−pitch)·Rz(bearing)·Rx(lat)·Ry(−lng); applied to v right to left.
+    v = rotY(-view.lng * D, v);
+    v = rotX(view.lat * D, v);
+    v = rotZ((view.bearing ?? 0) * D, v);
+    v = rotX(-(view.pitch ?? 0) * D, v);
+  }
+  const n = Math.hypot(...v);
+  return v.map((c) => c / n);
+}
+
+// The Sun's real direction in camera space: an Earth-fixed light, replayed the same way.
+const D = Math.PI / 180;
+function trueSun({ lat, lon }, camera) {
+  const earth = [Math.cos(lat * D) * Math.sin(lon * D), Math.sin(lat * D), Math.cos(lat * D) * Math.cos(lon * D)];
+  let v = rotY(-camera.lng * D, earth);
+  v = rotX(camera.lat * D, v);
+  v = rotZ((camera.bearing ?? 0) * D, v);
+  return rotX(-(camera.pitch ?? 0) * D, v);
+}
+
+const cameras = [];
+for (let lat = -60; lat <= 60; lat += 30) {
+  for (let lng = -180; lng < 180; lng += 45) {
+    for (const bearing of [0, 37, 200]) cameras.push({ lat, lng, bearing, pitch: (lat + 60) / 4 });
+  }
+}
+const SUBSOLAR = [[0, 0], [-8.5, -30], [23.44, 120], [-23.44, -170], [10, 179]];
+
+test('the light is a viewport light at a spherical position', () => {
+  const light = lightFor({ lat: 10, lon: 20 }, { lat: 0, lng: 0, bearing: 0, pitch: 0 });
+  assert.equal(light.anchor, 'viewport');
+  assert.equal(light.position.length, 3);
+  assert.equal(light.position[0], 1.15);
+  assert.ok(light.position[2] >= 0 && light.position[2] <= 180, 'polar angle');
+  assert.ok(light.position[1] >= -180 && light.position[1] <= 180, 'azimuthal angle');
+});
+
+test('the globe is always lit from behind: no haze over the map, whatever the view', () => {
+  for (const [lat, lon] of SUBSOLAR) {
+    for (const camera of cameras) {
+      const [, , z] = getSunPos(lightFor({ lat, lon }, camera), camera);
+      assert.ok(z <= -0.9, `${lat},${lon} from ${JSON.stringify(camera)}: z ${z}`);
+    }
+  }
+});
+
+test('the rim is brightest towards the Sun, as the Sun lies on screen', () => {
+  for (const [lat, lon] of SUBSOLAR) {
+    for (const camera of cameras) {
+      const sun = trueSun({ lat, lon }, camera);
+      const onScreen = Math.hypot(sun[0], sun[1]);
+      if (onScreen < 0.3) continue; // the Sun nearly in front or behind: an even rim
+      const [x, y] = getSunPos(lightFor({ lat, lon }, camera), camera);
+      const cos = (x * sun[0] + y * sun[1]) / (Math.hypot(x, y) * onScreen);
+      assert.ok(cos > Math.cos(Math.PI / 180), `${lat},${lon} from ${JSON.stringify(camera)}: cos ${cos}`);
+    }
+  }
+});
+
+test('the Sun 90° west of the view centre puts the bright rim on the left', () => {
+  const [x, y] = getSunPos(lightFor({ lat: 0, lon: 0 }, { lat: 0, lng: 90, bearing: 0, pitch: 0 }), {});
+  assert.ok(x < -0.3 && Math.abs(y) < 1e-9, `${x},${y}`);
+});
+
+test('the rim is even when the Sun is straight in front or straight behind', () => {
+  for (const lng of [0, 180]) {
+    const [x, y, z] = getSunPos(lightFor({ lat: 0, lon: 0 }, { lat: 0, lng, bearing: 0, pitch: 0 }), {});
+    assert.ok(Math.abs(x) < 1e-9 && Math.abs(y) < 1e-9 && Math.abs(z + 1) < 1e-9, `lng ${lng}: ${x},${y},${z}`);
+  }
+});
+
+test('regression A1/A2: the old fixed light ignores where the globe points', () => {
+  const light = { anchor: 'viewport', position: [1.15, 210, 30] };
+  assert.deepEqual(getSunPos(light, { lat: 0, lng: 0 }), getSunPos(light, { lat: 0, lng: 180 }));
+  const a = lightFor({ lat: 0, lon: 0 }, { lat: 0, lng: 90, bearing: 0, pitch: 0 });
+  const b = lightFor({ lat: 0, lon: 0 }, { lat: 0, lng: -90, bearing: 0, pitch: 0 });
+  assert.notDeepEqual(a.position, b.position, 'the new light turns with the globe');
+});
+
+// --- Grayline and Sun position choices (feature 013, research R11, T017) ------------------
+
+import { loadGrayline, saveGrayline, loadSunMarker, saveSunMarker } from '../src/web/assets/view.js';
+
+test('the grayline is on by default and its choice is saved', () => {
+  assert.equal(loadGrayline(atmosphereStore()), true);
+  const store = atmosphereStore();
+  saveGrayline(store, false);
+  assert.equal(store.data['lqm.grayline'], 'off');
+  assert.equal(loadGrayline(store), false);
+  saveGrayline(store, true);
+  assert.equal(store.data['lqm.grayline'], 'on');
+  assert.equal(loadGrayline(atmosphereStore({ 'lqm.grayline': 'maybe' })), true, 'unknown value');
+});
+
+test('the Sun position is off by default and its choice is saved', () => {
+  assert.equal(loadSunMarker(atmosphereStore()), false);
+  const store = atmosphereStore();
+  saveSunMarker(store, true);
+  assert.equal(store.data['lqm.sun'], 'on');
+  assert.equal(loadSunMarker(store), true);
+  saveSunMarker(store, false);
+  assert.equal(store.data['lqm.sun'], 'off');
+  assert.equal(loadSunMarker(atmosphereStore({ 'lqm.sun': 'maybe' })), false, 'unknown value');
+});
+
+test('a browser that refuses storage keeps the defaults', () => {
+  const throwing = { getItem: () => { throw new Error('denied'); }, setItem: () => { throw new Error('denied'); } };
+  assert.equal(loadGrayline(throwing), true);
+  assert.equal(loadSunMarker(throwing), false);
+  assert.doesNotThrow(() => saveGrayline(throwing, false));
+  assert.doesNotThrow(() => saveSunMarker(throwing, true));
+});

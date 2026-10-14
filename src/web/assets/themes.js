@@ -6,6 +6,7 @@
  * - the CSS variables of app.css (camelCase here, `--kebab-case` there); `panelSolid` is
  *   `panel` without its alpha, for the settings panel (feature 012, B3);
  * - the globe's sky colours (`sky`, `horizon`, `fog`) and the great-circle line colour (`line`);
+ * - the grayline's night colour and full night opacity (`night`, `nightOpacity`, feature 013);
  * - the OpenFreeMap style used with the default base map (`basemapStyle`);
  * - how much an operator-configured base map is dimmed (`dimOpacity`).
  *
@@ -32,6 +33,8 @@ export const PALETTES = {
     horizon: '#ffffff',
     fog: '#ffffff',
     line: '#000000',
+    night: '#0b1a3c',
+    nightOpacity: 0.4,
     basemapStyle: 'liberty',
     dimOpacity: 0,
   },
@@ -55,6 +58,8 @@ export const PALETTES = {
     horizon: '#5a6f9a',
     fog: '#3a4660',
     line: '#e6e9ef',
+    night: '#000814',
+    nightOpacity: 0.45,
     basemapStyle: 'fiord',
     dimOpacity: 0.35,
   },
@@ -78,6 +83,8 @@ export const PALETTES = {
     horizon: '#1b2a4a',
     fog: '#0e1a30',
     line: '#ffffff',
+    night: '#000000',
+    nightOpacity: 0.55,
     basemapStyle: 'dark',
     dimOpacity: 0.55,
   },
