@@ -18,6 +18,7 @@ so the team replicates what worked and avoids what did not.
 | LL-003 | open | cargo-release step subcommands skip the safety checks | 2026-10-12 |
 | LL-004 | open | A page file added to src/web/assets/ must also be served | 2026-10-13 |
 | LL-005 | open | Look at a map effect in the browser before designing around it | 2026-10-14 |
+| LL-006 | open | Lookup sources carry no identity, so failed lookups could not be named | 2026-10-14 |
 
 ## Lessons
 
@@ -181,6 +182,36 @@ Rendering behaviour (shader lighting, how the globe subdivides polygons) isn't v
 
 - Action: for a new map rendering effect, run a throwaway browser spike during planning (one screenshot and one frame-rate reading through `tests/browser/`), and record what it showed in research before choosing. Owner: maintainer. Status: open.
 - Action: write down untested assumptions in research as assumptions, with how to check them. Owner: maintainer. Status: open.
+
+## LL-006: Lookup sources carry no identity, so failed lookups could not be named
+
+- Status: open
+- Date: 2026-10-14
+- Phase: execute
+- Category: design
+- Owner: -
+- Links: specs/014-adif-persistence/research.md (R7); src/enrich/resolve.rs (resolve_remote names); src/enrich/mod.rs (Lookups::with_names); spec FR-029
+<!-- key: d440be00908e -->
+
+### What happened
+
+Feature 014 needed APP_LIVEQSOMAP_LOOKUP_FAILED = source:kind for every online source that failed. During implementation it turned out that a LookupSource is an anonymous closure: a timeout or an HTTP error carries no provider name, and a not-found answer (Ok(None)) cannot be told apart from the country data's. Research R7 had assumed the names were available.
+
+### What went well / where we got lucky
+
+TDD on resolve_remote caught it before any integration code; the fix stayed local: an optional name list per source index (Lookups::with_names, filled by build_sources), falling back to the provider named in Error::Provider, then to 'lookup'.
+
+### What did not work
+
+The plan treated 'which source failed' as a given; the existing test (slow sources dropped within 300 ms) also ruled out giving providers their own, shorter timeout.
+
+### Root cause
+
+The source abstraction was designed for answers (LookupCandidate carries its source), not for failures; the plan did not check the types it relied on.
+
+### Recommendation / action item
+
+When a plan needs a new attribute of an existing abstraction (here: a failure's source), check the type carries it during /speckit-plan, not at implementation. Consider replacing the parallel name list with a named source type if more per-source data is needed.
 
 ## Archive
 
