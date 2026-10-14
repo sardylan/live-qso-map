@@ -27,7 +27,18 @@ import {
   addScreenshot,
   waitFor,
   qsoAdif,
+  luminance,
+  parseView,
+  limbSamples,
+  apparentRadiusPx,
+  sunSide,
+  testInstant,
+  lightSide,
+  toScreenMercator,
+  toScreenGlobe,
+  nightAndDayPoints,
 } from './lib.mjs';
+import { subsolarPoint } from '../../src/web/assets/sun.js';
 import { launchChrome } from './cdp.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -45,7 +56,11 @@ const STEPS = [
   'device-dark',
   'reconnect',
   'legend-group',
+  'atmosphere',
+  'grayline',
 ];
+// The house of `--station-locator JM49OF` (the square's centre), for the test clock.
+const HOUSE = { lat: 39.229, lon: 9.208 };
 
 function usageExit(message) {
   console.error(message);
@@ -237,6 +252,215 @@ async function setTheme(choice) {
   await q(`(() => { const s = document.getElementById('theme'); s.value = '${choice}'; s.dispatchEvent(new Event('change')); })()`);
 }
 
+// --- the Sun on the test clock (feature 013, contracts/browser-test.md) ---------------------
+
+let clockOffset = 0;
+const sunNow = () => subsolarPoint(new Date(Date.now() + clockOffset));
+const mapRect = () => q(`(() => { const r = document.getElementById('map').getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height }; })()`);
+const centre = (rect) => [rect.left + rect.width / 2, rect.top + rect.height / 2];
+/** The globe's centre in page pixels, from `#map`'s `data-centre` (map pixels). */
+async function globeCentre(rect) {
+  const text = await q(`document.getElementById('map').dataset.centre ?? ''`);
+  const [x, y] = text.split(',').map(Number);
+  return Number.isFinite(x) && Number.isFinite(y) ? [rect.left + x, rect.top + y] : null;
+}
+
+async function ensureGlobe() {
+  if ((await q(`document.querySelector('.projection-control button').textContent`)) === 'Globe') {
+    await q(`document.querySelector('.projection-control button').click()`);
+  }
+  await until(`document.querySelector('.projection-control button').textContent === 'Flat'`, 'the globe on screen');
+}
+
+async function setAutoZoom(on) {
+  if ((await q(`document.querySelector('.toggle-control button').classList.contains('active')`)) !== on) {
+    await q(`document.querySelector('.toggle-control button').click()`);
+  }
+  await until(`document.querySelector('.toggle-control button').classList.contains('active') === ${on}`, `auto-zoom ${on ? 'on' : 'off'}`);
+}
+
+/** Zooms out until both limb boxes fit the map. */
+async function wholeGlobe() {
+  for (let i = 0; i < 8; i++) {
+    const view = parseView(await stableView('before measuring the limb'));
+    const rect = await mapRect();
+    if (limbSamples(view, rect, await globeCentre(rect))) return;
+    await q(`document.querySelector('.maplibregl-ctrl-zoom-out').click()`);
+  }
+  throw new Error('the whole globe never fitted the map');
+}
+
+/** The glow's brighter limb against the Sun's side (step 10, items 2–5); returns the reading. */
+async function glowOnSunSide(shotName, { minAbsX = 0.5 } = {}) {
+  const viewText = await stableView(`for ${shotName}`);
+  const view = parseView(viewText);
+  const rect = await mapRect();
+  const boxes = limbSamples(view, rect, await globeCentre(rect));
+  if (!boxes) throw new Error(`the limb is off the map at ${viewText}`);
+  const expected = sunSide(view, sunNow());
+  const png = await page.capture(path.join(out, `${shotName}.png`));
+  if (currentStep) addScreenshot(currentStep, `${shotName}.png`);
+  const [left, right] = (await page.measure(png, boxes)).map(luminance);
+  const brighter = left > right ? 'left' : 'right';
+  const reading = `glow brighter on the ${brighter} (L ${left.toFixed(1)} / R ${right.toFixed(1)}), Sun on the ${expected.side} (x ${expected.x.toFixed(2)}), view ${viewText}`;
+  console.log(`   ${shotName}: ${reading}`);
+  if (Math.abs(expected.x) < minAbsX) return { reading, skipped: true, expected };
+  if (brighter !== expected.side) throw new Error(reading);
+  if (Math.abs(left - right) < 0.1 * Math.max(left, right)) throw new Error(`the two limbs differ by less than 10 %: ${reading}`);
+  return { reading, expected };
+}
+
+/**
+ * SC-011, FR-019: away from the limb the atmosphere changes nothing. Boxes at the globe centre
+ * and halfway to the limb on the Sun's side, with the atmosphere on and off: within 2 %.
+ */
+async function noHaze() {
+  const view = parseView(await stableView('before the haze check'));
+  const rect = await mapRect();
+  const [cx, cy] = centre(rect);
+  const r = apparentRadiusPx(view, rect.height);
+  const side = sunSide(view, sunNow()).side === 'left' ? -1 : 1;
+  const boxes = [
+    { x: cx - 10, y: cy - 10, w: 20, h: 20 },
+    { x: cx + side * r * 0.5 - 10, y: cy - 10, w: 20, h: 20 },
+    { x: cx + side * r * 0.85 - 10, y: cy - 10, w: 20, h: 20 },
+  ];
+  const on = (await page.measure(await page.capture(), boxes)).map(luminance);
+  await q(`document.getElementById('atmosphere').click()`);
+  await sleep(500);
+  const off = (await page.measure(await page.capture(), boxes)).map(luminance);
+  await q(`document.getElementById('atmosphere').click()`);
+  const reading = on.map((v, i) => `${v.toFixed(1)}/${off[i].toFixed(1)}`).join(', ');
+  console.log(`   10-no-haze: on/off at centre, half, 85 %: ${reading}`);
+  for (const [i, v] of on.entries()) {
+    if (Math.abs(v - off[i]) > 0.02 * 255) throw new Error(`the atmosphere hazes the map (on/off ${reading})`);
+  }
+}
+
+/** Drags the globe until its centre is within 15° of longitude `target`. */
+async function turnToLongitude(target) {
+  for (let i = 0; i < 10; i++) {
+    const view = parseView(await stableView('before turning to a longitude'));
+    const off = ((((target - view.lon + 180) % 360) + 360) % 360) - 180;
+    if (Math.abs(off) <= 15) return;
+    const [cx, cy] = centre(await mapRect());
+    // Dragging left turns the centre east; about 0.5° per pixel at this zoom, at most 150 px.
+    const dx = Math.max(-150, Math.min(150, -off * 2));
+    await page.drag([cx, cy], [cx + dx, cy]);
+  }
+  throw new Error(`could not turn the globe to longitude ${target.toFixed(1)}`);
+}
+
+/**
+ * Item 7: switches auto-zoom on and samples every frame of the flight: the light the page set
+ * (`data-light`) must point to the Sun's side for that frame's camera (`data-camera`), worked
+ * out independently here (FR-003, SC-003). Three of the frames are kept as screenshots.
+ */
+async function flightFollowsSun() {
+  const before = await q(`document.getElementById('map').dataset.view`);
+  await q(`document.querySelector('.toggle-control button').click()`);
+  const frames = [];
+  let last = null;
+  const deadline = Date.now() + 5_000;
+  while (Date.now() < deadline) {
+    const now = await q(`(() => { const d = document.getElementById('map').dataset; return { view: d.view, camera: d.camera, light: d.light }; })()`);
+    if (now.view !== before) break; // `moveend`: the flight is over
+    if (now.camera !== last && now.camera) {
+      last = now.camera;
+      const expected = sunSide(parseView(now.camera), sunNow());
+      const actual = lightSide(now.light);
+      frames.push({ camera: now.camera, expected: expected.side, x: expected.x, actual: actual?.side });
+      // One screenshot, once 3 frames are in: a capture takes longer than a frame.
+      if (frames.length === 3) {
+        const name = '10-atmosphere-flight';
+        await page.capture(path.join(out, `${name}.png`));
+        if (currentStep) addScreenshot(currentStep, `${name}.png`);
+      }
+    }
+  }
+  console.log(`   10-flight: ${frames.length} frames, ${frames.map((f) => `${f.camera}→${f.actual}`).slice(0, 4).join(' | ')}`);
+  if (frames.length < 3) throw new Error(`only ${frames.length} frames seen during the auto-zoom flight (need 3)`);
+  const wrong = frames.filter((f) => Math.abs(f.x) >= 0.3 && f.actual !== f.expected);
+  if (wrong.length > 0) {
+    throw new Error(`during the flight the glow was off the Sun's side: ${wrong.map((f) => `${f.camera} light ${f.actual}, Sun ${f.expected}`).join('; ')}`);
+  }
+}
+
+/** Ticks or unticks a settings checkbox, waiting for the map to redraw. */
+async function setBox(id, on) {
+  if ((await q(`document.getElementById('${id}').checked`)) !== on) await q(`document.getElementById('${id}').click()`);
+  await sleep(400);
+}
+
+/** 9×9 boxes around page points. */
+const boxesAt = (points, size = 9) => points.map(([x, y]) => ({ x: x - size / 2, y: y - size / 2, w: size, h: size }));
+
+/**
+ * Step 11, items 2–3: with the grayline on, a deep-night point is at least 15 % darker than with
+ * it off, and a full-day point is within 2 %. `project` maps `[lat, lon]` to page pixels.
+ */
+async function shadingAt(shotName, project) {
+  const viewText = await stableView(`for ${shotName}`);
+  const view = parseView(viewText);
+  const rect = await mapRect();
+  const middleOf = await globeCentre(rect);
+  const points = nightAndDayPoints(sunNow(), (p) => project(view, rect, p, middleOf), rect);
+  if (!points) throw new Error(`no deep-night and full-day points on screen at ${viewText}`);
+  const boxes = boxesAt([points.night.xy, points.day.xy]);
+  await setBox('grayline', true);
+  const on = (await page.measure(await page.capture(path.join(out, `${shotName}.png`)), boxes)).map(luminance);
+  if (currentStep) addScreenshot(currentStep, `${shotName}.png`);
+  await setBox('grayline', false);
+  const off = (await page.measure(await page.capture(), boxes)).map(luminance);
+  await setBox('grayline', true);
+  const reading = `night ${points.night.at.map((v) => v.toFixed(1))} on/off ${on[0].toFixed(1)}/${off[0].toFixed(1)}, day ${points.day.at.map((v) => v.toFixed(1))} on/off ${on[1].toFixed(1)}/${off[1].toFixed(1)}, view ${viewText}`;
+  console.log(`   ${shotName}: ${reading}`);
+  if (!(on[0] <= 0.85 * off[0])) throw new Error(`deep night is not shaded: ${reading}`);
+  if (Math.abs(on[1] - off[1]) > 0.02 * Math.max(off[1], 1)) throw new Error(`full day is shaded: ${reading}`);
+}
+
+/** Step 11, item 5: the globe's centre box, with the grayline on and off. */
+async function centreShading(shotName) {
+  const viewText = await stableView(`for ${shotName}`);
+  const rect = await mapRect();
+  const [x, y] = (await globeCentre(rect)) ?? centre(rect);
+  const boxes = boxesAt([[x, y]], 15);
+  await setBox('grayline', true);
+  const [on] = (await page.measure(await page.capture(path.join(out, `${shotName}.png`)), boxes)).map(luminance);
+  if (currentStep) addScreenshot(currentStep, `${shotName}.png`);
+  await setBox('grayline', false);
+  const [off] = (await page.measure(await page.capture(), boxes)).map(luminance);
+  await setBox('grayline', true);
+  console.log(`   ${shotName}: centre on/off ${on.toFixed(1)}/${off.toFixed(1)}, view ${viewText}`);
+  return { on, off, viewText };
+}
+
+/** `requestAnimationFrame` callbacks per second during a 2 s scripted drag (step 11, item 7). */
+async function framesDuringDrag() {
+  const [cx, cy] = centre(await mapRect());
+  await q(`(() => { window.__lqmFrames = 0; window.__lqmCount = true; const tick = () => { window.__lqmFrames++; if (window.__lqmCount) requestAnimationFrame(tick); }; requestAnimationFrame(tick); })()`);
+  const started = Date.now();
+  let dx = 120;
+  while (Date.now() - started < 2_000) {
+    await page.drag([cx - dx / 2, cy], [cx + dx / 2, cy], 10);
+    dx = -dx;
+  }
+  const frames = await q(`(() => { window.__lqmCount = false; return window.__lqmFrames; })()`);
+  return frames / ((Date.now() - started) / 1000);
+}
+
+/** Drags across the globe's centre by `dx` pixels until the Sun's |x| is ≥ 0.5 on `side`. */
+async function turnUntil(side, dx) {
+  for (let i = 0; i < 8; i++) {
+    const view = parseView(await stableView('before a drag'));
+    const s = sunSide(view, sunNow());
+    if (Math.abs(s.x) >= 0.5 && (!side || s.side === side)) return;
+    const [cx, cy] = centre(await mapRect());
+    await page.drag([cx - dx / 2, cy], [cx + dx / 2, cy]);
+  }
+  throw new Error(`could not turn the globe to put the Sun on the ${side ?? 'either'} side`);
+}
+
 // --- the steps (contracts/browser-test.md) --------------------------------------------------
 
 const steps = {
@@ -386,6 +610,117 @@ const steps = {
       timeout: STEP_MS,
       what: 'every band shown again after unticking WARC',
     });
+  },
+
+  async atmosphere() {
+    // The test clock: the Sun 90° west of the house (contracts/browser-test.md, feature 013).
+    clockOffset = await page.setClock(testInstant(HOUSE, new Date().getUTCFullYear()).toISOString());
+    await page.reload();
+    await pageReady();
+    await setTheme('dark');
+    await until(`document.documentElement.dataset.theme === 'dark'`, 'the Dark theme');
+    if (!(await q(`document.getElementById('atmosphere').checked`))) await q(`document.getElementById('atmosphere').click()`);
+    await setAutoZoom(false);
+    await ensureGlobe();
+    // Items 3–5: a hand drag (it also sets `data-view`, empty after a reload), the whole
+    // globe in the window, then the glow on the Sun's side.
+    const [cx, cy] = centre(await mapRect());
+    await page.drag([cx - 60, cy], [cx + 60, cy]);
+    await wholeGlobe();
+    await turnUntil(null, 200);
+    const first = await glowOnSunSide('10-atmosphere-drag');
+    // Item 6: about half a turn, so the Sun changes side.
+    const other = first.expected.side === 'left' ? 'right' : 'left';
+    // Dragging right turns the view centre west, past a Sun on the left (and the reverse).
+    await turnUntil(other, first.expected.side === 'left' ? 300 : -300);
+    await glowOnSunSide('10-atmosphere-turned');
+    await noHaze();
+
+    // Item 7: auto-zoom flies back to the house from about 40° east of it. A QSO in Brazil keeps
+    // the framing wide, so the whole globe stays in the window.
+    await sendQso({ call: 'PY2AAA', band: '40m', grid: 'GG66' });
+    await turnToLongitude(HOUSE.lon + 40);
+    await flightFollowsSun();
+    await glowOnSunSide('10-atmosphere-autozoom', { minAbsX: 0.3 });
+
+    // US2 scenario 3: to the flat map and back, the glow is on the Sun's side again.
+    await q(`document.querySelector('.projection-control button').click()`);
+    await until(`document.querySelector('.projection-control button').textContent === 'Globe'`, 'the flat map');
+    await ensureGlobe();
+    await glowOnSunSide('10-atmosphere-projection', { minAbsX: 0.3 });
+  },
+
+  async grayline() {
+    // Item 1: Light theme, flat map, auto-zoom off, the whole world width in the window.
+    await setTheme('light');
+    await until(`document.documentElement.dataset.theme === 'light'`, 'the Light theme');
+    await setAutoZoom(false);
+    if ((await q(`document.querySelector('.projection-control button').textContent`)) === 'Flat') {
+      await q(`document.querySelector('.projection-control button').click()`);
+    }
+    await until(`document.querySelector('.projection-control button').textContent === 'Globe'`, 'the flat map');
+    for (let i = 0; i < 6; i++) {
+      const view = parseView(await stableView('before fitting the world'));
+      if (512 * 2 ** view.zoom <= (await mapRect()).width) break;
+      await q(`document.querySelector('.maplibregl-ctrl-zoom-out').click()`);
+    }
+    // Items 2–4: on the flat map, then after a 300 px pan.
+    await shadingAt('11-grayline-flat', toScreenMercator);
+    const [cx, cy] = centre(await mapRect());
+    await page.drag([cx - 150, cy], [cx + 150, cy]);
+    await shadingAt('11-grayline-panned', toScreenMercator);
+
+    // Item 5: on the globe, the centre in deep night, then in full day.
+    await ensureGlobe();
+    await wholeGlobe();
+    const sub = sunNow();
+    await turnToLongitude(sub.lon + 180);
+    const night = await centreShading('11-grayline-globe-night');
+    if (!(night.on <= 0.85 * night.off)) throw new Error(`the globe's night side is not shaded (${night.on.toFixed(1)}/${night.off.toFixed(1)} at ${night.viewText})`);
+    await turnToLongitude(sub.lon);
+    const day = await centreShading('11-grayline-globe-day');
+    if (Math.abs(day.on - day.off) > 0.02 * Math.max(day.off, 1)) throw new Error(`the globe's day side is shaded (${day.on.toFixed(1)}/${day.off.toFixed(1)} at ${day.viewText})`);
+
+    // Item 7: smoothness, recorded for the report and never judged here (SC-004, owner's
+    // decision): the test browser renders in software, where every full-screen layer costs CPU;
+    // on a real GPU every case measured 60 frames/s. Judged by eye on real hardware.
+    const SUN_BOXES = ['atmosphere', 'grayline', 'sun-marker'];
+    const rates = {};
+    // Nothing and everything only: the run stays within feature 012's 2-minute budget.
+    for (const all of [false, true]) {
+      for (const id of SUN_BOXES) await setBox(id, all);
+      rates[all ? 'all' : 'none'] = await framesDuringDrag();
+    }
+    if (currentStep) currentStep.framesPerSecond = Object.fromEntries(Object.entries(rates).map(([k, v]) => [k, Number(v.toFixed(1))]));
+    console.log(`   11-smoothness (frames/s, recorded only): ${Object.entries(rates).map(([k, v]) => `${k} ${v.toFixed(1)}`).join(', ')}`);
+    await setBox('atmosphere', true);
+    await setBox('grayline', true);
+
+    // Item 6: the Sun symbol at the subsolar point, on the flat map, only when its choice is on.
+    await q(`document.querySelector('.projection-control button').click()`);
+    await until(`document.querySelector('.projection-control button').textContent === 'Globe'`, 'the flat map again');
+    await turnToLongitude(sunNow().lon);
+    const viewText = await stableView('for the Sun symbol');
+    const rect = await mapRect();
+    const sunXy = toScreenMercator(parseView(viewText), rect, [sunNow().lat, sunNow().lon], await globeCentre(rect));
+    const sunBox = boxesAt([sunXy], 13);
+    await setBox('sun-marker', true);
+    const [withSun] = (await page.measure(await page.capture(path.join(out, '11-grayline-sun.png')), sunBox)).map(luminance);
+    if (currentStep) addScreenshot(currentStep, '11-grayline-sun.png');
+    await setBox('sun-marker', false);
+    const [withoutSun] = (await page.measure(await page.capture(), sunBox)).map(luminance);
+    console.log(`   11-sun: subsolar box with/without the symbol ${withSun.toFixed(1)}/${withoutSun.toFixed(1)}, at ${sunXy.map((v) => v.toFixed(0))}`);
+    if (Math.abs(withSun - withoutSun) < 0.1 * Math.max(withSun, withoutSun)) throw new Error(`no Sun symbol at the subsolar point (${withSun.toFixed(1)}/${withoutSun.toFixed(1)})`);
+
+    // Item 8: the choices survive a reload.
+    await setBox('grayline', false);
+    await setBox('sun-marker', true);
+    await page.reload();
+    await pageReady();
+    const kept = await q(`({ grayline: document.getElementById('grayline').checked, sun: document.getElementById('sun-marker').checked, stored: [localStorage.getItem('lqm.grayline'), localStorage.getItem('lqm.sun')] })`);
+    if (kept.grayline !== false || kept.sun !== true || kept.stored[0] !== 'off' || kept.stored[1] !== 'on') {
+      throw new Error(`the choices were not kept after a reload: ${JSON.stringify(kept)}`);
+    }
   },
 };
 

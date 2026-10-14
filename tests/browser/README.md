@@ -2,8 +2,17 @@
 
 `run.mjs` starts live-qso-map and Google Chrome (or Chromium), opens the map page and plays a short
 viewer session over the Chrome DevTools Protocol: QSOs, the settings panel, the themes, a reload,
-a service restart and a band-group choice. The steps and the rules for a failure are in
-`specs/012-page-fixes-browser-tests/contracts/browser-test.md`.
+a service restart and a band-group choice (steps 01–09), then the globe's glow after hand moves
+and an auto-zoom flight (10 `atmosphere`) and the grayline and Sun symbol on both views
+(11 `grayline`). The steps and the rules for a failure are in
+`specs/012-page-fixes-browser-tests/contracts/browser-test.md` and
+`specs/013-atmosphere-follows-globe/contracts/browser-test.md`.
+
+- **Test clock:** from step 10 on, the page's clock is shifted to the June solstice moment when
+  the Sun is 90° west of the house, so the expected glow side and night side don't depend on
+  when the run happens.
+- **Smoothness:** step 11 records frame rates (`framesPerSecond` in `report.json`) but doesn't
+  judge them: the test browser renders in software.
 
 ```bash
 cargo build --release

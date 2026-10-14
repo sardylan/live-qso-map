@@ -147,3 +147,143 @@ test('a step lists the screenshots taken during it (data-model Step.screenshot)'
   assert.deepEqual(run.steps[0].screenshots, ['04-theme-light.png', '04-theme-dim.png']);
   assert.equal(run.steps[1].screenshots, undefined, 'no screenshot, no list');
 });
+
+// --- the glow measured on screen (feature 013, contracts/browser-test.md step 10, T005) ---
+
+import {
+  luminance,
+  parseView,
+  globeRadiusPx,
+  apparentRadiusPx,
+  limbSamples,
+  sunSide,
+  testInstant,
+  lightSide,
+  toScreenMercator,
+  toScreenGlobe,
+  nightAndDayPoints,
+} from '../tests/browser/lib.mjs';
+import { subsolarPoint } from '../src/web/assets/sun.js';
+
+test('luminance: Rec. 709 luma, 0 to 255', () => {
+  assert.equal(luminance([0, 0, 0, 255]), 0);
+  assert.ok(Math.abs(luminance([255, 255, 255, 255]) - 255) < 1e-9);
+  assert.ok(luminance([0, 255, 0, 255]) > luminance([255, 0, 0, 255]), 'green weighs more than red');
+});
+
+test('parseView reads #map data-view "lat,lon,zoom"', () => {
+  assert.deepEqual(parseView('12.5000,-45.2500,1.2000'), { lat: 12.5, lon: -45.25, zoom: 1.2 });
+  assert.equal(parseView(null), null);
+  assert.equal(parseView('nonsense'), null);
+});
+
+test('globe radius in pixels grows with zoom and towards the poles', () => {
+  const r0 = globeRadiusPx({ lat: 0, lon: 0, zoom: 0 });
+  assert.ok(Math.abs(r0 - 512 / (2 * Math.PI)) < 1e-9);
+  assert.ok(Math.abs(globeRadiusPx({ lat: 0, lon: 0, zoom: 1 }) - 2 * r0) < 1e-9);
+  assert.ok(globeRadiusPx({ lat: 60, lon: 0, zoom: 0 }) > 1.99 * r0, 'cos 60° halves the divisor');
+});
+
+test('the apparent radius is smaller than the sphere radius, as the camera sees it', () => {
+  // Measured on a 1400×813 map at zoom 1.5, centre latitude 30: about 222 px (feature 013).
+  const view = { lat: 30, lon: -29.83, zoom: 1.5 };
+  const r = apparentRadiusPx(view, 813);
+  assert.ok(Math.abs(r - 222) < 3, `${r}`);
+  assert.ok(r < globeRadiusPx(view));
+});
+
+test('limb samples sit just outside the visible limb, left and right, inside the map', () => {
+  const rect = { left: 0, top: 0, width: 1200, height: 800 };
+  const view = { lat: 0, lon: 0, zoom: 1.5 };
+  const r = apparentRadiusPx(view, 800);
+  const [left, right] = limbSamples(view, rect);
+  const cx = 600;
+  assert.ok(left.x >= cx - r * 1.014 - 1e-9 && left.x + left.w <= cx - r * 1.003 + 1e-9, 'left box');
+  assert.ok(right.x >= cx + r * 1.003 - 1e-9 && right.x + right.w <= cx + r * 1.014 + 1e-9, 'right box');
+  assert.ok(left.y < 400 && left.y + left.h > 400, 'at the centre height');
+  for (const b of [left, right]) assert.ok(b.w >= 1 && b.h >= 1);
+  assert.equal(limbSamples({ lat: 0, lon: 0, zoom: 4 }, rect), null, 'limb off screen');
+  const offset = limbSamples(view, { left: 100, top: 50, width: 1200, height: 800 });
+  assert.ok(Math.abs(offset[0].x - left.x - 100) < 1e-9 && Math.abs(offset[0].y - left.y - 50) < 1e-9);
+  // Auto-zoom frames with padding: the globe's centre is where the map centre projects.
+  const padded = limbSamples(view, rect, [600, 330]);
+  assert.ok(padded[0].y < 330 && padded[0].y + padded[0].h > 330, 'at the given centre');
+  assert.ok(Math.abs(padded[0].x - left.x) < 1e-9);
+});
+
+test('sunSide: the Sun 90° west of the view centre is on the left', () => {
+  const left = sunSide({ lat: 0, lon: 90, zoom: 1 }, { lat: 0, lon: 0 });
+  assert.equal(left.side, 'left');
+  assert.ok(left.x < -0.9);
+  const right = sunSide({ lat: 0, lon: -90, zoom: 1 }, { lat: 0, lon: 0 });
+  assert.equal(right.side, 'right');
+  assert.ok(right.x > 0.9);
+});
+
+test('testInstant puts the Sun 90° west of the house on the June solstice', () => {
+  for (const lon of [-170, 0, 9.12, 179]) {
+    const when = testInstant({ lat: 39.2, lon }, 2026);
+    assert.equal(when.getUTCFullYear(), 2026);
+    assert.equal(when.getUTCMonth(), 5);
+    assert.equal(when.getUTCDate(), 21);
+    const target = ((((lon - 90 + 180) % 360) + 360) % 360) - 180;
+    const diff = ((((subsolarPoint(when).lon - target + 180) % 360) + 360) % 360) - 180;
+    assert.ok(Math.abs(diff) < 0.1, `house ${lon}: off by ${diff}°`);
+  }
+});
+
+test('lightSide reads which way a light position points on screen', () => {
+  // MapLibre's sun direction is −sphericalToCartesian([r, az, polar]): x = sin(az)·sin(polar).
+  assert.equal(lightSide('-90.00,20.00').side, 'left');
+  assert.equal(lightSide('90.00,20.00').side, 'right');
+  assert.ok(Math.abs(lightSide('-90.00,20.00').x + Math.sin((20 * Math.PI) / 180)) < 1e-9);
+  assert.equal(lightSide(null), null);
+});
+
+// --- the grayline measured on screen (step 11, T019) -------------------------------------
+
+const RECT = { left: 0, top: 0, width: 1200, height: 800 };
+
+test('Web Mercator: the centre is the middle, one world east is one world width away', () => {
+  const view = { lat: 20, lon: 10, zoom: 1 };
+  const [x, y] = toScreenMercator(view, RECT, [20, 10]);
+  assert.ok(Math.abs(x - 600) < 1e-9 && Math.abs(y - 400) < 1e-9);
+  const [xe] = toScreenMercator(view, RECT, [20, 100]);
+  assert.ok(Math.abs(xe - 600 - 1024 / 4) < 1e-9, `${xe}`);
+  const [, yn] = toScreenMercator(view, RECT, [40, 10]);
+  assert.ok(yn < 400, 'north is up');
+  const [xw] = toScreenMercator(view, RECT, [20, 10 + 360]);
+  assert.ok(Math.abs(xw - 600) < 1e-9, 'the nearest world copy');
+});
+
+test('globe: the centre is the middle, the horizon is the visible limb, behind is null', () => {
+  const view = { lat: 0, lon: 0, zoom: 1.5 };
+  const [x, y] = toScreenGlobe(view, RECT, [0, 0]);
+  assert.ok(Math.abs(x - 600) < 1e-9 && Math.abs(y - 400) < 1e-9);
+  const [xe] = toScreenGlobe(view, RECT, [0, 60]);
+  assert.ok(xe > 600 && xe < 600 + apparentRadiusPx(view, 800), `${xe}`);
+  const [, yn] = toScreenGlobe(view, RECT, [45, 0]);
+  assert.ok(yn < 400, 'north is up');
+  assert.equal(toScreenGlobe(view, RECT, [0, 120]), null, 'the far side');
+  const shifted = toScreenGlobe(view, RECT, [0, 0], [600, 330]);
+  assert.ok(Math.abs(shifted[1] - 330) < 1e-9, 'around the given centre');
+});
+
+test('night and day points: deep night and full day, both on screen', () => {
+  const view = { lat: 0, lon: 0, zoom: 0.5 };
+  const sub = { lat: 10, lon: -60 };
+  const project = (p) => toScreenMercator(view, RECT, p);
+  const points = nightAndDayPoints(sub, project, RECT);
+  assert.ok(points, 'found');
+  const elevation = ([lat, lon]) => {
+    const d = Math.PI / 180;
+    const c = Math.sin(lat * d) * Math.sin(sub.lat * d) + Math.cos(lat * d) * Math.cos(sub.lat * d) * Math.cos((lon - sub.lon) * d);
+    return 90 - Math.acos(c) / d;
+  };
+  assert.ok(elevation(points.night.at) < -12, `night ${points.night.at}`);
+  assert.ok(elevation(points.day.at) > 10, `day ${points.day.at}`);
+  for (const { xy } of [points.night, points.day]) {
+    assert.ok(xy[0] >= 20 && xy[0] <= 1180 && xy[1] >= 20 && xy[1] <= 780);
+  }
+  assert.equal(nightAndDayPoints(sub, () => null, RECT), null, 'nothing visible');
+});
