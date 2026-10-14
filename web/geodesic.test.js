@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { greatCircle } from '../src/web/assets/geodesic.js';
+import { greatCircle, destination } from '../src/web/assets/geodesic.js';
 
 const R = 6371008.8;
 const rad = (d) => (d * Math.PI) / 180;
@@ -54,4 +54,37 @@ test('longitudes stay continuous across the antimeridian', () => {
 
 test('identical endpoints give two points', () => {
   assert.deepEqual(greatCircle([10, 20], [10, 20], 64), [[10, 20], [10, 20]]);
+});
+
+// --- destination (feature 013, research R7, T015) -----------------------------------------
+
+const near = (a, b, eps = 1e-9) => Math.abs(a - b) < eps;
+const angle = ([la1, lo1], [la2, lo2]) => {
+  const d = Math.PI / 180;
+  const c = Math.sin(la1 * d) * Math.sin(la2 * d) + Math.cos(la1 * d) * Math.cos(la2 * d) * Math.cos((lo2 - lo1) * d);
+  return Math.acos(Math.min(1, Math.max(-1, c))) / d;
+};
+
+test('destination: zero distance is the start point', () => {
+  const [lat, lon] = destination([39.2, 9.1], 77, 0);
+  assert.ok(near(lat, 39.2) && near(lon, 9.1));
+});
+
+test('destination: due north and due east from the equator', () => {
+  assert.ok(near(destination([0, 0], 0, 90)[0], 90));
+  const east = destination([0, 0], 90, 90);
+  assert.ok(near(east[0], 0) && near(east[1], 90), `${east}`);
+});
+
+test('destination: 180° gives the antipode', () => {
+  const [lat, lon] = destination([45, 10], 33, 180);
+  assert.ok(near(lat, -45, 1e-7), `${lat}`);
+  assert.ok(near(((lon + 540) % 360) - 180, -170, 1e-7), `${lon}`);
+});
+
+test('destination: the great-circle distance is the one asked for', () => {
+  for (const bearing of [0, 45, 135, 250, 359]) {
+    const to = destination([-33.9, 151.2], bearing, 30);
+    assert.ok(near(angle([-33.9, 151.2], to), 30, 1e-9), `${bearing}: ${angle([-33.9, 151.2], to)}`);
+  }
 });

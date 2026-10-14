@@ -180,6 +180,43 @@ export function saveAtmosphere(storage, on) {
   }
 }
 
+const GRAYLINE_KEY = 'lqm.grayline';
+const SUN_KEY = 'lqm.sun';
+
+/** Whether the map shows the grayline: on unless the viewer switched it off (feature 013, FR-009). */
+export function loadGrayline(storage) {
+  try {
+    return storage?.getItem(GRAYLINE_KEY) !== 'off';
+  } catch {
+    return true;
+  }
+}
+
+export function saveGrayline(storage, on) {
+  try {
+    storage?.setItem(GRAYLINE_KEY, on ? 'on' : 'off');
+  } catch {
+    // A browser that refuses storage keeps the choice for this visit only.
+  }
+}
+
+/** Whether the map shows the Sun symbol: off unless the viewer switched it on (FR-018). */
+export function loadSunMarker(storage) {
+  try {
+    return storage?.getItem(SUN_KEY) === 'on';
+  } catch {
+    return false;
+  }
+}
+
+export function saveSunMarker(storage, on) {
+  try {
+    storage?.setItem(SUN_KEY, on ? 'on' : 'off');
+  } catch {
+    // A browser that refuses storage keeps the choice for this visit only.
+  }
+}
+
 /**
  * The MapLibre sky for a theme (feature 011, research R5): the theme's colours, and the
  * atmosphere glow only on the globe and only when it is on (FR-010, FR-011).
@@ -193,4 +230,37 @@ export function skyFor(palette, { atmosphere, projection }) {
     'horizon-fog-blend': 0.5,
     'atmosphere-blend': atmosphere && projection === 'globe' ? 1 : 0,
   };
+}
+
+/**
+ * The MapLibre light for the atmosphere (feature 013, research R2): the glow is brightest on the
+ * globe's edge nearest the Sun, as the Sun lies from the viewer, and the globe is always lit
+ * from behind, so the scattering never hazes the map, its markers or its lines (owner's rule:
+ * the data stays fully visible). `subsolar` is `{ lat, lon }`; `camera` is the map's `{ lat,
+ * lng, bearing, pitch }`. A viewport light, recomputed on every camera move.
+ */
+export function lightFor(subsolar, camera) {
+  const D = Math.PI / 180;
+  const φ = subsolar.lat * D;
+  const λ = subsolar.lon * D;
+  // The Sun's direction on the Earth (MapLibre's globe axes), then into camera space with the
+  // globe's own rotations: Rx(−pitch)·Rz(bearing)·Rx(lat)·Ry(−lng).
+  let [x, y, z] = [Math.cos(φ) * Math.sin(λ), Math.sin(φ), Math.cos(φ) * Math.cos(λ)];
+  let t = -camera.lng * D;
+  [x, z] = [x * Math.cos(t) + z * Math.sin(t), -x * Math.sin(t) + z * Math.cos(t)];
+  t = camera.lat * D;
+  [y, z] = [y * Math.cos(t) - z * Math.sin(t), y * Math.sin(t) + z * Math.cos(t)];
+  t = (camera.bearing ?? 0) * D;
+  [x, y] = [x * Math.cos(t) - y * Math.sin(t), x * Math.sin(t) + y * Math.cos(t)];
+  t = -(camera.pitch ?? 0) * D;
+  [y, z] = [y * Math.cos(t) - z * Math.sin(t), y * Math.sin(t) + z * Math.cos(t)];
+  // Keep the on-screen direction, put the light well behind the globe (z ≤ −0.93): a rim only,
+  // with no crescent of haze over the land near the limb.
+  const BEHIND = 2.5;
+  const n = Math.hypot(x, y, BEHIND);
+  const u = [x / n, y / n, -BEHIND / n];
+  // MapLibre's sun direction is −sphericalToCartesian(position).
+  const polar = Math.acos(Math.max(-1, Math.min(1, -u[2]))) / D;
+  const azimuthal = Math.atan2(u[0], -u[1]) / D;
+  return { anchor: 'viewport', position: [1.15, azimuthal, polar] };
 }

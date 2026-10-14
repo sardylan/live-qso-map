@@ -43,3 +43,17 @@ export function greatCircle(a, b, segments = 64) {
   }
   return points;
 }
+
+/**
+ * The point `distanceDeg` along the great circle from `[lat, lon]` at `bearingDeg` (clockwise
+ * from north), as `[lat, lon]` (feature 013, research R7: the grayline's caps).
+ */
+export function destination([lat, lon], bearingDeg, distanceDeg) {
+  const φ1 = lat * DEG;
+  const θ = bearingDeg * DEG;
+  const δ = distanceDeg * DEG;
+  const sinφ2 = Math.sin(φ1) * Math.cos(δ) + Math.cos(φ1) * Math.sin(δ) * Math.cos(θ);
+  const φ2 = Math.asin(Math.min(1, Math.max(-1, sinφ2)));
+  const λ2 = lon * DEG + Math.atan2(Math.sin(θ) * Math.sin(δ) * Math.cos(φ1), Math.cos(δ) - Math.sin(φ1) * sinφ2);
+  return [φ2 / DEG, λ2 / DEG];
+}
