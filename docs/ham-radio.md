@@ -113,6 +113,11 @@ Every QSO MUST be representable as an ADIF record. Field names are uppercase. Va
 the logger MUST NOT be overwritten by derived or looked-up data, which only fills absent fields.
 Fields specific to this application use the `APP_LIVEQSOMAP_` prefix.
 
+The service lists the names of the fields it added to a record in `APP_LIVEQSOMAP_ADDED` (feature
+014). Every field not listed is the logger's, or comes from a log the operator supplied. When every
+online lookup failed without an answer (network error, timeout, quota, login), the record carries
+`APP_LIVEQSOMAP_LOOKUP_FAILED` (`source:kind`), so the lookup can be tried again later.
+
 ## 2. Concepts
 
 ### 2.1 QSO
@@ -296,6 +301,12 @@ between stations that are both near their sunrise or sunset. The map shades the 
 fade that starts at the horizon and reaches full night at −12°, so the grayline is the lighter
 part of the fade. Sun heights come from the UTC time (HR-1).
 
+### 2.12 History file
+
+The service's QSOs between runs: one ADIF file (HR-11), read at startup and written back at a
+graceful stop. It is the service's own store, not the operator's log, although an operator may
+place a log there to have it completed. Deleting it while the service is stopped empties the map.
+
 ## Changelog
 
 | Date | Change |
@@ -303,3 +314,4 @@ part of the fade. Sun heights come from the UTC time (HR-1).
 | 2026-10-09 | Initial version: rules HR-1 to HR-11, concepts §2.1–§2.10. |
 | 2026-10-13 | HR-7: placeholder positions and positions outside the entity are discarded; §2.2: how compound callsigns are looked up online (feature 010). |
 | 2026-10-14 | §2.11 Grayline (feature 013). |
+| 2026-10-14 | HR-11: `APP_LIVEQSOMAP_ADDED` and `APP_LIVEQSOMAP_LOOKUP_FAILED`; §2.12 History file (feature 014). |

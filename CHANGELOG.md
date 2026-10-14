@@ -20,6 +20,23 @@ which becomes the GitHub release notes (`docs/releasing.md`).
   default).
 - The release browser test checks the glow after hand moves and auto-zoom, and the grayline on
   both views.
+- History file: the QSOs are kept in an ADIF file (`--history-file`, by default
+  `qso-history.adi` next to `cty.dat`), read at startup and written back at a graceful stop, so a
+  restart no longer empties the map. QSOs that already had a position come back with no new
+  lookup; an exported log placed there is completed and saved back. To reset: stop, delete the
+  file, start.
+- `--enrich-only [FILE]` completes the QSOs in an ADIF file and writes it back, then exits,
+  without opening any port.
+- ADIF fields `APP_LIVEQSOMAP_ADDED` (the fields the service added to a record) and
+  `APP_LIVEQSOMAP_LOOKUP_FAILED` (every online lookup failed; tried again at the next start).
+
+### Changed
+- The service keeps every QSO: the history is no longer limited. The page's "Last N QSOs" menu
+  goes up to 1000 instead of "All"; a saved "All" becomes 1000.
+
+### Removed
+- The `history_size` setting (`--history-size`, `LQM_HISTORY_SIZE`): it is ignored, with a
+  warning.
 
 ## [3.0.1] - 2026-10-13
 

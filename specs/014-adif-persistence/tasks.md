@@ -340,22 +340,22 @@ records on other bands are kept untouched.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T041 [P] Update `README.md`: a "History file" section (where it lives per install, what is
+- [X] T041 [P] Update `README.md`: a "History file" section (where it lives per install, what is
   saved, only graceful stops save, reset = stop, delete, start; the unreadable-file rename);
   `--enrich-only [FILE]` with an example and its exit codes; the configuration table (add
   `--history-file`/`LQM_HISTORY_FILE`, remove `--history-size`, note it is ignored with a
   warning); the page's count menu (10–1000); replace "The history lives in memory only and is lost
   on restart."
-- [ ] T042 [P] Update `deploy/config.example.toml`: replace the `history_size` line with
+- [X] T042 [P] Update `deploy/config.example.toml`: replace the `history_size` line with
   `# history_file = "/var/lib/live-qso-map/qso-history.adi"   # default: next to the country data`.
-- [ ] T043 [P] Update `docs/ham-radio.md`: HR-11 names `APP_LIVEQSOMAP_ADDED` (fields the service
+- [X] T043 [P] Update `docs/ham-radio.md`: HR-11 names `APP_LIVEQSOMAP_ADDED` (fields the service
   added; everything else is the logger's) and `APP_LIVEQSOMAP_LOOKUP_FAILED`; §2 gains a short
   "History file" entry; add a dated changelog line.
-- [ ] T044 [P] Add entries under `## [Unreleased]` in `CHANGELOG.md` (`docs/releasing.md`):
+- [X] T044 [P] Add entries under `## [Unreleased]` in `CHANGELOG.md` (`docs/releasing.md`):
   **Added** history file, `--history-file`, `--enrich-only`, the two new ADIF fields; **Changed**
   no history limit, page count menu tops out at 1000; **Removed** `history_size` (ignored with a
   warning).
-- [ ] T045 Run the local gates: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`,
+- [X] T045 Run the local gates: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`,
   `cargo test --locked`, `node --test 'web/*.test.js'`, and quickstart §1–§6.
 - [ ] T046 Mark the tasks done, commit per phase, push `feature/014-adif-persistence`, and open the
   pull request. Merge it once the gates are green; delete the branch afterwards (constitution,
