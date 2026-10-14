@@ -7,6 +7,11 @@ which becomes the GitHub release notes (`docs/releasing.md`).
 
 ## [Unreleased]
 
+### Fixed
+- The release browser test turns the globe with drags sized from what each drag actually did, so
+  it reaches its target at any zoom. 3.1.1 was tagged but never published: in CI the globe step
+  ran out of drags.
+
 ## [3.1.1] - 2026-10-14
 
 ### Fixed
