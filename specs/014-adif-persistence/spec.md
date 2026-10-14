@@ -234,8 +234,8 @@ carry a position (or a rejected-position note when none could be found).
   QSOs box and the page's count limit see them in their real order, not in load order.
 - **FR-010**: Malformed records MUST be logged and skipped without stopping the load. At the end
   of the load the service MUST log the number of records loaded and skipped.
-- **FR-011**: In a normal run, if the file exists but cannot be read (I/O error, or no ADIF record
-  and no ADIF header at all), the service MUST move it aside under a name that keeps the original
+- **FR-011**: In a normal run, if the file exists but cannot be read (I/O error, or a non-empty file
+  with neither an ADIF header nor an ADIF record; an empty file is an empty history), the service MUST move it aside under a name that keeps the original
   name and adds the UTC time of the move (HR-1), MUST log the reason and the new name, and MUST
   start with an empty history. If the file cannot be moved, the service MUST report both reasons
   and MUST NOT start. A file with some malformed records is not unreadable (FR-010).
@@ -339,8 +339,8 @@ carry a position (or a rejected-position note when none could be found).
   position before the stop.
 - **SC-003**: With a history of 10 000 QSOs, the page is available within 5 seconds of startup,
   and the save at a graceful stop finishes within 5 seconds.
-- **SC-007**: With 50 000 QSOs in the history, the page receives at most 1000 QSOs and stays as
-  responsive as with 1000.
+- **SC-007**: With 50 000 QSOs in the history, every snapshot the page receives holds at most 1000
+  QSOs, and answering a count change takes under 100 ms.
 - **SC-004**: Starting from an empty history needs exactly one step between the stop and the
   start: deleting one file.
 - **SC-005**: After an enrich-only run on a file whose records lack positions, every record either

@@ -73,9 +73,15 @@ listed is never changed by the service (HR-11).
 
 ### `Pending` (new, shared)
 
-`Arc<Mutex<HashMap<String, AdifRecord>>>`: id → record to write if the QSO is still waiting at
-save time (the saved record for restored events, the record as received for live ones). Inserted
-when an event is queued; removed when a worker publishes or drops it as stale.
+`Arc<Mutex<HashMap<String, (u32, AdifRecord)>>>`: id → revision and record to write if the QSO is
+still waiting at save time (the saved record for restored events, the record as received for live
+ones). Inserted when an event is queued; removed when a worker publishes or drops it as stale. At
+save, written when its id is not in the history or its revision is higher than the history's.
+
+### Workers
+
+Service: `workers` live workers on the live queue, plus 1 restore worker on the restore queue.
+Enrich-only: `workers` restore workers. No worker reads both queues (R2).
 
 ### `Parked` (new)
 
