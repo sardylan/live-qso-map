@@ -555,6 +555,9 @@ const steps = {
 
   async themes() {
     const rows = (await boxCalls()).length;
+    // Auto-zoom off while the view is compared: a refit after the style reload could move it a
+    // hair on CI's slow renderer, which is not what this step checks.
+    await setAutoZoom(false);
     for (const [choice, name] of [['light', 'Light'], ['dim', 'Dim'], ['dark', 'Dark']]) {
       const before = await stableView(`before ${choice}`);
       await setTheme(choice);
@@ -565,12 +568,21 @@ const steps = {
       );
       const after = await stableView(`after ${choice}`);
       if (!sameView(before, after)) throw new Error(`the view moved with the ${choice} theme: ${before} → ${after}`);
-      if (!(await q(`document.querySelector('.toggle-control button').classList.contains('active')`))) {
-        throw new Error(`auto-zoom went off with the ${choice} theme`);
+      if (await q(`document.querySelector('.toggle-control button').classList.contains('active')`)) {
+        throw new Error(`auto-zoom went on with the ${choice} theme`);
       }
       if ((await boxCalls()).length !== rows) throw new Error(`the box lost rows with the ${choice} theme`);
       await shot(`04-theme-${choice}`);
     }
+    // A theme change never turns auto-zoom off either.
+    await setAutoZoom(true);
+    await setTheme('light');
+    await until(`document.documentElement.dataset.theme === 'light'`, 'data-theme="light" again');
+    if (!(await q(`document.querySelector('.toggle-control button').classList.contains('active')`))) {
+      throw new Error('auto-zoom went off with a theme change');
+    }
+    await setTheme('dark');
+    await until(`document.documentElement.dataset.theme === 'dark'`, 'data-theme="dark" again');
   },
 
   async 'panel-escape'() {
