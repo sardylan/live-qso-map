@@ -341,16 +341,28 @@ async function noHaze() {
   }
 }
 
-/** Drags the globe until its centre is within 15° of longitude `target`. */
+/**
+ * Drags the globe until its centre is within 15° of longitude `target`. How many degrees a pixel
+ * turns depends on the zoom and the latitude (about 0.5° at zoom 1.5, a quarter of that at zoom
+ * 2.4 in CI), so each drag is sized from what the previous one actually did.
+ */
 async function turnToLongitude(target) {
-  for (let i = 0; i < 10; i++) {
+  const wrap = (deg) => ((((deg + 180) % 360) + 360) % 360) - 180;
+  let degPerPx = 0.5;
+  let last = null;
+  for (let i = 0; i < 20; i++) {
     const view = parseView(await stableView('before turning to a longitude'));
-    const off = ((((target - view.lon + 180) % 360) + 360) % 360) - 180;
+    if (last) {
+      const moved = Math.abs(wrap(view.lon - last.lon));
+      if (moved > 1) degPerPx = Math.min(2, Math.max(0.02, moved / Math.abs(last.dx)));
+    }
+    const off = wrap(target - view.lon);
     if (Math.abs(off) <= 15) return;
     const [cx, cy] = centre(await mapRect());
-    // Dragging left turns the centre east; about 0.5° per pixel at this zoom, at most 150 px.
-    const dx = Math.max(-150, Math.min(150, -off * 2));
+    // Dragging left turns the centre east; at most 300 px, so the drag stays on the globe.
+    const dx = Math.max(-300, Math.min(300, -off / degPerPx));
     await page.drag([cx, cy], [cx + dx, cy]);
+    last = { lon: view.lon, dx };
   }
   throw new Error(`could not turn the globe to longitude ${target.toFixed(1)}`);
 }
