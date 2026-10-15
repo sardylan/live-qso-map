@@ -7,6 +7,8 @@ which becomes the GitHub release notes (`docs/releasing.md`).
 
 ## [Unreleased]
 
+## [3.2.0] - 2026-10-15
+
 ### Added
 - Every release carries `config.example.toml`: every setting of the configuration file,
   commented out, with its default or a `"<…>"` placeholder (callsign, locator, position, provider
