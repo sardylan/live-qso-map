@@ -1,5 +1,8 @@
 # Contract: Release Artifacts (feature 008)
 
+> **Feature 015:** superseded for the example configuration and the Debian live configuration by
+> [`specs/015-example-config-release/contracts/release-deliverables.md`](../../015-example-config-release/contracts/release-deliverables.md).
+
 Produced only by the CircleCI pipeline for tags `vX.Y.Z` (constitution Principle V). `X.Y.Z`
 MUST equal the `version` in `Cargo.toml`, otherwise the workflow stops before building
 (FR-002).

@@ -33,6 +33,7 @@ COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certifica
 COPY --from=build /out/etc/live-qso-map /etc/live-qso-map
 COPY --from=build --chown=10001:10001 /out/var/lib/live-qso-map /var/lib/live-qso-map
 COPY LICENSE.md /usr/share/doc/live-qso-map/LICENSE.md
+COPY deploy/config.example.toml /usr/share/doc/live-qso-map/config.example.toml
 COPY --chmod=755 deploy/docker/entrypoint.sh /usr/local/bin/live-qso-map-entrypoint
 COPY --from=build /live-qso-map /usr/bin/live-qso-map
 USER 10001:10001

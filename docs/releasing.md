@@ -89,7 +89,9 @@ cargo release push --execute
 1. `check-version` (version, changelog section, secrets), then the five builds, the packages and
    their tests, the archives and the image tests;
 2. the `-rc` image push, and the browser tests (`browser-test`) on the x86_64 binary;
-3. the GitHub release, with the changelog section as notes and `SHA256SUMS`. It waits for
+3. the GitHub release, with the changelog section as notes, `SHA256SUMS` and the standalone
+   `config.example.toml`, once `check-release-files.sh` has found the same example in every
+   archive and package. It waits for
    `browser-test`, so a release whose map page fails in the browser is never published;
 4. the Docker Hub tags `X.Y.Z` and `latest`.
 

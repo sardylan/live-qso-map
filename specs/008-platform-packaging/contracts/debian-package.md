@@ -1,5 +1,8 @@
 # Contract: Debian Package (feature 008)
 
+> **Feature 015:** superseded for the example configuration and the Debian live configuration by
+> [`specs/015-example-config-release/contracts/release-deliverables.md`](../../015-example-config-release/contracts/release-deliverables.md).
+
 ## Control fields
 
 | Field | Value |

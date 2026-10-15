@@ -7,6 +7,21 @@ which becomes the GitHub release notes (`docs/releasing.md`).
 
 ## [Unreleased]
 
+### Added
+- Every release carries `config.example.toml`: every setting of the configuration file,
+  commented out, with its default or a `"<…>"` placeholder (callsign, locator, position, provider
+  usernames and passwords). It sits next to the license in the Linux archives and the Windows
+  and macOS zips, in `/usr/share/doc/live-qso-map/` in the Debian packages and the container
+  image, and is a download of its own on the GitHub release. A release stops before publishing
+  if any archive or package lacks it.
+
+### Changed
+- The Debian package installs a short `/etc/live-qso-map/config.toml` that only sets where the
+  data goes; the full example is in `/usr/share/doc/live-qso-map/` and is replaced on every
+  upgrade. The configuration file follows the standard Debian prompt: if you edited it, the
+  first upgrade to this version asks whether to keep yours.
+- The example no longer uses a real callsign, locator or position as sample values.
+
 ## [3.1.2] - 2026-10-14
 
 ### Fixed

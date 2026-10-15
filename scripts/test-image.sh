@@ -22,6 +22,10 @@ step=user
 uid=$(docker run --rm --entrypoint id "$image" -u) || fail "cannot run id"
 [ "$uid" = 10001 ] || fail "runs as uid $uid, wanted 10001"
 
+step=example
+docker run --rm --entrypoint test "$image" -f /usr/share/doc/live-qso-map/config.example.toml \
+    || fail "the example is not in /usr/share/doc/live-qso-map"
+
 step=mounted-config
 cat > "$work/config.toml" <<'TOML'
 http_port = 18080

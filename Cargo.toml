@@ -26,8 +26,9 @@ maintainer-scripts = "deploy/debian/"
 systemd-units = { unit-scripts = "deploy/debian/", enable = false, start = false, restart-after-upgrade = true }
 assets = [
     ["target/release/live-qso-map", "usr/bin/", "755"],
-    ["deploy/config.example.toml", "etc/live-qso-map/config.toml", "640"],
+    ["deploy/debian/config.toml", "etc/live-qso-map/config.toml", "640"],
     ["README.md", "usr/share/doc/live-qso-map/README.md", "644"],
+    ["deploy/config.example.toml", "usr/share/doc/live-qso-map/config.example.toml", "644"],
     ["LICENSE.md", "usr/share/doc/live-qso-map/copyright", "644"],
 ]
 
