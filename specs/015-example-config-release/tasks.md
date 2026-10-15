@@ -336,7 +336,7 @@ test-support code is needed (`Secret::new` already exists).
   `.circleci/config.yml` `test-tools`). All pass.
 - [X] T028 Run the quickstart's development-host checks (`quickstart.md`, "On any development
   host"): the `--save-config -` diff with and without the example is empty.
-- [ ] T029 [R:YELLOW] Push the branch and run a release rehearsal
+- [X] T029 [R:YELLOW] Push the branch and run a release rehearsal
   (`circleci pipeline run … --param rehearsal=true`, docs/ci.md section 7), as LL-007 and
   research R7 require. Expect:
   - `check-release-files.sh` prints `ok` for 3 `.tar.gz`, 2 `.zip`, 3 `.deb` and the standalone
