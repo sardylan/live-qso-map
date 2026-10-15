@@ -1,27 +1,30 @@
-# live-qso-map configuration (contracts/configuration.md).
+# live-qso-map example configuration: every setting, commented out.
+#
+# Copy this file to your live configuration and uncomment only the lines you change:
+#   Windows, macOS, Linux archive: live-qso-map.toml next to the program (read automatically)
+#   Debian package:                /etc/live-qso-map/config.toml (already sets the data folder)
+#   Container image:               mount it at /etc/live-qso-map/config.toml
+# Replace every "<...>" placeholder with your own value: a placeholder left in place either
+# stops the program with an error or does nothing useful.
+#
 # Precedence: command line > LQM_* environment variables > this file > built-in defaults.
+# Every setting also has an LQM_* variable and a command-line option: live-qso-map --help lists
+# them. A complete file with the values in use can be written with --save-config <PATH>.
 #
-# Installed by the Debian package as /etc/live-qso-map/config.toml (root:live-qso-map, 0640);
-# the service runs as the unprivileged live-qso-map account and reads it with --config.
-# Every setting is listed with its default, commented out. To write a complete file from
-# options instead, for example:
-#   sudo live-qso-map --config /etc/live-qso-map/config.toml --station-callsign IS0MZK \
-#     --save-config /etc/live-qso-map/config.toml
-# then: sudo systemctl enable --now live-qso-map
-#
-# Passwords set here are readable by root and the service only. Environment variables
-# (e.g. LQM_QRZ_PASSWORD) are an alternative.
+# A file holding provider passwords must stay private (on Linux and macOS: chmod 600, or 640
+# for a service account). The LQM_* variables in [lookup] keep passwords out of the file.
 
 # bind_address = "0.0.0.0"     # UDP and HTTP listeners
 # udp_port = 12060             # QSO messages (ADIF, QARTest)
 # http_port = 8080             # map page, WebSocket, /healthz
-# history_file = "/var/lib/live-qso-map/qso-history.adi"   # default: next to the country data
+# history_file = "./qso-history.adi"   # default: qso-history.adi next to the country data file,
+#                                      # so /var/lib/live-qso-map/ in the Debian package and the image
 # workers = 1                  # enrichment workers
 # ingest_queue = 1024
 # broadcast_queue = 1024
 # log_level = "info"           # error, warn, info, debug, trace
 
-# Bands to consider; everything else is dropped at ingest and never shown (feature 003).
+# Bands to consider; everything else is dropped at ingest and never shown.
 # Entries are ADIF bands or groups, in any mix; prefix with - to exclude. Groups (frequency order):
 #   lf-mf      2190m 630m 560m
 #   hf         160m 80m 60m 40m 30m 20m 17m 15m 12m 10m
@@ -31,53 +34,61 @@
 #   uhf        70cm 33cm 23cm
 #   shf        13cm 9cm 6cm 3cm 1.25cm
 #   ehf        6mm 4mm 2.5mm 2mm 1mm submm
-# Not set (or empty): the six contest HF bands, 160m 80m 40m 20m 15m 10m (feature 011).
-# Another example: ["hf", "-60m"] is every HF band except 60m.
-# bands = ["all"]                  # every band, with no filter ("all" goes alone)
+# Other examples: ["all"] is every band, with no filter ("all" goes alone);
+# ["hf", "-60m"] is every HF band except 60m.
+# bands = ["hf-contest"]       # default: the six contest HF bands
 
 [station]
 # Used when an incoming QSO lacks them. The map also draws the house (QTH) at this position, and
-# auto-zoom frames the callsign's DXCC entity before the first QSO arrives.
-# callsign = "IS0MZK"
-# locator = "JM49NH"
-# latitude = 39.3125           # set both latitude and longitude, or neither
-# longitude = 9.125
+# auto-zoom frames the callsign's DXCC entity before the first QSO arrives. No defaults.
+# callsign = "<your callsign>"
+# locator = "<your Maidenhead locator>"
+# latitude = "<decimal degrees, north positive>"    # a number; set both latitude and longitude,
+# longitude = "<decimal degrees, east positive>"    # or neither
 
 [lookup]
 # timeout_secs = 5             # per provider; providers are queried in parallel
 # provider_order = ["qrz", "hamqth", "qrzcq"]   # breaks ties at equal precision
+#
+# A provider is enabled when both its username and its password are set. They can come from
+# the environment instead of this file, keeping the passwords out of it:
+#   LQM_QRZ_USERNAME, LQM_QRZ_PASSWORD
+#   LQM_HAMQTH_USERNAME, LQM_HAMQTH_PASSWORD
+#   LQM_QRZCQ_USERNAME, LQM_QRZCQ_PASSWORD
 
-# A provider is enabled when both username and password are set.
 [lookup.qrz]
-# username = ""
-# password = ""
+# username = "<your QRZ.com username>"
+# password = "<your QRZ.com password>"
 
 [lookup.hamqth]
-# username = ""
-# password = ""
+# username = "<your HamQTH username>"
+# password = "<your HamQTH password>"
 
 [lookup.qrzcq]
-# username = ""
-# password = ""
+# username = "<your QRZCQ username>"
+# password = "<your QRZCQ password>"
 
 [country_data]
-path = "/var/lib/live-qso-map/cty.dat"   # downloaded and refreshed here
+# path = "./cty.dat"           # downloaded and refreshed here. Default: ./cty.dat, in the program's
+#                              # folder on Windows and macOS; /var/lib/live-qso-map/cty.dat in the
+#                              # Debian package and the container image
 # url = "https://www.country-files.com/cty/cty.dat"
 # max_age_days = 30            # 0 = never re-download an existing file
 
 [map]
-# Base map: either a MapLibre vector style...
-# style_url = "https://tiles.openfreemap.org/styles/liberty"   # default (OpenFreeMap, no key)
-# style_attribution = "..."                                    # HTML credit (OpenFreeMap's for the default style)
-# ...or raster tiles (not both; tile_attribution is then required):
+# Base map: either a MapLibre vector style (default: OpenFreeMap Liberty, with its credit)...
+# style_url = "https://tiles.openfreemap.org/styles/liberty"
+# style_attribution = '<a href="https://openfreemap.org" target="_blank">OpenFreeMap</a> © <a href="https://www.openmaptiles.org/" target="_blank">OpenMapTiles</a> Data from <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>'
+# ...or raster tiles instead (not both; tile_attribution is then required). Example:
 # tile_url = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
 # tile_attribution = "&copy; OpenStreetMap contributors"
-# fallback_color = "#7f7f7f"
-# Last-QSO box columns, in display order (feature 006). Keywords:
+# fallback_color = "#7f7f7f"   # QSOs on a band with no colour
+# Last-QSO box columns, in display order. Keywords:
 #   call, band, mode, date, time, cqzone, country
-# recent_columns = ["call", "band", "time", "cqzone", "country"]   # default
-# recent_header = true                                            # show the header row
+# recent_columns = ["call", "band", "time", "cqzone", "country"]
+# recent_header = true         # show the header row
 
 [map.bands]
+# Colour per band, replacing the built-in palette's entry for that band. Examples:
 # "40m" = "#d62728"
 # "20m" = "#1f77b4"

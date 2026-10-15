@@ -259,6 +259,7 @@ jobs:
             sh scripts/test-check-version.sh
             sh scripts/test-changelog-section.sh
             sh scripts/test-check-secrets.sh
+            sh scripts/test-check-release-files.sh
 
   # Release gate, before any build (FR-002, FR-013, FR-032): the tag is "v" + the Cargo.toml
   # version, CHANGELOG.md has notes for it, and the publishing secrets are present. It runs
@@ -301,14 +302,14 @@ jobs:
             cross build --release --locked --target << parameters.target >>
       - set-release-version
       - run:
-          name: Archive with the license
+          name: Archive with the license and the example
           command: |
             version="${RELEASE_VERSION}"
             mkdir -p ws/bin/<< parameters.target >> ws/release stage
             cp target/<< parameters.target >>/release/live-qso-map ws/bin/<< parameters.target >>/
             install -m 755 target/<< parameters.target >>/release/live-qso-map stage/live-qso-map
-            cp LICENSE.md stage/
-            tar -czf "ws/release/live-qso-map-${version}-<< parameters.target >>.tar.gz" -C stage live-qso-map LICENSE.md
+            cp LICENSE.md deploy/config.example.toml stage/
+            tar -czf "ws/release/live-qso-map-${version}-<< parameters.target >>.tar.gz" -C stage live-qso-map LICENSE.md config.example.toml
       - persist_to_workspace:
           root: ws
           paths:
@@ -435,9 +436,13 @@ jobs:
             got=$(dpkg-deb --field "$deb" Version)
             [ "$got" = "${DEB_VERSION}" ] || { echo "Version $got, wanted ${DEB_VERSION}"; exit 1; }
             contents=$(dpkg-deb --contents "$deb")
-            for path in ./usr/bin/live-qso-map ./etc/live-qso-map/config.toml live-qso-map.service; do
+            for path in ./usr/bin/live-qso-map ./etc/live-qso-map/config.toml live-qso-map.service \
+                ./usr/share/doc/live-qso-map/config.example.toml; do
               echo "$contents" | grep -q "$path" || { echo "missing $path"; exit 1; }
             done
+            # Only the live configuration is a conffile; the example is always overwritten (FR-010b).
+            conffiles=$(dpkg-deb --ctrl-tarfile "$deb" | tar -xOf - ./conffiles)
+            [ "$conffiles" = /etc/live-qso-map/config.toml ] || { echo "conffiles: $conffiles"; exit 1; }
             dpkg-deb --info "$deb"
       - persist_to_workspace:
           root: ws
@@ -473,7 +478,8 @@ jobs:
           name: Package life cycle
           command: sh scripts/test-deb.sh ws/release/live-qso-map_*_<< parameters.arch >>.deb
 
-  # Windows and macOS zips: program, license, read-me (contracts/release-artifacts.md).
+  # Windows and macOS zips: program, license, read-me, example; plus the standalone example
+  # (contracts/release-artifacts.md, feature 015 contracts/release-deliverables.md).
   package-archives:
     docker:
       - image: cimg/base:current
@@ -491,16 +497,18 @@ jobs:
             version="${RELEASE_VERSION}"
             mkdir -p ws/release win mac
             cp ws/bin/x86_64-pc-windows-msvc/live-qso-map.exe win/live-qso-map.exe
-            cp LICENSE.md deploy/windows/README.txt win/
+            cp LICENSE.md deploy/windows/README.txt deploy/config.example.toml win/
             install -m 755 ws/bin/aarch64-apple-darwin/live-qso-map mac/live-qso-map
-            cp LICENSE.md deploy/macos/README.txt mac/
-            (cd win && zip -X "../ws/release/live-qso-map-${version}-windows-x64.zip" live-qso-map.exe LICENSE.md README.txt)
-            (cd mac && zip -X "../ws/release/live-qso-map-${version}-macos-arm64.zip" live-qso-map LICENSE.md README.txt)
+            cp LICENSE.md deploy/macos/README.txt deploy/config.example.toml mac/
+            (cd win && zip -X "../ws/release/live-qso-map-${version}-windows-x64.zip" live-qso-map.exe LICENSE.md README.txt config.example.toml)
+            (cd mac && zip -X "../ws/release/live-qso-map-${version}-macos-arm64.zip" live-qso-map LICENSE.md README.txt config.example.toml)
+            cp deploy/config.example.toml ws/release/config.example.toml
             unzip -Z ws/release/live-qso-map-${version}-macos-arm64.zip | grep -- '-rwx' | grep -q ' live-qso-map$'
       - persist_to_workspace:
           root: ws
           paths:
             - release/*.zip
+            - release/config.example.toml
 
   # Real-browser tests (feature 012, contracts/pipeline.md): the x86_64 release binary and its
   # map page in Chrome for Testing, before anything is published. The image holds Chrome's
@@ -604,6 +612,7 @@ jobs:
     docker:
       - image: cimg/base:current
     steps:
+      - checkout
       - attach_workspace:
           at: ./ws
       - run:
@@ -613,6 +622,10 @@ jobs:
             echo "publishing secrets: not checked (rehearsal)"
       - store_artifacts:
           path: ws/release
+      # After the artefacts are stored, so a failing check still leaves the files to inspect.
+      - run:
+          name: The example in every release file
+          command: sh scripts/check-release-files.sh ws/release deploy/config.example.toml
 
   # After the GitHub release (FR-018, FR-022, research R8): re-tag the tested -rc manifest as
   # <version> and latest with crane (same digest, no rebuild, no VM), then delete the -rc tag.
@@ -677,6 +690,9 @@ jobs:
             mkdir -p "$HOME/bin"
             tar -xzf gh.tar.gz --strip-components=2 -C "$HOME/bin" gh_2.102.0_linux_amd64/bin/gh
             echo 'export PATH="$HOME/bin:$PATH"' >> "$BASH_ENV"
+      - run:
+          name: The example in every release file
+          command: sh scripts/check-release-files.sh ws/release deploy/config.example.toml
       - run:
           name: Checksums
           command: cd ws/release && sha256sum * > SHA256SUMS && cat SHA256SUMS

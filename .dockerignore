@@ -12,6 +12,7 @@ tools/
 scripts/
 deploy/
 !deploy/docker/
+!deploy/config.example.toml
 node_modules/
 *.log
 .env*

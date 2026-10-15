@@ -1,0 +1,14 @@
+# live-qso-map configuration of the Debian package (feature 015).
+# The service runs as the live-qso-map account and reads this file with --config.
+#
+# Every setting is listed, commented out with its default or a placeholder, in
+#   /usr/share/doc/live-qso-map/config.example.toml
+# Copy the lines you need from there. To write a complete file from options instead:
+#   sudo live-qso-map --config /etc/live-qso-map/config.toml --station-callsign <CALL> \
+#     --save-config /etc/live-qso-map/config.toml
+# then: sudo systemctl enable --now live-qso-map
+#
+# This file may hold provider passwords: it is readable by root and the service only.
+
+[country_data]
+path = "/var/lib/live-qso-map/cty.dat"   # downloaded and refreshed here; the history file goes next to it

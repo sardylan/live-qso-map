@@ -180,7 +180,12 @@ the band selection in
 [`specs/003-band-filter/contracts/configuration.md`](specs/003-band-filter/contracts/configuration.md),
 and the last-QSO box in
 [`specs/006-recent-box-config/contracts/configuration.md`](specs/006-recent-box-config/contracts/configuration.md),
-and [`deploy/config.example.toml`](deploy/config.example.toml) is a commented starting point.
+and [`deploy/config.example.toml`](deploy/config.example.toml) lists every setting of the file,
+commented out, with its default or a `"<…>"` placeholder (callsign, locator, position, provider
+usernames and passwords). It ships as `config.example.toml` in every release file (next to the
+license and read-me, or in `/usr/share/doc/live-qso-map/` in the `.deb` and the container image)
+and as a download of its own on each GitHub release. Copy it to your configuration file,
+uncomment what you change and replace the placeholders.
 The most common settings:
 
 | Setting | Flag / env | Default |
@@ -308,7 +313,8 @@ docker run -p 12060:12060/udp -p 8080:8080 \
 
 - **Configuration**: a file mounted at `/etc/live-qso-map/config.toml` is used as is. Without
   one, settings come from `LQM_*` environment variables (`-e LQM_STATION_CALLSIGN=IS0MZK`) or
-  options after the image name.
+  options after the image name. To start the file from the example in the image:
+  `docker run --rm --entrypoint cat sardylan/live-qso-map:2.0.0 /usr/share/doc/live-qso-map/config.example.toml > config.toml`.
 - **Data**: `cty.dat` and the history file `qso-history.adi` are kept in the
   `/var/lib/live-qso-map` volume, so they survive restarts.
 - **User**: the process runs as the unprivileged user `10001`, not root.
@@ -339,13 +345,21 @@ sudo systemctl enable --now live-qso-map
 ```
 
 - **Layout**: the program is `/usr/bin/live-qso-map`, the configuration is
-  `/etc/live-qso-map/config.toml`, and data (`cty.dat` and the history file `qso-history.adi`)
-  goes to `/var/lib/live-qso-map/`.
+  `/etc/live-qso-map/config.toml` (a short file that sets only where the data goes), and data
+  (`cty.dat` and the history file `qso-history.adi`) goes to `/var/lib/live-qso-map/`. Every
+  setting, commented out, is in `/usr/share/doc/live-qso-map/config.example.toml`: copy the lines
+  you need into the configuration.
 - **Account**: the service runs as the unprivileged `live-qso-map` account, created at install.
   The configuration file is readable only by root and that account, because it may hold
   provider passwords. `--save-config` over it keeps its owner and permissions.
 - **Not started at install**: the UDP port has no authentication, so the service starts only
-  after you enable it. Upgrades keep your configuration and restart a running service.
+  after you enable it. Upgrades restart a running service.
+- **Upgrades**: the example in `/usr/share/doc` is always replaced. The configuration follows
+  the standard Debian rules for configuration files: a file you never changed is updated
+  silently, a file you changed is kept, and when both you and the new version changed it, the
+  upgrade asks whether to keep yours or take the new one (and can show the difference). The
+  first upgrade to a version with the short configuration file changes the packaged file, so
+  if you edited yours it asks once.
 - **Remove versus purge**: `sudo apt remove live-qso-map` keeps the configuration, the data and
   the account; `sudo apt purge live-qso-map` deletes all three.
 
@@ -357,7 +371,8 @@ rights are needed.
 
 - **One folder**: everything stays in the program's folder. It reads `live-qso-map.toml` from
   there, downloads `cty.dat` there and keeps the history file `qso-history.adi` there, whatever
-  folder the terminal starts in. Create the file
+  folder the terminal starts in. Create the file by copying the bundled `config.example.toml`
+  to `live-qso-map.toml` and uncommenting what you change, or
   with `--save-config live-qso-map.toml` from a terminal in that folder (`.\live-qso-map.exe` on
   Windows, `./live-qso-map` on macOS).
 - **Windows errors**: if the program stops with an error, the message stays visible until you

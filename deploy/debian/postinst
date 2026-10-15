@@ -40,7 +40,9 @@ if [ "$1" = "configure" ]; then
     else
         cat <<'MSG'
 live-qso-map is installed but not started: its UDP port has no authentication.
-  1. Edit /etc/live-qso-map/config.toml (station callsign, locator, providers…), or write it with
+  1. Edit /etc/live-qso-map/config.toml (station callsign, locator, providers…), copying the
+     lines you need from /usr/share/doc/live-qso-map/config.example.toml (every setting), or
+     write it with
      sudo live-qso-map --config /etc/live-qso-map/config.toml --station-callsign <CALL> \
        --save-config /etc/live-qso-map/config.toml
   2. sudo systemctl enable --now live-qso-map

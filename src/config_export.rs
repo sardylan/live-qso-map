@@ -102,7 +102,7 @@ fn keep_existing_permissions(_tmp: &Path, _target: &Path) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::Cli;
+    use crate::config::{Cli, Credentials, ProviderKind, Secret};
     use clap::Parser;
     use std::collections::HashMap;
     use std::path::PathBuf;
@@ -502,7 +502,7 @@ mod tests {
         }
     }
 
-    // --- shipped configuration, deploy/config.example.toml (T019, FR-010) ---
+    // --- shipped configuration, deploy/config.example.toml (feature 008 T019; feature 015) ---
 
     const EXAMPLE: &str = include_str!("../deploy/config.example.toml");
 
@@ -551,6 +551,19 @@ mod tests {
         config.station.locator = Some("JM49NH".into());
         config.station.latitude = Some(39.0);
         config.station.longitude = Some(9.0);
+        // Credentials for every provider, so their usernames and passwords are required too. The
+        // match is exhaustive: a new provider does not compile here until it is handled.
+        for kind in Config::default().lookup.provider_order {
+            let slot = match kind {
+                ProviderKind::Qrz => &mut config.lookup.qrz,
+                ProviderKind::HamQth => &mut config.lookup.hamqth,
+                ProviderKind::QrzCq => &mut config.lookup.qrzcq,
+            };
+            *slot = Some(Credentials {
+                username: "u".into(),
+                password: Secret::new("p"),
+            });
+        }
         let exported: toml::Table = toml::from_str(&rendered(&config)).unwrap();
         let example: toml::Table = toml::from_str(&uncommented_example()).unwrap();
         let (mut want, mut have) = (Vec::new(), Vec::new());
@@ -566,22 +579,177 @@ mod tests {
 
     #[test]
     fn uncommented_example_loads() {
-        // The example shows a style and raster tiles as alternatives; keep the style only.
-        let text = uncommented_example()
+        // Placeholders replaced by valid samples; the style kept, the raster tiles dropped.
+        let cli = Cli::try_parse_from(["live-qso-map"]).unwrap();
+        Config::load(&cli, &|_| None, Some(&sampled_example())).unwrap();
+    }
+
+    // --- the example's content (feature 015, FR-003, FR-004) ---
+
+    /// Settings with no default, shown in the example as a `"<…>"` placeholder.
+    const PLACEHOLDER_KEYS: &[&str] = &[
+        "station.callsign",
+        "station.locator",
+        "station.latitude",
+        "station.longitude",
+        "lookup.qrz.username",
+        "lookup.qrz.password",
+        "lookup.hamqth.username",
+        "lookup.hamqth.password",
+        "lookup.qrzcq.username",
+        "lookup.qrzcq.password",
+    ];
+
+    /// A valid value for each placeholder, by the key's last segment.
+    const PLACEHOLDER_SAMPLES: &[(&str, &str)] = &[
+        ("callsign", "\"IS0MZK\""),
+        ("locator", "\"JM49NH\""),
+        ("latitude", "39.3125"),
+        ("longitude", "9.125"),
+        ("username", "\"user\""),
+        ("password", "\"secret\""),
+    ];
+
+    /// The uncommented example with every placeholder replaced by its sample, and without the
+    /// raster-tile alternative (a style and raster tiles can't be set together).
+    fn sampled_example() -> String {
+        uncommented_example()
             .lines()
             .filter(|l| !l.starts_with("tile_url") && !l.starts_with("tile_attribution"))
+            .map(|line| {
+                let placeholder = line.split_once(" = ").and_then(|(key, value)| {
+                    let (_, sample) = PLACEHOLDER_SAMPLES.iter().find(|(k, _)| *k == key)?;
+                    value
+                        .trim_start()
+                        .starts_with("\"<")
+                        .then(|| format!("{key} = {sample}"))
+                });
+                placeholder.unwrap_or_else(|| line.to_string())
+            })
             .collect::<Vec<_>>()
-            .join("\n");
-        let cli = Cli::try_parse_from(["live-qso-map"]).unwrap();
-        Config::load(&cli, &|_| None, Some(&text)).unwrap();
+            .join("\n")
+    }
+
+    /// The value at a dotted path such as `lookup.qrz.password`.
+    fn at<'a>(table: &'a toml::Table, path: &str) -> Option<&'a toml::Value> {
+        let mut parts = path.split('.');
+        let mut value = table.get(parts.next()?)?;
+        for part in parts {
+            value = value.as_table()?.get(part)?;
+        }
+        Some(value)
+    }
+
+    /// Every value in a TOML table that is not itself a table.
+    fn values(table: &toml::Table) -> Vec<&toml::Value> {
+        table
+            .values()
+            .flat_map(|value| match value.as_table() {
+                Some(sub) => values(sub),
+                None => vec![value],
+            })
+            .collect()
     }
 
     #[test]
-    fn example_sets_the_packaged_data_path() {
-        let example: toml::Table = toml::from_str(EXAMPLE).unwrap();
+    fn example_unchanged_sets_nothing() {
+        // Section headers stay uncommented, so an uncommented line lands in its section.
+        let parsed: toml::Table = toml::from_str(EXAMPLE).unwrap();
+        assert!(values(&parsed).is_empty(), "active settings: {parsed:?}");
         assert_eq!(
-            example["country_data"]["path"].as_str(),
-            Some("/var/lib/live-qso-map/cty.dat")
+            rendered(&load(&[], &[], Some(EXAMPLE))),
+            rendered(&load(&[], &[], None))
         );
+    }
+
+    #[test]
+    fn example_uses_placeholders_where_there_is_no_default() {
+        let example: toml::Table = toml::from_str(&uncommented_example()).unwrap();
+        for key in PLACEHOLDER_KEYS {
+            let value = at(&example, key).and_then(toml::Value::as_str);
+            assert!(
+                value.is_some_and(|v| v.starts_with('<') && v.ends_with('>')),
+                "{key} is {value:?}, wanted a \"<…>\" placeholder"
+            );
+        }
+    }
+
+    #[test]
+    fn example_shows_the_defaults() {
+        // Band colours are labelled illustrations. The style lines are checked against the
+        // defaults below: set explicitly they give the same map, but render differently.
+        let mut in_band_colors = false;
+        let text = sampled_example()
+            .lines()
+            .filter(|line| {
+                if line.starts_with('[') {
+                    in_band_colors = *line == "[map.bands]";
+                }
+                !in_band_colors
+                    && !line.starts_with("style_url")
+                    && !line.starts_with("style_attribution")
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        let mut flags = vec![
+            "--station-callsign",
+            "IS0MZK",
+            "--station-locator",
+            "JM49NH",
+            "--station-latitude",
+            "39.3125",
+            "--station-longitude",
+            "9.125",
+        ];
+        for provider in ["qrz", "hamqth", "qrzcq"] {
+            let (user, pass) = match provider {
+                "qrz" => ("--qrz-username", "--qrz-password"),
+                "hamqth" => ("--hamqth-username", "--hamqth-password"),
+                _ => ("--qrzcq-username", "--qrzcq-password"),
+            };
+            flags.extend([user, "user", pass, "secret"]);
+        }
+        assert_eq!(
+            rendered(&load(&[], &[], Some(&text))),
+            rendered(&load(&flags, &[], None))
+        );
+
+        let example: toml::Table = toml::from_str(&uncommented_example()).unwrap();
+        assert_eq!(
+            at(&example, "map.style_url").and_then(toml::Value::as_str),
+            Some(crate::config::DEFAULT_STYLE_URL)
+        );
+        assert_eq!(
+            at(&example, "map.style_attribution").and_then(toml::Value::as_str),
+            Some(crate::config::DEFAULT_STYLE_ATTRIBUTION)
+        );
+    }
+
+    // --- Debian live configuration, deploy/debian/config.toml (feature 015, FR-010a) ---
+
+    const DEBIAN_LIVE: &str = include_str!("../deploy/debian/config.toml");
+
+    #[test]
+    fn debian_live_file_loads() {
+        let cli = Cli::try_parse_from(["live-qso-map"]).unwrap();
+        assert!(Config::load(&cli, &|_| None, Some(DEBIAN_LIVE)).is_ok());
+    }
+
+    #[test]
+    fn debian_live_file_sets_the_packaged_paths() {
+        let config = load(&[], &[], Some(DEBIAN_LIVE));
+        assert_eq!(
+            config.country_data.path,
+            PathBuf::from("/var/lib/live-qso-map/cty.dat")
+        );
+        assert_eq!(
+            config.history_file,
+            Some(PathBuf::from("/var/lib/live-qso-map/qso-history.adi"))
+        );
+    }
+
+    #[test]
+    fn debian_live_file_points_to_the_example() {
+        assert!(DEBIAN_LIVE.contains("/usr/share/doc/live-qso-map/config.example.toml"));
     }
 }

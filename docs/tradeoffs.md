@@ -35,6 +35,7 @@ we deliberately gave up. Records the *why*, not just the *what*.
 | TR-020 | accepted | The grayline as raster tiles drawn by the page | 2026-10-14 |
 | TR-021 | accepted | The globe's glow as a rim lit from behind, towards the Sun, recomputed on every move | 2026-10-14 |
 | TR-022 | proposed | Saved records list the fields the service added (APP_LIVEQSOMAP_ADDED) | 2026-10-14 |
+| TR-023 | accepted | Debian live configuration as a separate short file, not the example | 2026-10-15 |
 
 ## Decisions
 
@@ -899,6 +900,46 @@ In the context of reloading an enriched ADIF history, facing derived fields indi
 
 - Positive: resends after a restart are dropped by the gate; retries of failed or rejected lookups start from the logger's fields; HR-11 is checkable on the file
 - Negative / debt accepted: every enriched record carries one more field; revisit if a logger chokes on long APP fields
+
+## TR-023: Debian live configuration as a separate short file, not the example
+
+- Status: accepted
+- Date: 2026-10-15
+- Phase: plan
+- Deciders: Luca Cireddu (clarification 2), Claude (plan)
+- Links: specs/015-example-config-release/research.md R3, deploy/debian/config.toml, Cargo.toml [package.metadata.deb], spec clarifications 2-3 (2026-10-15)
+<!-- key: 7778ba3ba6f6 -->
+
+### Context & problem
+
+The Debian package installed deploy/config.example.toml as the live /etc/live-qso-map/config.toml; its one uncommented line set the country data path under /var/lib. Feature 015 makes the example fully commented and identical in every deliverable, so it can no longer double as the Debian live file.
+
+### Decision drivers
+
+- one example, byte-identical everywhere (FR-008)
+- the example used unchanged equals no configuration (FR-003)
+- the packaged service keeps its /var/lib data path and dpkg conffile behaviour (FR-010)
+
+### Options considered
+
+| Option | Pros | Cons / what it sacrifices |
+|--------|------|---------------------------|
+| Separate short live file deploy/debian/config.toml (country data path only), example to /usr/share/doc (chosen) | example stays pure and identical; live file small and obvious; dpkg conffile rules unchanged | the full commented list is no longer in /etc; one more file to maintain |
+| Copy of the example with the package-specific lines uncommented | full reference stays in /etc next to the live values | a second, diverging copy of the example to generate and test; the /etc copy is not the published example |
+| Example unchanged as config.toml, path passed by the systemd unit (--cty-path) | no new file | a running `live-qso-map --config ... --save-config` outside the unit no longer sees the path; behaviour split between unit and file |
+
+### Decision
+
+We chose a separate short Debian live file.
+
+### Y-statement
+
+In the context of shipping one fully commented example in every release, facing a Debian live file that needed one active setting, we chose a separate short live file over a modified copy of the example or a path in the systemd unit, to keep a single identical example and the same service behaviour, accepting that the full setting list moves from /etc to /usr/share/doc.
+
+### Consequences
+
+- Positive: FR-008 is a plain cmp; the live file tells the operator where the example is.
+- Negative / debt accepted: existing installs whose live config was never edited get the new short file without a question; edited ones get dpkg's conffile question once, on the upgrade to this version. Revisit if operators ask for the full list in /etc.
 
 ## Archive
 

@@ -13,8 +13,10 @@ live-qso-map - a live map of the QSOs your station makes during a contest
 
 3. Settings
    The program reads live-qso-map.toml from its own folder when that file exists.
-   The quickest way to create it is to let the program write it, for example from a
-   terminal in this folder:
+   config.example.toml, in this folder, lists every setting, commented out: copy it to
+   live-qso-map.toml, uncomment the lines you change and replace the <...> placeholders
+   with your own values.
+   Or let the program write the file, for example from a terminal in this folder:
 
        live-qso-map.exe --station-callsign IS0MZK --station-locator JM49NH --save-config live-qso-map.toml
 
