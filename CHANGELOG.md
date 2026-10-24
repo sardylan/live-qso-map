@@ -7,6 +7,8 @@ which becomes the GitHub release notes (`docs/releasing.md`).
 
 ## [Unreleased]
 
+## [3.3.0] - 2026-10-24
+
 ### Added
 - `globe_border_deg` in `[map]` (also `--globe-border-deg`, `LQM_GLOBE_BORDER_DEG`; default 10,
   0 to 45): under auto-zoom, the globe is kept only while every QSO can sit at least that many
