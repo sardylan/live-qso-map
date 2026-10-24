@@ -98,6 +98,14 @@ export function saveAutoZoom(storage, enabled) {
   }
 }
 
+const GLOBE_BORDER_DEG = 10;
+
+/** The operator's globe border from hello (feature 016, FR-005): 10° unless valid (0 to 45). */
+export function globeBorder(hello) {
+  const value = hello?.globe_border_deg;
+  return typeof value === 'number' && value >= 0 && value <= 45 ? value : GLOBE_BORDER_DEG;
+}
+
 const RECENT_KEY = 'lqm.recent';
 
 /** The last-QSO box: shown unless the viewer hid it (FR-021). Never throws. */

@@ -43,7 +43,7 @@ holds the numbers measured on the operator's snapshot.
 - [x] **V. Portable Development, Pipeline-Built Releases**: plain Rust and JS; no
       platform-specific code; the browser step is rehearsed in the pipeline (LL-007).
 - [x] **Interface rules** (`docs/http-api.md`): one added snake_case field in `hello` (JSON
-      number); protocol stays 3 (API-4); contract tests on `hello` serialisation planned.
+      number); protocol stays 4 (API-4); contract tests on `hello` serialisation planned.
 
 Post-design re-check (after Phase 1): still all pass. The design adds one field and one setting,
 and deletes code.

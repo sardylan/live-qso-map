@@ -385,3 +385,17 @@ test('a browser that refuses storage keeps the defaults', () => {
   assert.doesNotThrow(() => saveGrayline(throwing, false));
   assert.doesNotThrow(() => saveSunMarker(throwing, true));
 });
+
+import { globeBorder } from '../src/web/assets/view.js';
+
+// Feature 016 (T009): the operator's globe border from hello, 10° when absent or invalid.
+test('globeBorder takes a valid hello value, else 10', () => {
+  assert.equal(globeBorder({ globe_border_deg: 0 }), 0);
+  assert.equal(globeBorder({ globe_border_deg: 25.5 }), 25.5);
+  assert.equal(globeBorder({ globe_border_deg: 45 }), 45);
+  for (const bad of [undefined, '20', Number.NaN, Number.POSITIVE_INFINITY, -1, 46, null]) {
+    assert.equal(globeBorder({ globe_border_deg: bad }), 10, String(bad));
+  }
+  assert.equal(globeBorder({}), 10);
+  assert.equal(globeBorder(null), 10);
+});

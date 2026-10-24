@@ -142,11 +142,6 @@ export function boundingCap(points) {
   return { center: [lat, lon], radiusDeg };
 }
 
-/** True when the cap, plus a margin, lies on one side of the globe (FR-016). */
-export function fitsGlobe(cap, marginDeg) {
-  return cap.radiusDeg + marginDeg <= 90;
-}
-
 const TILE_SIZE = 512;
 
 // MapLibre 5.24.0 globe geometry (vertical perspective): the camera sits `cameraToCenterDistance`
@@ -155,7 +150,6 @@ const TILE_SIZE = 512;
 const DEFAULT_FOV_RAD = 0.6435011087932844;
 const MIN_ZOOM = -2;
 const MAX_LAT = 85.051129;
-const LIMB_SHARE = 0.9;
 
 function cameraDistance(height, fovRad) {
   return (0.5 / Math.tan(fovRad / 2)) * height;
@@ -179,28 +173,71 @@ export function capScreenRadius(cap, zoom, { height, fovRad = DEFAULT_FOV_RAD })
 
 /**
  * The highest globe zoom (at most `maxZoom`) that shows the whole cap, centred, inside the free
- * area left by `padding`, with the edge clearly in front of the limb and the cap no wider than
- * `90 - marginDeg`. `null` when no zoom down to the minimum can do it: auto-zoom then shows the
- * flat map (FR-016).
+ * area left by `padding` (feature 016 FR-008). `null` when, at that zoom, the cap edge is less than
+ * `borderDeg` degrees of arc inside the horizon the camera sees, while that horizon is in view, or
+ * when no zoom down to the minimum fits: auto-zoom then shows the flat map (FR-006, FR-007). It never
+ * zooms out further to keep the border.
  */
 export function globeZoomForCap(
   cap,
-  { width, height, padding, fovRad = DEFAULT_FOV_RAD, marginDeg = 5, minZoom = MIN_ZOOM, maxZoom = 12 },
+  { width, height, padding, fovRad = DEFAULT_FOV_RAD, borderDeg = 10, minZoom = MIN_ZOOM, maxZoom = 12 },
 ) {
   const θ = cap.radiusDeg * RAD;
-  if (cap.radiusDeg + marginDeg >= 90) return null;
+  if (cap.radiusDeg >= 90) return null;
   const c = cameraDistance(height, fovRad);
   const half = Math.min(width - padding.left - padding.right, height - padding.top - padding.bottom) / 2;
   if (half <= 0) return null;
-  // Largest radius keeping the edge clearly in front of the limb, where points get squashed: the
-  // edge angle stays within LIMB_SHARE of the horizon angle acos(R / (c + R)).
-  const k = Math.cos(Math.min(θ / LIMB_SHARE, Math.PI / 2));
-  let radius = k >= 1 ? Infinity : (c * k) / (1 - k);
   // Largest radius keeping the edge inside the free area: c R sinθ / (c + R (1 - cosθ)) <= half.
   const denominator = c * Math.sin(θ) - half * (1 - Math.cos(θ));
-  if (denominator > 0) radius = Math.min(radius, (half * c) / denominator);
-  const zoom = Math.log2((radius * 2 * Math.PI * Math.cos(Math.min(Math.abs(cap.center[0]), MAX_LAT) * RAD)) / TILE_SIZE);
-  if (!Number.isFinite(zoom)) return maxZoom;
+  const cosLat = Math.cos(Math.min(Math.abs(cap.center[0]), MAX_LAT) * RAD);
+  const fit = denominator > 0 ? Math.log2((((half * c) / denominator) * 2 * Math.PI * cosLat) / TILE_SIZE) : Infinity;
+  const zoom = Math.min(fit, maxZoom);
   if (zoom < minZoom) return null;
-  return Math.min(zoom, maxZoom);
+  // The horizon the camera sees at that zoom, and how far from the view centre it is drawn.
+  const r = globeRadiusPx(zoom, cap.center[0]);
+  const horizon = Math.acos(r / (c + r));
+  const horizonPx = (c * r * Math.sin(horizon)) / (c + r - r * Math.cos(horizon));
+  // A horizon outside the map can't crowd any marker (research R3).
+  if (horizonPx >= Math.hypot(width, height) / 2) return zoom;
+  return cap.radiusDeg + borderDeg <= horizon / RAD ? zoom : null;
+}
+
+const mercatorY = (lat) => Math.log(Math.tan(Math.PI / 4 + (Math.max(-MAX_LAT, Math.min(MAX_LAT, lat)) * RAD) / 2));
+const wrapLon = (d) => ((((d + 180) % 360) + 360) % 360) - 180;
+const ZOOM_STEP = 0.01;
+
+/**
+ * The flat view centred on the QTH (feature 016 FR-001–FR-003): `{ center: [lon, lat], zoom }`
+ * with the highest zoom (at most `maxZoom`) that holds every `[lat, lon]` point inside the free
+ * area, longitudes counted the short way round. Where MapLibre clamps the centre away from the
+ * house (the map's ±85° edge would show), the zoom drops until the clamped view holds every point.
+ */
+export function flatFrameAround(qth, points, { width, height, padding, minZoom = MIN_ZOOM, maxZoom = 12 }) {
+  const center = [qth.lon, qth.lat];
+  const freeW = width - padding.left - padding.right;
+  const freeH = height - padding.top - padding.bottom;
+  if (freeW <= 0 || freeH <= 0) return { center, zoom: minZoom };
+  const y0 = mercatorY(qth.lat);
+  let dLon = 0;
+  let dY = 0;
+  for (const [lat, lon] of points) {
+    dLon = Math.max(dLon, Math.abs(wrapLon(lon - qth.lon)));
+    dY = Math.max(dY, Math.abs(mercatorY(lat) - y0));
+  }
+  let zoom = maxZoom;
+  if (dLon > 0) zoom = Math.min(zoom, Math.log2((freeW / 2) * 360 / (dLon * TILE_SIZE)));
+  if (dY > 0) zoom = Math.min(zoom, Math.log2((freeH / 2) * 2 * Math.PI / (dY * TILE_SIZE)));
+  zoom = Math.max(zoom, minZoom);
+  // MapLibre (5.24) keeps the camera centre at least half the map height from the ±85° edges,
+  // whatever the padding: when the map is short, the house moves off centre and every point with
+  // it, so the zoom drops until they all fit again.
+  const fits = (z) => {
+    const world = TILE_SIZE * 2 ** z;
+    const toY = (lat) => ((Math.PI - mercatorY(lat)) / (2 * Math.PI)) * world;
+    let cy = toY(qth.lat);
+    if (world >= height) cy = Math.min(Math.max(cy, height / 2), world - height / 2);
+    return points.every(([lat]) => Math.abs(toY(lat) - cy) <= freeH / 2 + 1);
+  };
+  while (zoom > minZoom && !fits(zoom)) zoom = Math.max(minZoom, zoom - ZOOM_STEP);
+  return { center, zoom };
 }

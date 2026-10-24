@@ -287,3 +287,30 @@ test('night and day points: deep night and full day, both on screen', () => {
   }
   assert.equal(nightAndDayPoints(sub, () => null, RECT), null, 'nothing visible');
 });
+
+// --- auto-zoom on the operator's snapshot (feature 016, step 12, T003) --------------------
+
+import { SNAPSHOT_QSOS, locatorCentre, fitsFree } from '../tests/browser/lib.mjs';
+
+test('snapshot: 20 QSOs, each with a callsign and a 6-character locator', () => {
+  assert.equal(SNAPSHOT_QSOS.length, 20);
+  assert.equal(new Set(SNAPSHOT_QSOS.map((q) => q.call)).size, 20);
+  for (const { grid } of SNAPSHOT_QSOS) assert.match(grid, /^[A-R]{2}[0-9]{2}[a-x]{2}$/);
+});
+
+test('locatorCentre: the middle of the subsquare', () => {
+  const [lat, lon] = locatorCentre('IO92fs');
+  assert.ok(Math.abs(lat - 52.771) < 0.001 && Math.abs(lon - -1.542) < 0.001, `${lat},${lon}`);
+  const [vlat, vlon] = locatorCentre('QF21eu'); // VK3ATL, Geelong: −38.16, 144.37
+  assert.ok(Math.abs(vlat - -38.16) < 0.05 && Math.abs(vlon - 144.37) < 0.05, `${vlat},${vlon}`);
+});
+
+test('fitsFree: points inside the free area pass, one outside fails', () => {
+  const view = { lat: 20, lon: 10, zoom: 2 };
+  const free = { left: 100, top: 100, right: 1100, bottom: 700 };
+  assert.equal(fitsFree(view, RECT, null, [[20, 10], [40, 60]], free), true);
+  assert.equal(fitsFree(view, RECT, null, [[20, 10], [20, 160]], free), false);
+  // The centre drawn elsewhere (padding) moves every point with it.
+  assert.equal(fitsFree(view, RECT, [150, 400], [[20, 10]], free), true);
+  assert.equal(fitsFree(view, RECT, [50, 400], [[20, 10]], free), false);
+});

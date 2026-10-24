@@ -168,3 +168,15 @@ test('with auto-zoom off, choosing a projection changes nothing else', () => {
   assert.deepEqual(az.projectionChosen('globe', false), []);
   assert.equal(az.state.enabled, false);
 });
+
+// Feature 016 (T020, FR-009): consecutive refits each get the projection their own frame needs.
+test('consecutive refits switch globe → flat → globe → flat by their own frame', () => {
+  const az = createAutoZoom({ enabled: true });
+  assert.deepEqual(
+    [false, true, false].map((fits) => az.fitted(fits, 'globe')),
+    ['mercator', 'globe', 'mercator'],
+  );
+  assert.equal(az.state.autoFlat, true);
+  az.projectionChosen();
+  assert.equal(az.state.autoFlat, false);
+});

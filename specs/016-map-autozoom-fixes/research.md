@@ -60,10 +60,11 @@ already models it.
   - `dLon = 0` and `up = down = 0` (everything at the QTH) give `MAX_ZOOM`.
 - The page calls `map.easeTo({ center: qth, zoom, padding })`. MapLibre's padding puts the centre
   in the middle of the free area, as `fitBounds` already does today.
-- **Poles (FR-003)**: MapLibre's Mercator clamps the camera so it never shows beyond ±85°. Near a
-  pole it moves the centre towards the equator by itself, which is "as close to the house as the
-  map allows". Markers on the far side could then fall outside, so in that case, and only then,
-  the zoom is lowered until the clamped view holds them. A unit test covers a QTH at 80 N.
+- **Clamp (FR-003)**: MapLibre 5.24's Mercator keeps the camera centre half the map height from
+  the ±85° edges, whatever the padding (measured: at 1024 × 768 with the last-QSO box against the
+  left edge, zoom 0.81 gives a 897 px map and the centre held at 25.0° N instead of 39.2° N). The
+  house then moves off the free area's centre, and every point with it, so the zoom drops until the
+  clamped view holds every point. Near a pole this is the same rule. A unit test covers both.
 - **No QTH**: unchanged feature 004 `fitBounds(flatBounds(…))` (FR-004).
 - **Snapshot estimate**: centred on 39.05 N, 8.38 E, dLon = 136° (VK3ATL) and the vertical span is
   set by VK3ATL below and SM5VTP above. That gives about zoom 1.5 at 1920 × 1080 with the default
@@ -79,6 +80,14 @@ already models it.
   computes its own zoom, and the browser regression step (R7) asserts the camera from `data-view`
   for the snapshot at both window sizes. If the 0.85 zoom comes from elsewhere (padding,
   projection timing), that step fails first, as Principle I requires.
+- **Outcome (T023)**: no further cause. With the new path, browser step 12 passes at both sizes,
+  and the zoom matches a brute-force search within 0.25 (T021). At 1024 × 768 the centred view
+  settles at zoom 0.81. That is the maximum for a map centred on the station with the last-QSO
+  box against the left edge, and the view is held at the map's top edge (R4 clamp). The live 0.85
+  came from the old uncentred `fitBounds` path, which is no longer used when the QTH is known.
+- **Browser step timing**: a resize refit waits for the 250 ms tick and the 1 s spacing, and
+  `data-view` changes only when the 800 ms ease ends, so the step waits 1.5 s after resizing before
+  it waits for the view to settle. Reading earlier caught MapLibre's transient post-resize view.
 - **FR-009 (one refit, the projection on screen)**: `fitNow` already calls `showProjection` before
   choosing the camera. The plan keeps that order and adds a unit test on `autozoom.fitted` for the
   globe → flat → globe sequence within consecutive refits.
@@ -90,7 +99,7 @@ already models it.
   like every map setting (CLI > environment > file > default), and validated with a config error
   naming `map.globe_border_deg`.
 - It is sent as `hello.globe_border_deg` (a number). This is an added field, so the protocol stays
-  at version 3 (`docs/http-api.md` API-4). If the field is missing or out of range, the page uses
+  at version 4 (`docs/http-api.md` API-4). If the field is missing or out of range, the page uses
   10.
 - `--save-config` writes it, and `deploy/config.example.toml` lists it commented out (feature 015
   checks).

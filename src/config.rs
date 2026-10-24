@@ -41,6 +41,9 @@ pub const DEFAULT_STYLE_URL: &str = "https://tiles.openfreemap.org/styles/libert
 pub const DEFAULT_STYLE_ATTRIBUTION: &str = "<a href=\"https://openfreemap.org\" target=\"_blank\">OpenFreeMap</a> \u{a9} <a href=\"https://www.openmaptiles.org/\" target=\"_blank\">OpenMapTiles</a> Data from <a href=\"https://www.openstreetmap.org/copyright\" target=\"_blank\">OpenStreetMap</a>";
 
 const LOG_LEVELS: &[&str] = &["error", "warn", "info", "debug", "trace"];
+// Auto-zoom's globe border, in degrees of arc inside the horizon (feature 016, FR-005).
+const DEFAULT_GLOBE_BORDER_DEG: f64 = 10.0;
+const MAX_GLOBE_BORDER_DEG: f64 = 45.0;
 
 /// Coloured help (feature 008): shown only on a colour terminal, never with `NO_COLOR`.
 fn help_styles() -> clap::builder::Styles {
@@ -233,6 +236,12 @@ pub struct Cli {
     /// Environment: LQM_RECENT_HEADER. Default: true.
     #[arg(long = "recent-header")]
     pub recent_header: Option<bool>,
+    /// Auto-zoom keeps the globe only while every QSO marker is at least this many degrees of
+    /// arc inside the globe's visible horizon; otherwise it shows the flat map (0 to 45)
+    ///
+    /// Environment: LQM_GLOBE_BORDER_DEG. Default: 10.
+    #[arg(long = "globe-border-deg", value_name = "DEG")]
+    pub globe_border_deg: Option<f64>,
     /// Complete the QSOs in FILE (default: the history file), write it back, then exit
     ///
     /// No UDP or HTTP listener is opened. Every band is completed.
@@ -358,6 +367,8 @@ pub struct MapConfig {
     pub recent_columns: Vec<Column>,
     /// Whether the last-QSO box shows its header row (feature 006).
     pub recent_header: bool,
+    /// Degrees of arc every marker keeps inside the globe's horizon under auto-zoom (feature 016).
+    pub globe_border_deg: f64,
 }
 
 /// The background map sent to pages as `hello.basemap` (feature 002, data-model).
@@ -449,6 +460,7 @@ impl Default for Config {
                     .collect(),
                 recent_columns: DEFAULT_COLUMNS.to_vec(),
                 recent_header: true,
+                globe_border_deg: DEFAULT_GLOBE_BORDER_DEG,
             },
         }
     }
@@ -568,6 +580,8 @@ struct FileMap {
     recent_columns: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     recent_header: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    globe_border_deg: Option<f64>,
     // Last: a sub-table. Written in frequency order (HR-2), not alphabetically.
     #[serde(
         default,
@@ -662,6 +676,7 @@ impl FileConfig {
                         .collect(),
                 ),
                 recent_header: Some(config.map.recent_header),
+                globe_border_deg: Some(config.map.globe_border_deg),
                 bands: config.map.bands.clone(),
             },
         }
@@ -761,6 +776,17 @@ fn port(setting: &str, value: Option<u32>, default: u16) -> Result<u16> {
         Some(p) => Err(config_error(
             setting,
             format!("{p} is not between 1 and 65535"),
+        )),
+    }
+}
+
+fn degrees(setting: &str, value: Option<f64>, default: f64, max: f64) -> Result<f64> {
+    match value {
+        None => Ok(default),
+        Some(v) if (0.0..=max).contains(&v) => Ok(v),
+        Some(v) => Err(config_error(
+            setting,
+            format!("{v} is not between 0 and {max}"),
         )),
     }
 }
@@ -1159,6 +1185,18 @@ impl Config {
                 file.map.recent_header,
             )?
             .unwrap_or(true),
+            globe_border_deg: degrees(
+                "map.globe_border_deg",
+                layer(
+                    "map.globe_border_deg",
+                    cli.globe_border_deg,
+                    env,
+                    "LQM_GLOBE_BORDER_DEG",
+                    file.map.globe_border_deg,
+                )?,
+                DEFAULT_GLOBE_BORDER_DEG,
+                MAX_GLOBE_BORDER_DEG,
+            )?,
         };
         if map.style_url.is_some() && map.tile_url.is_some() {
             return Err(config_error(
@@ -1799,6 +1837,50 @@ style_attribution = "file credit"
         config_err(
             load(&[], &[("LQM_RECENT_HEADER", "maybe")], None),
             "map.recent_header",
+        );
+    }
+
+    // --- feature 016: globe border (T005) ---
+
+    #[test]
+    fn globe_border_defaults_to_ten_degrees() {
+        let (c, _) = load(&[], &[], None).unwrap();
+        assert_eq!(c.map.globe_border_deg, 10.0);
+    }
+
+    #[test]
+    fn globe_border_layers_cli_over_env_over_file() {
+        let file = "[map]\nglobe_border_deg = 20\n";
+        let (c, _) = load(&[], &[], Some(file)).unwrap();
+        assert_eq!(c.map.globe_border_deg, 20.0);
+        let env = [("LQM_GLOBE_BORDER_DEG", "30")];
+        let (c, _) = load(&[], &env, Some(file)).unwrap();
+        assert_eq!(c.map.globe_border_deg, 30.0);
+        let (c, _) = load(&["--globe-border-deg", "40"], &env, Some(file)).unwrap();
+        assert_eq!(c.map.globe_border_deg, 40.0);
+        for edge in ["0", "45", "12.5"] {
+            let (c, _) = load(&["--globe-border-deg", edge], &[], None).unwrap();
+            assert_eq!(c.map.globe_border_deg, edge.parse::<f64>().unwrap());
+        }
+    }
+
+    #[test]
+    fn globe_border_errors() {
+        for raw in ["-1", "45.5", "NaN", "inf", "ten"] {
+            config_err(
+                load(&[], &[("LQM_GLOBE_BORDER_DEG", raw)], None),
+                "map.globe_border_deg",
+            );
+        }
+        for file in [
+            "[map]\nglobe_border_deg = 90\n",
+            "[map]\nglobe_border_deg = nan\n",
+        ] {
+            config_err(load(&[], &[], Some(file)), "map.globe_border_deg");
+        }
+        config_err(
+            load(&["--globe-border-deg", "46"], &[], None),
+            "map.globe_border_deg",
         );
     }
 
