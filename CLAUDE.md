@@ -16,11 +16,12 @@ each answer before asking the next. Never batch several questions in one message
 - Rust (edition 2024) + browser ES modules; no new crates (014-adif-persistence)
 - one ADIF history file (`history_file`, next to cty.dat), replaced atomically at a graceful stop (014-adif-persistence)
 - Rust (edition 2024) tests + POSIX sh CI checks; no new crates (015-example-config-release)
+- Rust (edition 2024) + browser ES modules; no new crates (016-map-autozoom-fixes)
 
 ### Recent Changes
 
+- 016-map-autozoom-fixes: flat auto-zoom centred on the QTH; globe kept only while markers stay `map.globe_border_deg` (default 10°) inside the visible horizon, else flat; the globe no longer shrinks to a dot
 - 015-example-config-release: `config.example.toml` (every setting commented out, `"<…>"` placeholders for credentials and station) in every release file, in `/usr/share/doc/live-qso-map/` of the .deb and image, and as a standalone release download; Debian gets a short live `config.toml`
 - 014-adif-persistence: QSO history in a local ADIF file (load and re-enrich at startup, save at graceful stop, `--enrich-only [FILE]`); no server history limit, page capped at 1000
-- 013-atmosphere-follows-globe: the globe's glow is a backlit rim brightest towards the Sun, recomputed on every move (never a haze over the map); grayline as page-drawn raster tiles (smooth night fade, 0° to −12°) on both views; optional Sun symbol; release browser steps `atmosphere` and `grayline` on a test clock
 
 <!-- SPECKIT END -->
