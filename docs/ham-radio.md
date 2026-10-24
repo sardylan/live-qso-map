@@ -132,7 +132,9 @@ A two-way contact between two stations. A logged QSO records at least:
 In contests it also records the exchange: signal report (`RST_SENT`, `RST_RCVD`) plus a serial
 number, zone, locator or other contest-defined value (`SRX_STRING`/`STX_STRING`, `SRX`/`STX`).
 `STATION_CALLSIGN` is the callsign used on the air by the logging station; `OPERATOR` is the
-person operating, which in a multi-operator station can change during the contest.
+person operating, which in a multi-operator station can change during the contest. Loggers do not
+broadcast an operator change on its own (QARTest's OPON command only stamps the QSOs logged after
+it), so the current operator is the `OPERATOR` of the latest logged QSO.
 
 ### 2.2 Callsigns
 

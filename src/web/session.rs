@@ -35,6 +35,8 @@ pub struct Session {
     limit: Option<usize>,
     /// The bands the page shows, canonical names; `None` for every band (feature 011).
     bands: Option<Vec<String>>,
+    /// The configured station callsign, the operator when a QSO names none (feature 017, R4).
+    fallback: Option<String>,
 }
 
 impl Default for Session {
@@ -48,6 +50,15 @@ impl Session {
         Self {
             limit: Some(DEFAULT_LIMIT),
             bands: None,
+            fallback: None,
+        }
+    }
+
+    /// A session for a page of `station`.
+    pub fn for_station(station: &HelloStation) -> Self {
+        Self {
+            fallback: station.station.as_ref().and_then(|s| s.callsign.clone()),
+            ..Self::new()
         }
     }
 
@@ -55,7 +66,8 @@ impl Session {
         self.limit
     }
 
-    /// `hello` and the window, then the latest score when one is held (feature 007).
+    /// `hello`, the window and the station status, then the latest score when one is held
+    /// (features 007, 017).
     pub fn on_connect(
         &self,
         history: &History,
@@ -68,16 +80,24 @@ impl Session {
             ServerMessage::hello(map, filter, station),
             self.snapshot(history),
         ];
+        messages.push(self.station_status(history));
         messages.extend(score.map(ServerMessage::score));
         messages
     }
 
-    pub fn on_change(&self, change: &HistoryChange) -> Vec<ServerMessage> {
+    /// A QSO change is followed by the station status it leaves (feature 017, research R3).
+    pub fn on_change(&self, change: &HistoryChange, history: &History) -> Vec<ServerMessage> {
         match change {
-            HistoryChange::Upsert(qso) => vec![ServerMessage::Upsert {
-                qso: QsoView::from(qso.as_ref()),
-            }],
-            HistoryChange::Remove { id } => vec![ServerMessage::Remove { id: id.clone() }],
+            HistoryChange::Upsert(qso) => vec![
+                ServerMessage::Upsert {
+                    qso: QsoView::from(qso.as_ref()),
+                },
+                self.station_status(history),
+            ],
+            HistoryChange::Remove { id } => vec![
+                ServerMessage::Remove { id: id.clone() },
+                self.station_status(history),
+            ],
             HistoryChange::Score(state) => vec![ServerMessage::score(state)],
         }
     }
@@ -106,11 +126,20 @@ impl Session {
         }
     }
 
-    /// The page missed broadcasts: resend its whole window and the latest score.
+    /// The page missed broadcasts: resend its whole window, the station status and the latest
+    /// score.
     pub fn on_lagged(&self, history: &History, score: Option<&ScoreState>) -> Vec<ServerMessage> {
-        let mut messages = vec![self.snapshot(history)];
+        let mut messages = vec![self.snapshot(history), self.station_status(history)];
         messages.extend(score.map(ServerMessage::score));
         messages
+    }
+
+    fn station_status(&self, history: &History) -> ServerMessage {
+        ServerMessage::station_status(
+            history,
+            self.fallback.as_deref(),
+            crate::pipeline::now_unix(),
+        )
     }
 
     fn snapshot(&self, history: &History) -> ServerMessage {
@@ -145,7 +174,7 @@ pub async fn drive<S: MessageSink>(
     station: &HelloStation,
     mut shutdown: watch::Receiver<bool>,
 ) {
-    let mut session = Session::new();
+    let mut session = Session::for_station(station);
     let initial = {
         let score = pipeline.latest_score();
         let history = pipeline.lock_history();
@@ -175,7 +204,10 @@ pub async fn drive<S: MessageSink>(
                 let history = pipeline.lock_history();
                 session.on_client(message, &history)
             }
-            Event::Change(change) => session.on_change(&change),
+            Event::Change(change) => {
+                let history = pipeline.lock_history();
+                session.on_change(&change, &history)
+            }
             Event::Lagged => {
                 let score = pipeline.latest_score();
                 let history = pipeline.lock_history();
@@ -242,6 +274,7 @@ mod tests {
             ServerMessage::Upsert { .. } => "upsert",
             ServerMessage::Remove { .. } => "remove",
             ServerMessage::Score { .. } => "score",
+            ServerMessage::StationStatus { .. } => "station_status",
         }
     }
 
@@ -258,7 +291,7 @@ mod tests {
         );
         assert_eq!(
             msgs.iter().map(kind).collect::<Vec<_>>(),
-            ["hello", "snapshot"]
+            ["hello", "snapshot", "station_status"]
         );
         let ServerMessage::Snapshot { limit, qsos } = &msgs[1] else {
             panic!("expected snapshot");
@@ -275,8 +308,11 @@ mod tests {
         let mut rx = p.subscribe();
         p.publish(qso(1));
         let change = rx.try_recv().unwrap();
-        let msgs = Session::new().on_change(&change);
-        assert_eq!(msgs.len(), 1);
+        let msgs = Session::new().on_change(&change, &p.lock_history());
+        assert_eq!(
+            msgs.iter().map(kind).collect::<Vec<_>>(),
+            ["upsert", "station_status"]
+        );
         let ServerMessage::Upsert { qso } = &msgs[0] else {
             panic!("expected upsert");
         };
@@ -381,7 +417,10 @@ mod tests {
             &p.lock_history(),
         );
         let msgs = session.on_lagged(&p.lock_history(), None);
-        assert_eq!(msgs.len(), 1);
+        assert_eq!(
+            msgs.iter().map(kind).collect::<Vec<_>>(),
+            ["snapshot", "station_status"]
+        );
         assert_eq!(snapshot_len(&msgs[0]), (Some(50), 50));
     }
 
@@ -455,8 +494,8 @@ mod tests {
         }
         driver.abort();
 
-        assert_eq!(&kinds[..2], ["hello", "snapshot"]);
-        let after: Vec<_> = kinds[2..].to_vec();
+        assert_eq!(&kinds[..3], ["hello", "snapshot", "station_status"]);
+        let after: Vec<_> = kinds[3..].to_vec();
         assert_eq!(
             after.iter().filter(|k| **k == "snapshot").count(),
             1,
@@ -467,8 +506,16 @@ mod tests {
 
     #[test]
     fn removal_change_emits_remove() {
-        let msgs = Session::new().on_change(&HistoryChange::Remove { id: "Q0001".into() });
-        assert_eq!(msgs, vec![ServerMessage::Remove { id: "Q0001".into() }]);
+        let p = pipeline_with(2, 16);
+        let msgs = Session::new().on_change(
+            &HistoryChange::Remove { id: "Q0001".into() },
+            &p.lock_history(),
+        );
+        assert_eq!(msgs[0], ServerMessage::Remove { id: "Q0001".into() });
+        assert_eq!(
+            msgs.iter().map(kind).collect::<Vec<_>>(),
+            ["remove", "station_status"]
+        );
     }
 
     // --- contest score (feature 007, T007) ----------------------------------------------------
@@ -489,21 +536,23 @@ mod tests {
         let none = Session::new().on_connect(&p.lock_history(), None, &map, None, &station);
         assert_eq!(
             none.iter().map(kind).collect::<Vec<_>>(),
-            ["hello", "snapshot"]
+            ["hello", "snapshot", "station_status"]
         );
         let score = held_score();
         let some = Session::new().on_connect(&p.lock_history(), Some(&score), &map, None, &station);
         assert_eq!(
             some.iter().map(kind).collect::<Vec<_>>(),
-            ["hello", "snapshot", "score"]
+            ["hello", "snapshot", "station_status", "score"]
         );
-        assert_eq!(some[2], ServerMessage::score(&score));
+        assert_eq!(some[3], ServerMessage::score(&score));
     }
 
     #[test]
     fn a_score_change_emits_one_score() {
         let score = Arc::new(held_score());
-        let msgs = Session::new().on_change(&HistoryChange::Score(Arc::clone(&score)));
+        let p = pipeline_with(1, 16);
+        let msgs =
+            Session::new().on_change(&HistoryChange::Score(Arc::clone(&score)), &p.lock_history());
         assert_eq!(msgs.iter().map(kind).collect::<Vec<_>>(), ["score"]);
     }
 
@@ -514,7 +563,7 @@ mod tests {
         let msgs = Session::new().on_lagged(&p.lock_history(), Some(&score));
         assert_eq!(
             msgs.iter().map(kind).collect::<Vec<_>>(),
-            ["snapshot", "score"]
+            ["snapshot", "station_status", "score"]
         );
     }
 
@@ -547,7 +596,7 @@ mod tests {
             .await;
         });
         let mut kinds = Vec::new();
-        for _ in 0..2 {
+        for _ in 0..3 {
             let m = tokio::time::timeout(std::time::Duration::from_secs(1), sent_rx.recv())
                 .await
                 .unwrap()
@@ -564,7 +613,7 @@ mod tests {
             .unwrap()
             .unwrap();
         driver.abort();
-        assert_eq!(kinds, ["hello", "snapshot"]);
+        assert_eq!(kinds, ["hello", "snapshot", "station_status"]);
         let ServerMessage::Score {
             score, qsos, mults, ..
         } = m
@@ -658,9 +707,35 @@ mod tests {
         );
         let change = HistoryChange::Upsert(Arc::new(qso_on(99, "30m")));
         assert_eq!(
-            session.on_change(&change).len(),
-            1,
+            session.on_change(&change, &p.lock_history()).len(),
+            2,
             "the page filters what it draws"
         );
+    }
+
+    // --- station status (feature 017, T005) ---------------------------------------------------
+
+    #[test]
+    fn the_station_status_ignores_the_page_bands() {
+        let p = Pipeline::new(16);
+        p.publish(qso_on(1, "20m"));
+        let mut latest = qso_on(2, "40m");
+        latest.record.set("OPERATOR", "IK0ABC");
+        p.publish(latest);
+        let mut session = Session::new();
+        let msgs = session.on_client(
+            ClientMessage::SetLimit {
+                limit: Some(10),
+                bands: Some(vec!["20m".into()]),
+            },
+            &p.lock_history(),
+        );
+        assert_eq!(msgs.len(), 1, "set_limit answers with the snapshot only");
+        let msgs = session.on_lagged(&p.lock_history(), None);
+        let ServerMessage::StationStatus { band, operator, .. } = &msgs[1] else {
+            panic!("expected station_status, got {}", kind(&msgs[1]));
+        };
+        assert_eq!(band.as_deref(), Some("40m"));
+        assert_eq!(operator.as_deref(), Some("IK0ABC"));
     }
 }

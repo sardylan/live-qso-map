@@ -727,3 +727,33 @@ async fn restored_qsos_are_ordered_by_qso_time_not_file_order() -> TestResult {
     assert_eq!(saved, expected, "the file is written in QSO time order");
     Ok(())
 }
+
+// --- station status (feature 017, T008) -------------------------------------------------------
+
+#[tokio::test]
+async fn the_station_status_comes_back_after_a_restart() -> TestResult {
+    let path = file_in(&temp_dir("station-status"));
+    let provider = us_provider();
+    let service = start_on(&path, &provider, |_| {}).await?;
+    send_udp(
+        service.udp_addr,
+        &adif("K1ABC", "1200", "<OPERATOR:6>IS0XYZ "),
+    )
+    .await;
+    let latest = "<CALL:5>W2DEF <QSO_DATE:8>20261010 <TIME_ON:4>1300 <BAND:3>15m <MODE:2>CW <OPERATOR:6>IK0ABC <EOR>";
+    send_udp(service.udp_addr, latest.as_bytes()).await;
+    assert_eq!(wait_for_len(&service, 2).await, 2);
+    service.shutdown().await;
+
+    let service = start_on(&path, &us_provider(), |_| {}).await?;
+    assert_eq!(wait_for_len(&service, 2).await, 2);
+    let status = serde_json::to_value(live_qso_map::web::protocol::ServerMessage::station_status(
+        &service.pipeline().lock_history(),
+        None,
+        0,
+    ))?;
+    assert_eq!(status["band"], "15m", "{status}");
+    assert_eq!(status["operator"], "IK0ABC", "{status}");
+    service.shutdown().await;
+    Ok(())
+}

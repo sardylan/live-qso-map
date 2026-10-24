@@ -1,5 +1,9 @@
 # Contract: WebSocket Protocol
 
+> **Added by feature 017**: a new server message, `station_status` (band and operator of the
+> latest QSO, with its age), after every `snapshot`, `upsert` and `remove`. Protocol version stays
+> 4. See [`../../017-station-status-box/contracts/websocket-protocol.md`](../../017-station-status-box/contracts/websocket-protocol.md).
+>
 > **Added by feature 007**: a new server message, `score` (the logger's latest contest score,
 > with `received_at` and `age_s`), sent on connect, on every update and after a lag; the protocol
 > stays 3. See [`../../007-contest-score-layout/contracts/websocket-protocol.md`](../../007-contest-score-layout/contracts/websocket-protocol.md).

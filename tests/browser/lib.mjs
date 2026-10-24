@@ -157,7 +157,7 @@ function field(name, value) {
 }
 
 /** One ADIF QSO record as a logger sends it over UDP; date and time in UTC (HR-1). */
-export function qsoAdif({ call, band, mode, grid, at }) {
+export function qsoAdif({ call, band, mode, grid, at, operator }) {
   const iso = at.toISOString();
   const date = iso.slice(0, 10).replaceAll('-', '');
   const time = iso.slice(11, 19).replaceAll(':', '');
@@ -168,6 +168,7 @@ export function qsoAdif({ call, band, mode, grid, at }) {
     field('BAND', band),
     field('MODE', mode),
     field('GRIDSQUARE', grid),
+    ...(operator ? [field('OPERATOR', operator)] : []),
     '<EOR>',
   ].join(' ');
 }

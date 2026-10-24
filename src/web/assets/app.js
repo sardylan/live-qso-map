@@ -53,6 +53,7 @@ import { solarElevation, subsolarPoint } from './sun.js';
 import { tilePixels, graylineBeforeId, graylineTiles, parseGraylineUrl, rgbOf } from './grayline.js';
 import { recentQsos, headerCells, rowCells, markerKeyOf, entityLabel, onMap } from './recent.js';
 import { scoreText, isStale, updatedTitle } from './score.js';
+import { stationText, STATION_STALE_MS, lastQsoTitle, localQsoTime } from './station.js';
 import { createAutoZoom } from './autozoom.js';
 import {
   framedPoints,
@@ -74,6 +75,7 @@ const PANELS = [
   '#legend',
   '#recent',
   '#score',
+  '#station',
   '#panel',
   '.maplibregl-ctrl-top-left',
   '.maplibregl-ctrl-top-right',
@@ -127,6 +129,8 @@ let recentOrder = loadRecentOrder(localStore());
 const OFF_MAP_TITLE = 'Not on the map (outside its last N)';
 // The latest contest score, with its receive time on this page's clock (feature 007, R4).
 let scoreState = null;
+// Band and operator of the latest QSO (feature 017); null until the service sends them.
+let stationState = null;
 // How often the stale look is re-checked (SC-003: within 10 s).
 const SCORE_TICK_MS = 5_000;
 // How far inside the free area a marker opened from the box is brought (FR-022a).
@@ -546,6 +550,31 @@ function onScore(message) {
   renderScore();
 }
 
+/** The station status line: plain text only (feature 017, FR-001). */
+function renderStation() {
+  const line = document.getElementById('station');
+  const text = stationText(stationState);
+  if (line.textContent !== text) {
+    line.textContent = text;
+    // Its width may have changed: auto-zoom must keep clear of it.
+    autozoom.change();
+  }
+  // Greyed 15 minutes after the QSO, judged on this page's clock from the service's age (R5).
+  const localQso = stationState?.localQso ?? null;
+  line.classList.toggle('stale', localQso !== null && isStale(localQso, Date.now(), STATION_STALE_MS));
+  line.title = lastQsoTitle(stationState?.qsoAt);
+}
+
+function onStationStatus(message) {
+  stationState = {
+    band: message.band ?? null,
+    operator: message.operator ?? null,
+    qsoAt: message.qso_at ?? null,
+    localQso: localQsoTime(message.age_s ?? null, Date.now()),
+  };
+  renderStation();
+}
+
 function runActions(actions) {
   for (const action of actions) {
     if (action.type === 'save') {
@@ -959,6 +988,8 @@ function onHello(hello) {
   // The service may have restarted and lost its score: show none until it sends one (R7).
   scoreState = null;
   renderScore();
+  stationState = null;
+  renderStation();
   // Ask for at least 20 QSOs, so the box has its rows whatever the map shows (TR-006).
   // The band choice too, so a reconnected session gets the same filtered snapshot (FR-013).
   for (const message of handshake({ limit: serverLimit(connection.limit), bands: shownBands() })) {
@@ -973,6 +1004,10 @@ function onMessage(message) {
   }
   if (message.type === 'score') {
     onScore(message);
+    return;
+  }
+  if (message.type === 'station_status') {
+    onStationStatus(message);
     return;
   }
   if (!state) return;
@@ -1107,7 +1142,10 @@ if (hasWebGL(() => document.createElement('canvas'))) {
   connect();
   window.addEventListener('resize', () => autozoom.change());
   setInterval(() => runActions(autozoom.tick(Date.now())), 250);
-  setInterval(renderScore, SCORE_TICK_MS);
+  setInterval(() => {
+    renderScore();
+    renderStation();
+  }, SCORE_TICK_MS);
 } else {
   // FR-012: no renderer can run, so do not connect either.
   show('map', false);

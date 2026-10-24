@@ -296,7 +296,8 @@ body {
   color: var(--text);
 }
 
-/* Bottom-left column (feature 007, FR-012): the score line above the last-QSO box. It sits above
+/* Bottom-left column (feature 007, FR-012): the station status line (feature 017, which shares
+   the score line's look) and the score line above the last-QSO box. It sits above
    the attribution line (which can run under it on narrow windows) and above the scale bar when it
    is shown. A hidden box takes no room, so the score line drops to its place. */
 .corner-bl {

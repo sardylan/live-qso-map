@@ -19,7 +19,18 @@ async fn connect(http: SocketAddr) -> Client {
     ws
 }
 
+/// The next message, skipping `station_status`: it follows every snapshot, upsert and remove
+/// (feature 017, contracts/websocket-protocol.md), and these tests are about the others.
 async fn next_json(ws: &mut Client, within: Duration) -> Option<Value> {
+    loop {
+        let m = next_json_any(ws, within).await?;
+        if m["type"] != "station_status" {
+            return Some(m);
+        }
+    }
+}
+
+async fn next_json_any(ws: &mut Client, within: Duration) -> Option<Value> {
     loop {
         match tokio::time::timeout(within, ws.next()).await {
             Ok(Some(Ok(Message::Text(text)))) => return Some(serde_json::from_str(&text).unwrap()),
@@ -638,4 +649,129 @@ async fn pages_can_ask_for_the_last_n_on_chosen_bands() {
     let snapshot = next_json(&mut old, Duration::from_secs(3)).await.unwrap();
     assert_eq!(ids(&snapshot).len(), 20);
     service.shutdown().await;
+}
+
+// --- station status (feature 017, T006) -------------------------------------------------------
+
+/// A QARTest QSO on `band` metres by `operator`, with logger id `id`; `replace` sends it as a
+/// correction.
+fn qartest_qso(
+    id: &str,
+    call: &str,
+    time: &str,
+    band: &str,
+    operator: &str,
+    replace: bool,
+) -> Vec<u8> {
+    let root = if replace {
+        "contactreplace"
+    } else {
+        "contactinfo"
+    };
+    let old = if replace {
+        format!("<oldtimestamp>2026-10-08 {time}</oldtimestamp><oldcall>{call}</oldcall>")
+    } else {
+        String::new()
+    };
+    format!(
+        "<?xml version=\"1.0\"?><{root}><logger>QARTest 16.9.1</logger><contestname>CQ-WW-SSB</contestname>\
+         <timestamp>2026-10-08 {time}</timestamp><mycall>IS0MZK</mycall><band>{band}</band><txfreq>0</txfreq>\
+         <operator>{operator}</operator><mode>LSB</mode><call>{call}</call><snt>59</snt><rcv>59</rcv>\
+         <id>{id}</id>{old}</{root}>"
+    )
+    .into_bytes()
+}
+
+/// The next `station_status`, skipping everything else.
+async fn next_status(ws: &mut Client) -> Value {
+    loop {
+        let m = next_json_any(ws, Duration::from_secs(2))
+            .await
+            .expect("a station_status");
+        if m["type"] == "station_status" {
+            return m;
+        }
+    }
+}
+
+fn assert_status(m: &Value, band: &str, operator: &str) {
+    assert_eq!(m["type"], "station_status", "{m}");
+    assert_eq!(m["band"], band, "{m}");
+    assert_eq!(m["operator"], operator, "{m}");
+}
+
+#[tokio::test]
+async fn a_page_gets_the_station_status_of_the_latest_qso() {
+    let service = start(test_config(), None).await.unwrap();
+    let mut ws = connect(service.http_addr).await;
+    let mut kinds = Vec::new();
+    for _ in 0..3 {
+        kinds.push(
+            next_json_any(&mut ws, Duration::from_secs(2))
+                .await
+                .unwrap(),
+        );
+    }
+    assert_eq!(
+        kinds
+            .iter()
+            .map(|m| m["type"].as_str().unwrap())
+            .collect::<Vec<_>>(),
+        ["hello", "snapshot", "station_status"]
+    );
+    let empty = &kinds[2];
+    let mut keys: Vec<&str> = empty
+        .as_object()
+        .unwrap()
+        .keys()
+        .map(String::as_str)
+        .collect();
+    keys.sort_unstable();
+    assert_eq!(keys, ["age_s", "band", "operator", "qso_at", "type"]);
+    for key in ["band", "operator", "qso_at", "age_s"] {
+        assert!(empty[key].is_null(), "{empty}");
+    }
+
+    send_udp(
+        service.udp_addr,
+        &qartest_qso("A1", "DL5QFN", "15:04:04", "40", "IK0ABC", false),
+    )
+    .await;
+    assert_status(&next_status(&mut ws).await, "40m", "IK0ABC");
+    send_udp(
+        service.udp_addr,
+        &qartest_qso("B2", "K6QA", "15:04:10", "20", "IS0XYZ", false),
+    )
+    .await;
+    let latest = next_status(&mut ws).await;
+    assert_status(&latest, "20m", "IS0XYZ");
+    assert_eq!(latest["qso_at"], "2026-10-08T15:04:10Z");
+    assert!(latest["age_s"].as_u64().is_some(), "{latest}");
+
+    // A correction of an older QSO doesn't move the status back.
+    send_udp(
+        service.udp_addr,
+        &qartest_qso("A1", "DL5QFN", "15:04:04", "40", "IK0DEF", true),
+    )
+    .await;
+    assert_status(&next_status(&mut ws).await, "20m", "IS0XYZ");
+    // A correction of the latest one does.
+    send_udp(
+        service.udp_addr,
+        &qartest_qso("B2", "K6QA", "15:04:10", "20", "IS0QQQ", true),
+    )
+    .await;
+    assert_status(&next_status(&mut ws).await, "20m", "IS0QQQ");
+
+    let mut later = connect(service.http_addr).await;
+    for kind in ["hello", "snapshot"] {
+        let m = next_json_any(&mut later, Duration::from_secs(2))
+            .await
+            .unwrap();
+        assert_eq!(m["type"], kind);
+    }
+    let m = next_json_any(&mut later, Duration::from_secs(2))
+        .await
+        .unwrap();
+    assert_status(&m, "20m", "IS0QQQ");
 }

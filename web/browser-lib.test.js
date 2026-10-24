@@ -134,6 +134,11 @@ test('the ADIF record has UTC date and time, and byte lengths', () => {
     '<CALL:6>DL1ABC <QSO_DATE:8>20261013 <TIME_ON:6>070509 <BAND:3>40m <MODE:2>CW <GRIDSQUARE:4>JN58 <EOR>',
   );
   assert.match(qsoAdif({ call: 'Ä1A', band: '2m', mode: 'FM', grid: 'JN61', at }), /<CALL:4>Ä1A /, 'bytes, not characters');
+  assert.match(
+    qsoAdif({ call: 'DL1ABC', band: '40m', mode: 'CW', grid: 'JN58', at, operator: 'IK0ABC' }),
+    /<GRIDSQUARE:4>JN58 <OPERATOR:6>IK0ABC <EOR>$/,
+    'the operator when given (feature 017)',
+  );
 });
 
 test('a step lists the screenshots taken during it (data-model Step.screenshot)', () => {

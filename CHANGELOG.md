@@ -11,6 +11,11 @@ which becomes the GitHub release notes (`docs/releasing.md`).
 - `globe_border_deg` in `[map]` (also `--globe-border-deg`, `LQM_GLOBE_BORDER_DEG`; default 10,
   0 to 45): under auto-zoom, the globe is kept only while every QSO can sit at least that many
   degrees of arc inside its visible horizon; otherwise the map shows the flat view.
+- A station status line above the score shows the band and the operator of the latest QSO, for
+  example `20m · IS0XYZ`. The operator is the one the logger stamps on each QSO (QARTest's OPON
+  command), or the station callsign when there is none. The line turns grey 15 minutes after the
+  latest QSO. Pages get it through a new `station_status` WebSocket message; the protocol
+  version is unchanged.
 
 ### Fixed
 - Auto-zoom no longer shrinks the globe to a dot when the QSOs spread across the world: it

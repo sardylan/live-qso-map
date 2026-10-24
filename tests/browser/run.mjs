@@ -62,6 +62,7 @@ const STEPS = [
   'atmosphere',
   'grayline',
   'autozoom-fit',
+  'station',
 ];
 // The house of `--station-locator JM49OF` (the square's centre), for the test clock.
 const HOUSE = { lat: 39.229, lon: 9.208 };
@@ -161,9 +162,8 @@ const udp = createSocket('udp4');
 let qsoSecond = 0;
 
 /** Sends one QSO over UDP; each gets its own second, so times are distinct and ordered. */
-async function sendQso({ call, band, grid }) {
-  const at = new Date(Date.now() - 60_000 + qsoSecond++ * 1000);
-  const record = Buffer.from(qsoAdif({ call, band, mode: 'CW', grid, at }));
+async function sendQso({ call, band, grid, operator, at = new Date(Date.now() - 60_000 + qsoSecond++ * 1000) }) {
+  const record = Buffer.from(qsoAdif({ call, band, mode: 'CW', grid, at, operator }));
   await new Promise((resolve, reject) => udp.send(record, ports.udp, '127.0.0.1', (e) => (e ? reject(e) : resolve())));
 }
 
@@ -501,6 +501,19 @@ async function turnUntil(side, dx) {
 
 // --- the steps (contracts/browser-test.md) --------------------------------------------------
 
+/** The station status line (feature 017): its text, its stale look, and whether it overlaps. */
+const stationLine = () => q(`(() => {
+  const box = (id) => document.getElementById(id).getBoundingClientRect();
+  const apart = (a, b) => a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top;
+  const line = document.getElementById('station');
+  const recent = document.getElementById('recent');
+  return {
+    text: line.textContent,
+    stale: line.classList.contains('stale'),
+    clear: apart(box('station'), box('score')) && (recent.hidden || apart(box('station'), box('recent'))),
+  };
+})()`);
+
 const steps = {
   async load() {
     await page.goto(`${origin}/`);
@@ -824,6 +837,37 @@ const steps = {
       await shot(`12-autozoom-fit-${size}`);
     }
     await page.clearSize();
+  },
+
+  // A fresh history, so a QSO from 20 minutes ago is the latest: its age is already past 15
+  // minutes. The page judges age from the service's age_s, so the shifted test clock is no
+  // matter (research R8).
+  async station() {
+    allowWebSocketErrors = true;
+    await stopProgram();
+    rmSync(HISTORY, { force: true });
+    await startProgram('c', []);
+    await until(`document.getElementById('status').hidden`, 'the banner to go away after the restart', LOAD_MS);
+    fatalSinceLastCheck();
+    allowWebSocketErrors = false;
+    await waitFor(async () => (await stationLine()).text === '— · —', {
+      timeout: STEP_MS,
+      what: 'dashes with an empty history',
+    });
+    await sendQso({ call: 'DL3CCC', band: '15m', grid: 'JO62', operator: 'IK0OLD', at: new Date(Date.now() - 20 * 60_000) });
+    await waitFor(async () => {
+      const line = await stationLine();
+      return line.text === '15m · IK0OLD' && line.stale;
+    }, { timeout: STEP_MS, what: 'the 20-minute-old QSO, greyed' });
+    await shot('13-station-stale');
+    await sendQso({ call: 'DL4DDD', band: '40m', grid: 'JO62', operator: 'IK0ABC' });
+    await sendQso({ call: 'K4DDD', band: '20m', grid: 'FN42', operator: 'IS0XYZ' });
+    await waitFor(async () => {
+      const line = await stationLine();
+      return line.text === '20m · IS0XYZ' && !line.stale;
+    }, { timeout: STEP_MS, what: 'the band and operator of the latest QSO, not greyed' });
+    if (!(await stationLine()).clear) throw new Error('the station line overlaps the score line or the box (FR-011)');
+    await shot('13-station');
   },
 };
 
