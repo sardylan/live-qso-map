@@ -7,6 +7,18 @@ which becomes the GitHub release notes (`docs/releasing.md`).
 
 ## [Unreleased]
 
+### Added
+- `globe_border_deg` in `[map]` (also `--globe-border-deg`, `LQM_GLOBE_BORDER_DEG`; default 10,
+  0 to 45): under auto-zoom, the globe is kept only while every QSO can sit at least that many
+  degrees of arc inside its visible horizon; otherwise the map shows the flat view.
+
+### Fixed
+- Auto-zoom no longer shrinks the globe to a dot when the QSOs spread across the world: it
+  switches to the flat view instead.
+- With auto-zoom on, the flat view centres on the station and uses the closest zoom that keeps
+  every QSO in view. When the map is too short for that, the view stays as close to the station
+  as it can.
+
 ## [3.2.0] - 2026-10-15
 
 ### Added
