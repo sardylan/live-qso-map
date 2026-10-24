@@ -278,6 +278,9 @@ globe: it disappears.
   - On the globe, auto-zoom MUST centre on the point that best frames the framed items, not
     necessarily the QTH.
   - "Cannot all be seen" means no centre exists from which they all lie on the visible side.
+  - Superseded in part by feature 016: "seen" now means at least `map.globe_border_deg` inside
+    the visible horizon, and the flat view centres on the QTH
+    ([`../016-map-autozoom-fixes/spec.md`](../016-map-autozoom-fixes/spec.md) FR-001–FR-008).
 - **FR-017**: The page MUST NOT change the projection by itself when auto-zoom is off, and it MUST
   NOT switch a flat preference to the globe. Turning auto-zoom off, by the button or by a manual
   move, MUST NOT change the projection. An automatic flat view stays until the viewer uses the

@@ -266,13 +266,13 @@ step `autozoom-fit` is green in a rehearsal.
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T024 [P] Add the 016 entries under `## [Unreleased]` in `CHANGELOG.md`:
+- [X] T024 [P] Add the 016 entries under `## [Unreleased]` in `CHANGELOG.md`:
   - Fixed: the globe no longer shrinks to a dot under auto-zoom, it switches to flat; the flat
     view under auto-zoom centres on the station and uses the closest zoom;
   - Added: `map.globe_border_deg` (default 10°).
-- [ ] T025 [P] Update `specs/004-qth-autozoom/spec.md`: under FR-016, add a one-line pointer
+- [X] T025 [P] Update `specs/004-qth-autozoom/spec.md`: under FR-016, add a one-line pointer
   "Superseded in part by feature 016 (globe border, flat centring)" so readers find the new rule.
-- [ ] T026 Run every gate: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`,
+- [X] T026 Run every gate: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`,
   `cargo test`, `node --test web/`, then `cargo build --release && node tests/browser/run.mjs`.
   All green.
 - [ ] T027 Walk through quickstart.md steps 1–6 by hand at 1920 × 1080 in Firefox (the
