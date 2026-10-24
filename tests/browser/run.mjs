@@ -37,6 +37,9 @@ import {
   toScreenMercator,
   toScreenGlobe,
   nightAndDayPoints,
+  SNAPSHOT_QSOS,
+  locatorCentre,
+  fitsFree,
 } from './lib.mjs';
 import { subsolarPoint } from '../../src/web/assets/sun.js';
 import { launchChrome } from './cdp.mjs';
@@ -58,6 +61,7 @@ const STEPS = [
   'legend-group',
   'atmosphere',
   'grayline',
+  'autozoom-fit',
 ];
 // The house of `--station-locator JM49OF` (the square's centre), for the test clock.
 const HOUSE = { lat: 39.229, lon: 9.208 };
@@ -778,6 +782,48 @@ const steps = {
     if (kept.grayline !== false || kept.sun !== true || kept.stored[0] !== 'off' || kept.stored[1] !== 'on') {
       throw new Error(`the choices were not kept after a reload: ${JSON.stringify(kept)}`);
     }
+  },
+
+  // Feature 016 (spec SC-001, SC-004): the operator's snapshot, globe preference, auto-zoom on.
+  async ['autozoom-fit']() {
+    for (const { call, grid } of SNAPSHOT_QSOS) await sendQso({ call, band: '20m', grid });
+    await waitFor(async () => (await markerCount()) === 20, { timeout: STEP_MS, what: 'the 20 snapshot markers (Last 20)' });
+    // The projection button turns auto-zoom off (feature 004 FR-018): globe first, then auto-zoom.
+    await ensureGlobe();
+    await setAutoZoom(true);
+    const points = [[HOUSE.lat, HOUSE.lon], ...SNAPSHOT_QSOS.map((s) => locatorCentre(s.grid))];
+    for (const [width, height] of [[1024, 768], [1920, 1080]]) {
+      const size = `${width}x${height}`;
+      await page.resize(width, height);
+      // The resize refit waits for the 250 ms tick and the 1 s spacing (feature 004 FR-014), and data-view
+      // only changes when its 800 ms ease ends: let it start before waiting for the view to settle.
+      await sleep(1_500);
+      // Every marker cannot sit inside the globe's horizon: auto-zoom shows the flat map (FR-007).
+      await until(`document.querySelector('.projection-control button').textContent === 'Globe'`, `the flat map at ${size}`);
+      const view = parseView(await stableView(`at ${size}`));
+      const rect = await mapRect();
+      const [top, right, bottom, left] = (await q(`document.getElementById('map').dataset.padding ?? ''`)).split(',').map(Number);
+      const free = { left: rect.left + left, top: rect.top + top, right: rect.left + rect.width - right, bottom: rect.top + rect.height - bottom };
+      const drawn = await globeCentre(rect);
+      const [fx, fy] = [(free.left + free.right) / 2, (free.top + free.bottom) / 2];
+      const [hx, hy] = drawn ? toScreenMercator(view, rect, [HOUSE.lat, HOUSE.lon], drawn) : [NaN, NaN];
+      // The house sits at the free area's centre (SC-001), unless the map is too short for that:
+      // MapLibre then holds the camera half the map height from the ±85° edge (FR-003).
+      const world = 512 * 2 ** view.zoom;
+      const cy = ((Math.PI - Math.log(Math.tan(Math.PI / 4 + (view.lat * Math.PI) / 360))) / (2 * Math.PI)) * world;
+      const clamped = Math.abs(cy - rect.height / 2) < 2 || Math.abs(world - cy - rect.height / 2) < 2;
+      const where = `house drawn at ${hx.toFixed(1)},${hy.toFixed(1)}, free centre ${fx},${fy}, view ${view.lat},${view.lon},${view.zoom}`;
+      if (!(Math.abs(hx - fx) <= 0.02 * (free.right - free.left))) throw new Error(`${size}: ${where} (SC-001, across)`);
+      if (!clamped && !(Math.abs(hy - fy) <= 0.02 * (free.bottom - free.top))) throw new Error(`${size}: ${where} (SC-001)`);
+      if (clamped && Math.abs(view.lon - HOUSE.lon) > 0.05) throw new Error(`${size}: ${where} (FR-003)`);
+      console.log(`   12-autozoom-fit ${size}: ${where}${clamped ? ' (clamped at the map edge, FR-003)' : ''}`);
+      if (!fitsFree(view, rect, drawn, points, free)) throw new Error(`${size}: a QSO lies outside the free area at zoom ${view.zoom} (SC-002)`);
+      if (fitsFree({ ...view, zoom: view.zoom + 0.25 }, rect, drawn, points, free)) {
+        throw new Error(`${size}: zoom ${view.zoom} is not the closest; everything still fits 0.25 closer (SC-004)`);
+      }
+      await shot(`12-autozoom-fit-${size}`);
+    }
+    await page.clearSize();
   },
 };
 

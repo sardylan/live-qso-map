@@ -168,9 +168,11 @@ centring rule of the active view).
 - **FR-002**: The flat-view zoom MUST be the highest level, up to the maximum (feature 004 FR-013),
   at which the house and every displayed marker lie inside the free map area with the house at its
   centre. Markers are measured along the shorter way round the world from the house.
-- **FR-003**: When the house can't be exactly centred (near a pole, or at the lowest zoom that shows
-  the full width of the world), the flat view MUST centre as close to the house as the map allows,
-  and every displayed marker MUST stay inside the free map area.
+- **FR-003**: When the house can't be exactly centred, the flat view MUST centre as close to the
+  house as the map allows, and every displayed marker MUST stay inside the free map area. This
+  happens whenever centring would show beyond the map's top or bottom edge (±85°): near a pole, or
+  when the zoom needed for the markers leaves a map shorter than the window can centre on the house
+  (seen at 1024 × 768 with the snapshot).
 - **FR-004**: With an unknown QTH, the flat-view refit MUST keep the feature 004 behaviour (frame
   every displayed marker).
 
@@ -224,8 +226,8 @@ centring rule of the active view).
 ### Measurable Outcomes
 
 - **SC-001**: With a known QTH and the flat view under auto-zoom, after every refit the house is
-  within 2 % of the free map area's width and height from its centre (pole and full-width cases of
-  FR-003 excepted).
+  within 2 % of the free map area's width from its centre, and within 2 % of its height unless the
+  view is held at the map's top or bottom edge (FR-003).
 - **SC-002**: Under auto-zoom, 100 % of the displayed markers and the house are inside the free map
   area after every refit, in both projections.
 - **SC-003**: On the globe under auto-zoom, every displayed marker is at least the configured

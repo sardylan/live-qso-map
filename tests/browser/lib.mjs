@@ -329,3 +329,36 @@ export function nightAndDayPoints(subsolar, project, rect) {
   const day = pick([subsolar.lat, subsolar.lon]);
   return night && day ? { night, day } : null;
 }
+
+// --- auto-zoom on the operator's snapshot (feature 016, research R7) -----------------------
+
+/**
+ * The 20 QSOs of the IQ0ID page snapshot (spec Assumptions), by grid square: callsigns and
+ * positions only. M5S had no grid; IO92fs holds its cty.dat position.
+ */
+export const SNAPSHOT_QSOS = [
+  ['VK3ATL', 'QF21eu'], ['VK6LG', 'OF85wb'], ['SM5VTP', 'JO88gn'], ['SK6D', 'JO67fw'],
+  ['DL9ZP', 'JO53ro'], ['M5S', 'IO92fs'], ['G0MBA', 'JO01nt'], ['DF6QV', 'JO41mq'],
+  ['ON6IO', 'JO21ha'], ['M1STI', 'IO90px'], ['DM1SV', 'JN49id'], ['OK2TS', 'JN89nc'],
+  ['TM1FC', 'JN18eu'], ['F4ICZ', 'JN08qb'], ['YT4M', 'KN04ev'], ['YO8SBQ', 'KN24xn'],
+  ['EA1FUM', 'IN82di'], ['EE7I', 'IN80dj'], ['CT2FUN', 'IN50sf'], ['CT2IOV', 'IM57xd'],
+].map(([call, grid]) => ({ call, grid }));
+
+/** The centre `[lat, lon]` of a 6-character locator. */
+export function locatorCentre(grid) {
+  const g = grid.toUpperCase();
+  const lon = -180 + (g.charCodeAt(0) - 65) * 20 + Number(g[2]) * 2 + (g.charCodeAt(4) - 65 + 0.5) * (5 / 60);
+  const lat = -90 + (g.charCodeAt(1) - 65) * 10 + Number(g[3]) + (g.charCodeAt(5) - 65 + 0.5) * (2.5 / 60);
+  return [lat, lon];
+}
+
+/**
+ * Whether every `[lat, lon]` lies inside `free` (`{ left, top, right, bottom }`, page pixels, with
+ * `tolerance` px) on the flat map at `view`, its centre drawn at `centre` (`data-centre`).
+ */
+export function fitsFree(view, rect, centre, points, free, tolerance = 1) {
+  return points.every((p) => {
+    const [x, y] = toScreenMercator(view, rect, p, centre);
+    return x >= free.left - tolerance && x <= free.right + tolerance && y >= free.top - tolerance && y <= free.bottom + tolerance;
+  });
+}

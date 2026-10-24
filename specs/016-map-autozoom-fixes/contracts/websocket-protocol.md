@@ -1,6 +1,6 @@
 # Contract: WebSocket Protocol (delta to features 006 and 011)
 
-- **Protocol version**: **3**, unchanged. The only change adds a field (`docs/http-api.md`
+- **Protocol version**: **4**, unchanged. The only change adds a field (`docs/http-api.md`
   API-4).
 
 ## `hello`: new field `globe_border_deg`
@@ -8,7 +8,7 @@
 ```json
 {
   "type": "hello",
-  "protocol": 3,
+  "protocol": 4,
   "globe_border_deg": 10
 }
 ```

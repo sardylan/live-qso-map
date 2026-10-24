@@ -87,6 +87,9 @@
 #   call, band, mode, date, time, cqzone, country
 # recent_columns = ["call", "band", "time", "cqzone", "country"]
 # recent_header = true         # show the header row
+# Auto-zoom keeps the globe only while every QSO marker can sit at least this many degrees of arc
+# inside the globe's visible horizon; otherwise it shows the flat map. 0 to 45.
+# globe_border_deg = 10
 
 [map.bands]
 # Colour per band, replacing the built-in palette's entry for that band. Examples:

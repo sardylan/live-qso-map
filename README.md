@@ -201,6 +201,7 @@ The most common settings:
 | Band colours | `--band-color 20m=#1f77b4` (repeatable) | built-in palette |
 | Last-QSO box columns, in order (`call`, `band`, `mode`, `date`, `time`, `cqzone`, `country`) | `--recent-columns` / `LQM_RECENT_COLUMNS` | `call,band,time,cqzone,country` |
 | Last-QSO box header row | `--recent-header true\|false` / `LQM_RECENT_HEADER` | `true` |
+| Auto-zoom globe border: degrees of arc every QSO keeps inside the globe's horizon, else the flat map (0 to 45) | `--globe-border-deg` / `LQM_GLOBE_BORDER_DEG` | `10` |
 | Base map style (MapLibre style JSON) | `--style-url` / `LQM_STYLE_URL`, `--style-attribution` | OpenFreeMap Liberty, with its credit |
 | Raster tiles instead of a style | `--tile-url` / `LQM_TILE_URL`, `--tile-attribution` (required) | none |
 

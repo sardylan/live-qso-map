@@ -28,6 +28,7 @@ import {
   nextProjection,
   popupToClose,
   loadAutoZoom,
+  globeBorder,
   saveAutoZoom,
   loadRecent,
   saveRecent,
@@ -59,8 +60,8 @@ import {
   flatBounds,
   paddingFor,
   boundingCap,
-  fitsGlobe,
   globeZoomForCap,
+  flatFrameAround,
 } from './autozoom-geo.js';
 import { createConnection, onOpen, onClose, onHello as handshake, loadLimit, saveLimit } from './connection.js';
 import * as panelState from './panel.js';
@@ -85,8 +86,6 @@ const FIT = { gap: 12, minFree: [240, 160] };
 const MAX_ZOOM = 12;
 const POPUP_IDLE_MS = 30_000;
 const WORLD = { center: [0, 30], zoom: 1.5 };
-// Points right on the globe's limb are unreadable: keep them this far inside (FR-016).
-const GLOBE_MARGIN_DEG = 5;
 
 let map = null;
 let loaded = false;
@@ -94,6 +93,8 @@ let state = null;
 let current = new Map();
 let helloStation = null;
 let entity = null;
+// Degrees of arc every marker keeps inside the globe's horizon (feature 016), from hello.
+let globeBorderDeg = globeBorder(null);
 // The operator's box columns and header (feature 006), from hello.
 let recentConfig = { columns: ['call', 'band', 'time', 'cqzone', 'country'], header: true };
 let qth = null;
@@ -601,18 +602,19 @@ function currentFrame() {
   const bounds = current.size > 0 ? flatBounds(framedPoints(qth, current)) : fallbackFrame(qth, entity);
   const points = framePoints(bounds);
   const cap = points.length > 0 ? boundingCap(points) : null;
-  // The globe keeps the frame only when a zoom exists that really shows all of it (FR-016).
-  const globeZoom =
-    cap && fitsGlobe(cap, GLOBE_MARGIN_DEG)
-      ? globeZoomForCap(cap, { width: rect.width, height: rect.height, padding, maxZoom: MAX_ZOOM })
-      : null;
-  return { padding, bounds, cap, globeZoom, fitsGlobe: !cap || globeZoom !== null };
+  // The globe keeps the frame only while every marker stays the border inside its horizon (016).
+  const globeZoom = cap
+    ? globeZoomForCap(cap, { width: rect.width, height: rect.height, padding, borderDeg: globeBorderDeg, maxZoom: MAX_ZOOM })
+    : null;
+  return { rect, padding, bounds, cap, globeZoom, fitsGlobe: !cap || globeZoom !== null };
 }
 
 /** Frames the house and every marker clear of the panels (FR-008–FR-010, FR-013, FR-015–FR-017). */
 function fitNow() {
   if (!loaded) return;
-  const { padding, bounds, cap, globeZoom, fitsGlobe: fits } = currentFrame();
+  const { rect, padding, bounds, cap, globeZoom, fitsGlobe: fits } = currentFrame();
+  // The free area this fit used, for the browser tests (feature 016): "top,right,bottom,left".
+  document.getElementById('map').dataset.padding = [padding.top, padding.right, padding.bottom, padding.left].join(',');
   showProjection(autozoom.fitted(fits, projection));
   try {
     if (!bounds) {
@@ -620,6 +622,11 @@ function fitNow() {
     } else if (shown === 'globe') {
       const [lat, lon] = cap.center;
       map.easeTo({ center: [lon, lat], zoom: globeZoom, padding, duration: 800 });
+    } else if (qth) {
+      // The flat view centres on the house (feature 016 FR-001).
+      const size = { width: rect.width, height: rect.height, padding, maxZoom: MAX_ZOOM };
+      const { center, zoom } = flatFrameAround(qth, framePoints(bounds), size);
+      map.easeTo({ center, zoom, padding, duration: 800 });
     } else {
       map.fitBounds(bounds, { padding, maxZoom: MAX_ZOOM, duration: 800 });
     }
@@ -936,6 +943,7 @@ function changeLegend(name) {
 function onHello(hello) {
   helloStation = hello.station ?? null;
   entity = hello.entity ?? null;
+  globeBorderDeg = globeBorder(hello);
   basemap = hello.basemap;
   // The theme first, so the map starts with the right style (no light flash at night).
   updateTheme();

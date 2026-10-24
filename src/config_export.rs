@@ -187,7 +187,13 @@ mod tests {
         assert_eq!(cty["path"].as_str(), Some("./cty.dat"));
         assert!(cty.contains_key("url") && cty.contains_key("max_age_days"));
         let map = table["map"].as_table().unwrap();
-        for key in ["fallback_color", "recent_columns", "recent_header", "bands"] {
+        for key in [
+            "fallback_color",
+            "recent_columns",
+            "recent_header",
+            "globe_border_deg",
+            "bands",
+        ] {
             assert!(map.contains_key(key), "map.{key}");
         }
         for key in [

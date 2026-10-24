@@ -125,6 +125,8 @@ pub enum ServerMessage {
         station: Option<StationView>,
         entity: Option<EntityView>,
         recent: RecentView,
+        /// Degrees of arc every marker keeps inside the globe's horizon (feature 016).
+        globe_border_deg: f64,
     },
     Snapshot {
         limit: Option<usize>,
@@ -184,6 +186,7 @@ impl ServerMessage {
                 columns: map.recent_columns.clone(),
                 header: map.recent_header,
             },
+            globe_border_deg: map.globe_border_deg,
         }
     }
 }
@@ -293,6 +296,7 @@ mod tests {
             bands,
             recent_columns: crate::recent_columns::DEFAULT_COLUMNS.to_vec(),
             recent_header: true,
+            globe_border_deg: 10.0,
         }
     }
 
@@ -353,7 +357,8 @@ mod tests {
                 "basemap": {"kind": "style", "url": "https://style.example/style.json", "attribution": "attr"},
                 "station": null,
                 "entity": null,
-                "recent": {"columns": ["call", "band", "time", "cqzone", "country"], "header": true}
+                "recent": {"columns": ["call", "band", "time", "cqzone", "country"], "header": true},
+                "globe_border_deg": 10.0
             })
         );
     }
@@ -624,6 +629,16 @@ mod tests {
             v["recent"],
             json!({"columns": ["country", "call", "mode"], "header": false})
         );
+        assert_eq!(v["protocol"], 4);
+    }
+
+    #[test]
+    fn hello_carries_the_globe_border() {
+        let mut map = map_config();
+        map.globe_border_deg = 25.5;
+        let v = serde_json::to_value(ServerMessage::hello(&map, None, &HelloStation::default()))
+            .unwrap();
+        assert_eq!(v["globe_border_deg"], 25.5);
         assert_eq!(v["protocol"], 4);
     }
 

@@ -197,6 +197,13 @@ function createPage(socket, child) {
         });
       })()`);
     },
+    /** Sizes the page as a `width` × `height` window (CSS pixels), until `clearSize`. */
+    async resize(width, height) {
+      await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
+    },
+    async clearSize() {
+      await send('Emulation.clearDeviceMetricsOverride', {});
+    },
     /** A left-button drag from `from` to `to` (CSS pixels), in `steps` moves 16 ms apart. */
     async drag(from, to, steps = 20) {
       const mouse = (type, [x, y], extra = {}) => send('Input.dispatchMouseEvent', { type, x, y, button: 'left', ...extra });

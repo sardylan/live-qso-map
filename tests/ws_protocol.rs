@@ -50,6 +50,7 @@ async fn every_page_receives_hello_snapshot_and_live_upserts() {
             hello["recent"],
             serde_json::json!({"columns": ["call", "band", "time", "cqzone", "country"], "header": true})
         );
+        assert_eq!(hello["globe_border_deg"], 10.0);
         assert_eq!(hello["basemap"]["kind"], "style");
         assert_eq!(
             hello["basemap"]["url"],
