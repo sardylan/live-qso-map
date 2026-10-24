@@ -36,6 +36,7 @@ we deliberately gave up. Records the *why*, not just the *what*.
 | TR-021 | accepted | The globe's glow as a rim lit from behind, towards the Sun, recomputed on every move | 2026-10-14 |
 | TR-022 | proposed | Saved records list the fields the service added (APP_LIVEQSOMAP_ADDED) | 2026-10-14 |
 | TR-023 | accepted | Debian live configuration as a separate short file, not the example | 2026-10-15 |
+| TR-024 | accepted | The globe border applies only while the horizon is in view | 2026-10-24 |
 
 ## Decisions
 
@@ -940,6 +941,45 @@ In the context of shipping one fully commented example in every release, facing 
 
 - Positive: FR-008 is a plain cmp; the live file tells the operator where the example is.
 - Negative / debt accepted: existing installs whose live config was never edited get the new short file without a question; edited ones get dpkg's conffile question once, on the upgrade to this version. Revisit if operators ask for the full list in /etc.
+
+## TR-024: The globe border applies only while the horizon is in view
+
+- Status: accepted
+- Date: 2026-10-24
+- Phase: plan
+- Deciders: Luca Cireddu (border in degrees of arc, default 10°), Claude (plan)
+- Links: specs/016-map-autozoom-fixes/research.md R1–R3, spec FR-005–FR-007, src/web/assets/autozoom-geo.js
+
+### Context & problem
+
+Feature 016 keeps the globe under auto-zoom only while every framed marker is at least `map.globe_border_deg` degrees of arc inside the visible horizon. The visible horizon shrinks as the camera zooms in: about 77° from the centre at zoom 2, 57° at zoom 4, 18° at zoom 8 and 4.5° at zoom 12 (960 px high map). Read literally, a 10° border would send every tight cluster of QSOs framed at a high zoom to the flat view, although no horizon is on screen.
+
+### Decision drivers
+
+- the operator's unit: degrees of arc (spec clarification)
+- never shrink the globe to keep a border (FR-007): the old limb rule drew the globe 30–40 px wide
+- local and regional QSO sets must stay on the globe
+
+### Options considered
+
+| Option | Pros | Cons / what it sacrifices |
+|--------|------|---------------------------|
+| Check the border only while the horizon circle is in view at the fit zoom (chosen) | matches the intent (keep markers off the squashed rim); close zooms keep the globe; one extra condition | the rule needs a sentence of explanation (FR-006) |
+| Literal check at every zoom | simplest wording | tight clusters at high zoom always go flat |
+| Border scaled by the horizon angle (a share of it) | continuous at every zoom | no longer "degrees of arc" as the operator asked; harder to explain in the config file |
+
+### Decision
+
+We chose to check the border only while the horizon is in view.
+
+### Y-statement
+
+In the context of a globe border in degrees of arc, facing a visible horizon that shrinks to a few degrees at close zoom, we chose to apply the border only while the horizon circle is in view over a literal or a scaled check, to keep local QSO sets on the globe and wide spreads off its rim, accepting one extra condition in the frame maths and in FR-006.
+
+### Consequences
+
+- Positive: the switch to flat happens only for wide spreads at low zoom (the horizon enters the corners near zoom 4, where fitted caps are about 12° in radius, about 45° inside it).
+- Negative / debt accepted: the condition depends on the map's size (the half-diagonal). Revisit if viewers report a globe/flat flicker when resizing near that threshold.
 
 ## Archive
 
