@@ -20,8 +20,10 @@
   <div id="status" class="banner" hidden>reconnecting…</div>
   <div id="basemap-error" class="banner banner-low" hidden>Base map unavailable; QSOs are still shown.</div>
   <div id="legend" class="legend" hidden></div>
-  <!-- Bottom left, bottom to top: the box, then the score line (feature 007, FR-012). -->
+  <!-- Bottom left, bottom to top: the box, the score line (feature 007, FR-012), then the
+       station status line (feature 017). -->
   <div id="corner-bl" class="corner-bl">
+    <div id="station" class="score station" aria-live="polite">— · —</div>
     <div id="score" class="score" aria-live="polite">Score —</div>
     <div id="recent" class="recent" hidden aria-label="Last QSOs"></div>
   </div>

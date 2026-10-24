@@ -24,7 +24,18 @@ async fn connect(http: SocketAddr) -> Client {
     ws
 }
 
+/// The next message, skipping `station_status`: it follows every snapshot, upsert and remove
+/// (feature 017, contracts/websocket-protocol.md), and these tests are about the others.
 async fn next_json(ws: &mut Client, within: Duration) -> Option<Value> {
+    loop {
+        let m = next_json_any(ws, within).await?;
+        if m["type"] != "station_status" {
+            return Some(m);
+        }
+    }
+}
+
+async fn next_json_any(ws: &mut Client, within: Duration) -> Option<Value> {
     loop {
         match tokio::time::timeout(within, ws.next()).await {
             Ok(Some(Ok(Message::Text(text)))) => return Some(serde_json::from_str(&text).unwrap()),

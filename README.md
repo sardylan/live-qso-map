@@ -90,7 +90,7 @@ checked with Subresource Integrity. It is laid out for windows 1024 px wide or w
 | top left | zoom, **Globe/Flat**, **Auto-zoom** |
 | top right | the gear that opens the settings panel |
 | bottom right | the band legend |
-| bottom left | the contest score line, with the last-QSO box under it when shown |
+| bottom left | the station status line, the contest score line, and the last-QSO box under them when shown |
 
 - **Settings panel**: the gear at the top right opens a panel on the right edge (full width on
   narrow screens), with every viewer setting in four groups:
@@ -158,6 +158,12 @@ checked with Subresource Integrity. It is laid out for windows 1024 px wide or w
   - "mults" is the sum of every multiplier type the contest has (countries plus zones in CQ WW).
   - It reads `Score —` until the first score arrives, and again after the service restarts.
   - With no new score for 5 minutes it turns grey; hovering shows `Last updated HH:MMZ` (UTC).
+- **Station status**: one line above the score, with the band and the operator of the latest
+  QSO by QSO time, for example `20m · IS0XYZ`.
+  - The operator is the one the logger stamps on each QSO (QARTest's OPON), so a new operator
+    shows with their first QSO. With no operator, the station callsign is shown.
+  - It reads `— · —` until a QSO is logged; after a restart it comes from the saved history.
+  - 15 minutes after the latest QSO it turns grey; hovering shows `Last QSO HH:MMZ` (UTC).
 - **Scale**: a metric scale bar, shown on the flat map only.
 
 Each browser remembers every viewer choice across restarts: Globe/Flat, Auto-zoom, Last QSOs,

@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::adif::AdifRecord;
 use crate::band_filter::BandSet;
 use crate::config::{BaseMap, MapConfig, StationConfig};
-use crate::history::{EnrichedQso, QsoEntity, format_rfc3339, qso_timestamp};
+use crate::history::{EnrichedQso, History, QsoEntity, format_rfc3339, qso_timestamp};
 use crate::pipeline::ScoreState;
 use crate::position::Position;
 use crate::recent_columns::Column;
@@ -149,6 +149,16 @@ pub enum ServerMessage {
         /// Seconds since then, so the page can judge staleness on its own clock (research R4).
         age_s: u64,
     },
+    /// Band and operator of the most recent QSO by QSO time (feature 017,
+    /// contracts/websocket-protocol.md). Every field is `null` with an empty history.
+    StationStatus {
+        band: Option<String>,
+        operator: Option<String>,
+        /// UTC, the QSO's date and time (HR-1).
+        qso_at: Option<String>,
+        /// Seconds from `qso_at` to the service's clock, 0 when `qso_at` is ahead (research R5).
+        age_s: Option<u64>,
+    },
 }
 
 impl ServerMessage {
@@ -160,6 +170,41 @@ impl ServerMessage {
             mults: state.score.mults,
             received_at: state.received_at.clone(),
             age_s: state.received.elapsed().as_secs(),
+        }
+    }
+
+    /// The status of the history's most recent QSO, aged at `now` (Unix seconds).
+    pub fn station_status(history: &History, fallback: Option<&str>, now: i64) -> Self {
+        let latest = history.latest(Some(1));
+        let Some(qso) = latest.first() else {
+            return ServerMessage::StationStatus {
+                band: None,
+                operator: None,
+                qso_at: None,
+                age_s: None,
+            };
+        };
+        let record = &qso.record;
+        let ts = qso_timestamp(
+            record.get("QSO_DATE").unwrap_or_default(),
+            record.get("TIME_ON").unwrap_or_default(),
+        );
+        // OPERATOR, then the station callsign: a single-op station never sets one (research R4).
+        let operator = [
+            record.get("OPERATOR"),
+            record.get("STATION_CALLSIGN"),
+            fallback,
+        ]
+        .into_iter()
+        .flatten()
+        .map(str::trim)
+        .find(|c| !c.is_empty())
+        .map(str::to_ascii_uppercase);
+        ServerMessage::StationStatus {
+            band: record.get_non_empty("BAND").map(str::to_string),
+            operator,
+            qso_at: ts.map(format_rfc3339),
+            age_s: ts.map(|ts| u64::try_from(now.saturating_sub(ts)).unwrap_or(0)),
         }
     }
 
@@ -715,6 +760,115 @@ mod tests {
             panic!("expected a score");
         };
         assert_eq!(age_s, 0);
+    }
+
+    // --- station status (feature 017, T004) ---------------------------------------------------
+
+    fn logged(id: &str, band: Option<&str>, time: &str, fields: &[(&str, &str)]) -> EnrichedQso {
+        let mut record = AdifRecord::new();
+        record.set("CALL", "DL5QFN");
+        record.set("QSO_DATE", "20261008");
+        record.set("TIME_ON", time);
+        if let Some(band) = band {
+            record.set("BAND", band);
+        }
+        for (k, v) in fields {
+            record.set(k, *v);
+        }
+        EnrichedQso {
+            id: id.into(),
+            rev: 1,
+            sort_ts: crate::history::qso_timestamp("20261008", time).unwrap(),
+            record,
+            remote: None,
+            station: None,
+            entity: None,
+        }
+    }
+
+    fn history_of(qsos: Vec<EnrichedQso>) -> crate::history::History {
+        let mut history = crate::history::History::new();
+        for qso in qsos {
+            history.upsert(qso);
+        }
+        history
+    }
+
+    fn status_json(
+        history: &crate::history::History,
+        fallback: Option<&str>,
+        now: i64,
+    ) -> serde_json::Value {
+        serde_json::to_value(ServerMessage::station_status(history, fallback, now)).unwrap()
+    }
+
+    #[test]
+    fn station_status_of_an_empty_history_is_all_null() {
+        assert_eq!(
+            status_json(&crate::history::History::new(), Some("IS0MZK"), 0),
+            json!({"type": "station_status", "band": null, "operator": null, "qso_at": null, "age_s": null})
+        );
+    }
+
+    #[test]
+    fn station_status_follows_the_latest_qso_by_qso_time() {
+        let later = logged("B", Some("20m"), "150410", &[("OPERATOR", "IS0XYZ")]);
+        let earlier = logged("A", Some("40m"), "150404", &[("OPERATOR", "IK0ABC")]);
+        let now = later.sort_ts + 42;
+        let history = history_of(vec![later, earlier]);
+        assert_eq!(
+            status_json(&history, None, now),
+            json!({
+                "type": "station_status",
+                "band": "20m",
+                "operator": "IS0XYZ",
+                "qso_at": "2026-10-08T15:04:10Z",
+                "age_s": 42
+            })
+        );
+    }
+
+    #[test]
+    fn station_status_without_a_band_still_has_the_operator() {
+        let qso = logged("A", None, "150404", &[("OPERATOR", "IK0ABC")]);
+        let now = qso.sort_ts;
+        let v = status_json(&history_of(vec![qso]), None, now);
+        assert_eq!(v["band"], json!(null));
+        assert_eq!(v["operator"], "IK0ABC");
+    }
+
+    #[test]
+    fn station_status_operator_is_trimmed_and_upper_case() {
+        let qso = logged("A", Some("40m"), "150404", &[("OPERATOR", " ik0abc ")]);
+        let now = qso.sort_ts;
+        assert_eq!(
+            status_json(&history_of(vec![qso]), None, now)["operator"],
+            "IK0ABC"
+        );
+    }
+
+    // --- station status: fallback and age (feature 017, T015) ---------------------------------
+
+    fn operator_of(fields: &[(&str, &str)], fallback: Option<&str>) -> serde_json::Value {
+        let qso = logged("A", Some("40m"), "150404", fields);
+        let now = qso.sort_ts;
+        status_json(&history_of(vec![qso]), fallback, now)["operator"].clone()
+    }
+
+    #[test]
+    fn station_status_operator_falls_back_to_the_station_callsign() {
+        let station = [("OPERATOR", ""), ("STATION_CALLSIGN", "is0mzk")];
+        assert_eq!(operator_of(&station, Some("IQ0AA")), "IS0MZK");
+        let blank = [("OPERATOR", "  "), ("STATION_CALLSIGN", " ")];
+        assert_eq!(operator_of(&blank, Some("IQ0AA")), "IQ0AA");
+        assert_eq!(operator_of(&blank, None), json!(null));
+    }
+
+    #[test]
+    fn station_status_of_a_qso_in_the_future_has_age_zero() {
+        let qso = logged("A", Some("40m"), "150404", &[]);
+        let now = qso.sort_ts - 60;
+        assert_eq!(status_json(&history_of(vec![qso]), None, now)["age_s"], 0);
     }
 
     #[test]

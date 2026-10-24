@@ -37,6 +37,7 @@ we deliberately gave up. Records the *why*, not just the *what*.
 | TR-022 | proposed | Saved records list the fields the service added (APP_LIVEQSOMAP_ADDED) | 2026-10-14 |
 | TR-023 | accepted | Debian live configuration as a separate short file, not the example | 2026-10-15 |
 | TR-024 | accepted | The globe border applies only while the horizon is in view | 2026-10-24 |
+| TR-025 | proposed | Station status derived by the service from the history | 2026-10-24 |
 
 ## Decisions
 
@@ -980,6 +981,46 @@ In the context of a globe border in degrees of arc, facing a visible horizon tha
 
 - Positive: the switch to flat happens only for wide spreads at low zoom (the horizon enters the corners near zoom 4, where fitted caps are about 12° in radius, about 45° inside it).
 - Negative / debt accepted: the condition depends on the map's size (the half-diagonal). Revisit if viewers report a globe/flat flicker when resizing near that threshold.
+
+## TR-025: Station status derived by the service from the history
+
+- Status: proposed
+- Date: 2026-10-24
+- Phase: plan
+- Deciders: -
+- Links: specs/017-station-status-box/research.md (R2, R3)
+<!-- key: 89d16e77706e -->
+
+### Context & problem
+
+Feature 017 shows the station's current band and operator. QARTest sends no operator-change message (OPON) and its score message has no operator, so the status must come from the most recent logged QSO.
+
+### Decision drivers
+
+- The page's snapshot is filtered by its band choice and window, so it may not hold the newest QSO
+- Staleness must not use the browser's clock
+- Status must survive a restart
+
+### Options considered
+
+| Option | Pros | Cons / what it sacrifices |
+|--------|------|---------------------------|
+| Service derives it from the history and sends a station_status message after every upsert/remove, on connect and on lag (chosen) | Correct under any page band filter; carries an age from the service clock; restart works with no extra state | One extra message per QSO per page, sent even when unchanged |
+| Page derives it from snapshot and upsert | No protocol change | Wrong under a band filter; needs the browser's clock for staleness |
+| Pipeline keeps a separate current-status value | Computed once per QSO, not per page | A second copy of what the history holds, to keep in step on corrections and removes |
+
+### Decision
+
+Recompute from History::latest(Some(1)) in each session and send station_status, always, protocol version unchanged (4).
+
+### Y-statement
+
+In the context of showing the current band and operator, facing a band-filtered page snapshot and an untrusted browser clock, we decided for a service-built station_status message recomputed from the history on every change, and against deriving it in the page or storing a separate copy, to achieve correctness under filters and restarts, accepting one redundant small message per QSO per page.
+
+### Consequences
+
+- Positive: One rule covers new QSOs, corrections and removes; no new state.
+- Negative / debt accepted: An operator change becomes visible only with that operator's first QSO; redundant messages when nothing changed.
 
 ## Archive
 
