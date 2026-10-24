@@ -24,6 +24,10 @@ which becomes the GitHub release notes (`docs/releasing.md`).
   every QSO in view. When the map is too short for that, the view stays as close to the station
   as it can.
 
+### Security
+- Updated rustls-webpki, webpki-root-certs and tokio (RUSTSEC-2026-0382, RUSTSEC-2026-0383,
+  RUSTSEC-2026-0386): lookups no longer trust the distrusted emSign intermediates.
+
 ## [3.2.0] - 2026-10-15
 
 ### Added
