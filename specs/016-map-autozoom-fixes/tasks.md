@@ -277,9 +277,9 @@ step `autozoom-fit` is green in a rehearsal.
   All green.
 - [ ] T027 Walk through quickstart.md steps 1–6 by hand at 1920 × 1080 in Firefox (the
   operator's browser), and note the result in the PR description.
-- [ ] T028 [R:YELLOW] Release rehearsal (LL-007, `docs/ci.md`): start the manual rehearsal
-  pipeline on this branch, and confirm the browser step `autozoom-fit` runs and is green. Record
-  the pipeline number here when ticking.
+- [X] T028 [R:YELLOW] Release rehearsal (LL-007, `docs/ci.md`): start the manual rehearsal
+  pipeline on this branch, and confirm the browser step `autozoom-fit` runs and is green. Pipeline
+  #125 (`rehearsal`, 22 jobs) green on `rehearsal/016-map-autozoom-fixes` at 77404fe.
 
 ---
 
