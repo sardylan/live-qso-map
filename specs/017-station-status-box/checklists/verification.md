@@ -10,7 +10,7 @@
 - [x] `node --test web/`: 245 passed (with feature 016), 0 failed
 - [x] `node tests/browser/run.mjs` (local, macOS, release build, on top of feature 016): 13 steps
   pass, `13 station` included
-- [ ] Manual rehearsal pipeline green with the `station` step (LL-007, T025)
+- [x] Manual rehearsal pipeline green with the `station` step (LL-007, T025): confirmed by the owner, 2026-10-24
 
 ## Success criteria
 

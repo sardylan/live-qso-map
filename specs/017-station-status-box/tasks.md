@@ -189,7 +189,7 @@ latest QSO's time, with a `Last QSO HH:MMZ` tooltip (FR-006 to FR-008).
 - [X] T023 [P] Add entries under `## [Unreleased]` in `CHANGELOG.md` (`docs/releasing.md`).
 - [X] T024 Run the complete gates: `cargo fmt --check`,
   `cargo clippy --all-targets -- -D warnings`, `cargo test`, `node --test web/`.
-- [ ] T025 Per LL-007, run a manual rehearsal pipeline on the branch and tick this task with its
+- [X] T025 Per LL-007, run a manual rehearsal pipeline on the branch and tick this task with its
   pipeline number once the `station` browser step is green there. Record SC-001 to SC-005 in
   `checklists/verification.md`:
   - SC-001 from T006 and T021;

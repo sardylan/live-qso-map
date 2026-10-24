@@ -275,7 +275,7 @@ step `autozoom-fit` is green in a rehearsal.
 - [X] T026 Run every gate: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`,
   `cargo test`, `node --test web/`, then `cargo build --release && node tests/browser/run.mjs`.
   All green.
-- [ ] T027 Walk through quickstart.md steps 1–6 by hand at 1920 × 1080 in Firefox (the
+- [X] T027 Walk through quickstart.md steps 1–6 by hand at 1920 × 1080 in Firefox (the
   operator's browser), and note the result in the PR description.
 - [X] T028 [R:YELLOW] Release rehearsal (LL-007, `docs/ci.md`): start the manual rehearsal
   pipeline on this branch, and confirm the browser step `autozoom-fit` runs and is green. Pipeline
