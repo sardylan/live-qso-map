@@ -1022,6 +1022,47 @@ In the context of showing the current band and operator, facing a band-filtered 
 - Positive: One rule covers new QSOs, corrections and removes; no new state.
 - Negative / debt accepted: An operator change becomes visible only with that operator's first QSO; redundant messages when nothing changed.
 
+## TR-026: Text sizes tied to the viewport height
+
+- Status: proposed
+- Date: 2026-10-25
+- Phase: plan
+- Deciders: -
+- Links: specs/018-fullscreen-side-column/research.md (R3), src/web/assets/app.css
+
+### Context & problem
+
+Feature 018 makes the page readable full screen on monitors and TVs, from 1080p to 4K, viewed from a few metres. Text was fixed at 13 px, sized for a desktop window.
+
+### Decision drivers
+
+- The same proportions on a 1080p and a 4K screen (SC-003)
+- The status block, score and box keep a fixed size order (FR-008)
+- No new viewer setting (spec, out of scope)
+- A 1280×720 laptop window stays as today
+
+### Options considered
+
+| Option | Pros | Cons / what it sacrifices |
+|--------|------|---------------------------|
+| rem scale on a root of clamp(13px, 1.6vh, 48px) (chosen) | Same share of the screen at every resolution; one number to tune | Text no longer follows the browser's own text-size setting above 13 px |
+| Larger fixed px sizes | Simple | Right for one screen only; tiny on 4K |
+| A viewer setting for text size | Flexible | A new setting the spec rules out |
+| A vw-based root | Also scales | Oversized text on 21:9 screens |
+
+### Decision
+
+Every text size in app.css moves to rem on a root of clamp(13px, 1.6vh, 48px), with the column ladder 2.4 / 2 / 1.6 / 1 / 0.8 rem.
+
+### Y-statement
+
+In the context of wall and TV displays, facing fixed desktop-sized text, we decided for a viewport-height root and against fixed sizes or a setting, to achieve the same proportions at every resolution, accepting that the browser's text-size setting has less effect.
+
+### Consequences
+
+- Positive: One number to tune on a real screen; the size order holds by construction.
+- Negative / debt accepted: Every size in app.css moves to rem; revisit if viewers ask for their own size control.
+
 ## Archive
 
 Superseded or deprecated entries sink here; nothing is deleted (git keeps history).
