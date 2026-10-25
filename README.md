@@ -162,8 +162,9 @@ beside the map; the map's corners hold the rest:
     rows are faded and can't be clicked.
   - Click any other row to open its popup; the **Last QSOs** checkbox in the settings panel hides
     the box. Popups show each QSO's entity too.
-- **Contest score**: one line above the box, always shown, from the score QARTest broadcasts
-  every minute, for example `1.234.567 pts · 1.523 QSO · 183 mults`.
+- **Contest score**: above the box, always shown, from the score QARTest broadcasts every minute:
+  points, QSOs and multipliers on three lines, for example `1.234.567 pts`, `1.523 QSO`,
+  `183 mults`.
   - "mults" is the sum of every multiplier type the contest has (countries plus zones in CQ WW).
   - It reads `Score —` until the first score arrives, and again after the service restarts.
   - With no new score for 5 minutes it turns grey; hovering shows `Last updated HH:MMZ` (UTC).

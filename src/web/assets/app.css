@@ -371,10 +371,15 @@ body {
   padding: 2px 0;
 }
 
-/* The contest score (FR-005, FR-006); in the column it may wrap rather than spill (feature 018). */
+/* The contest score (FR-005, FR-006): score, QSOs and multipliers on their own lines, and it may
+   wrap rather than spill (feature 018). */
 .score {
   font-weight: 600;
   overflow-wrap: anywhere;
+}
+
+#score {
+  white-space: pre-line;
 }
 
 /* The column's size ladder (feature 018, FR-008, data-model): status, clock, score, box. */
