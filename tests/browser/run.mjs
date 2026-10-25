@@ -573,10 +573,15 @@ async function clockTicks(size) {
 /** The release in Cargo.toml, which the program reports in hello (feature 018). */
 const VERSION = readFileSync(path.join(ROOT, 'Cargo.toml'), 'utf8').match(/^version\s*=\s*"([^"]+)"/m)[1];
 
-/** The version tag closes the column, even with a full box on a short window (feature 018, FR-011). */
+/**
+ * The box fills the column with whole rows and the version tag closes it (feature 018, FR-011).
+ * Twice the snapshot: more QSOs than the box holds at either size.
+ */
 async function versionAtTheBottom() {
-  for (const { call, grid } of SNAPSHOT_QSOS) await sendQso({ call, band: '20m', grid });
-  await q(`(() => { const s = document.getElementById('recent-size'); s.value = '20'; s.dispatchEvent(new Event('change')); })()`);
+  // A second band, or the service's resend gate takes the second round for repeats of the first.
+  for (const band of ['20m', '40m']) {
+    for (const { call, grid } of SNAPSHOT_QSOS) await sendQso({ call, band, grid });
+  }
   for (const [width, height] of [[1920, 1080], [1280, 720]]) {
     const size = `${width}x${height}`;
     await page.resize(width, height);
@@ -595,12 +600,19 @@ async function versionAtTheBottom() {
           .filter((tr) => !tr.hidden)
           .every((tr) => tr.getBoundingClientRect().bottom <= box.bottom + 0.5),
         rows: [...document.querySelectorAll('#recent tbody tr')].filter((tr) => !tr.hidden).length,
+        // Less than one row of space left under the last row: the box is full.
+        filled: (() => {
+          const shown = [...document.querySelectorAll('#recent tbody tr')].filter((tr) => !tr.hidden);
+          const last = shown.at(-1)?.getBoundingClientRect();
+          return !!last && box.bottom - last.bottom < last.height + 2;
+        })(),
       };
     })()`);
     if (!v.last) throw new Error(`${size}: the version tag is not the column's last element (FR-002)`);
     if (v.text !== `v${VERSION}`) throw new Error(`${size}: version tag "${v.text}", expected v${VERSION} (FR-011)`);
     if (!(Math.abs(v.gap) <= 2 && v.inside)) throw new Error(`${size}: the version tag is not at the column's bottom (gap ${v.gap})`);
     if (!v.rowsFit || v.rows === 0) throw new Error(`${size}: ${v.rows} rows shown, some cut by the column's edge (R1)`);
+    if (!v.filled) throw new Error(`${size}: ${v.rows} rows shown, the box has room for more`);
     console.log(`   14-column ${size}: ${v.rows} box rows shown`);
   }
 }

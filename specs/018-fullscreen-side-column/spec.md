@@ -43,6 +43,9 @@ screen read from a distance. A page that reconnects to an updated service reload
   the column; feature 016's check moves to 1280 × 800.
 - Owner's request after the visual test: the score shows points, QSOs and multipliers on three
   separate lines instead of one.
+- Owner's request after the visual test: the box's "Size" setting goes; the box always lists as
+  many QSOs as fill the column, a number each page computes itself, and asks the service for a
+  window large enough for it.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -207,7 +210,9 @@ reload on their own.
   the status block, the score line and the version tag; the last QSOs box MUST NOT be shown there,
   and the map fills the window below the strip.
 - **FR-006**: Everything the elements did before (live updates, staleness greying, clickable QSO
-  rows, settings for the box size, order and visibility) MUST keep working in the column.
+  rows, settings for the box order and visibility) MUST keep working in the column. The box
+  MUST list as many QSOs as fill the column, computed by the page, which asks the service for a
+  window that covers both the map's "Last N" and those rows.
 
 **Status block, score and clock**
 

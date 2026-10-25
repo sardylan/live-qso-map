@@ -33,8 +33,6 @@ import {
   loadRecent,
   saveRecent,
   scaleVisible,
-  loadRecentSize,
-  saveRecentSize,
   loadRecentOrder,
   saveRecentOrder,
   basemapFor,
@@ -51,7 +49,7 @@ import {
 import { PALETTES, applyPalette, resolveTheme, loadTheme, saveTheme, themeStatus } from './themes.js';
 import { solarElevation, subsolarPoint } from './sun.js';
 import { tilePixels, graylineBeforeId, graylineTiles, parseGraylineUrl, rgbOf } from './grayline.js';
-import { recentQsos, headerCells, rowCells, markerKeyOf, entityLabel, onMap, rowsThatFit } from './recent.js';
+import { recentQsos, headerCells, rowCells, markerKeyOf, entityLabel, onMap, rowsThatFit, boxCapacity } from './recent.js';
 import { scoreText, isStale, updatedTitle } from './score.js';
 import { stationText, STATION_STALE_MS, lastQsoTitle, localQsoTime, utcClock } from './station.js';
 import { createAutoZoom } from './autozoom.js';
@@ -131,7 +129,8 @@ let scaleControl = null;
 const autozoom = createAutoZoom({ enabled: loadAutoZoom(localStore()) });
 let autoZoomControl = null;
 let recentShown = loadRecent(localStore());
-let recentSize = loadRecentSize(localStore());
+// How many rows the box can show, measured by the page: the box fills the column (feature 018).
+let boxRows = 0;
 let recentOrder = loadRecentOrder(localStore());
 const OFF_MAP_TITLE = 'Not on the map (outside its last N)';
 // The latest contest score, with its receive time on this page's clock (feature 007, R4).
@@ -479,8 +478,9 @@ function openFromBox(markerKey) {
 function renderRecent() {
   const box = document.getElementById('recent');
   box.hidden = !recentShown || !state;
+  updateBoxRows();
   if (box.hidden) return;
-  const qsos = recentQsos(state, recentSize, recentOrder);
+  const qsos = recentQsos(state, boxRows, recentOrder);
   if (qsos.length === 0) {
     // The empty-state message replaces the header too (feature 006, FR-006a).
     box.replaceChildren(element('div', 'empty', 'No QSOs received yet'));
@@ -530,6 +530,29 @@ function renderRecent() {
   table.append(body);
   box.replaceChildren(table);
   fitRecentRows();
+}
+
+/**
+ * How many rows the box can show now: its height over a row's (feature 018). Before any row is
+ * drawn the estimate is one line of text, a little generous; fitRecentRows trims the excess.
+ */
+function measureBoxRows() {
+  const box = document.getElementById('recent');
+  if (box.hidden || box.offsetParent === null) return 0;
+  const style = getComputedStyle(box);
+  const head = box.querySelector('thead')?.getBoundingClientRect().height ?? 0;
+  const available = box.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom) - head;
+  const row = box.querySelector('tbody tr')?.getBoundingClientRect().height || parseFloat(style.fontSize) * 1.4;
+  return boxCapacity(available, row);
+}
+
+/** Re-measures the box; asks the server for a larger or smaller window when it needs one. */
+function updateBoxRows() {
+  const rows = measureBoxRows();
+  if (rows === boxRows) return;
+  const before = serverLimit(connection.limit, boxRows);
+  boxRows = rows;
+  if (serverLimit(connection.limit, boxRows) !== before) sendSetLimit();
 }
 
 /** Whole rows only: the oldest give way when the column is short (feature 018, research R1). */
@@ -968,7 +991,7 @@ function shownBands() {
 /** Tells the server the window and the bands; the session keeps both until the next one. */
 function sendSetLimit() {
   if (!socket || socket.readyState !== WebSocket.OPEN) return;
-  socket.send(JSON.stringify({ type: 'set_limit', limit: serverLimit(connection.limit), bands: shownBands() }));
+  socket.send(JSON.stringify({ type: 'set_limit', limit: serverLimit(connection.limit, boxRows), bands: shownBands() }));
 }
 
 /** The Legend group's checkboxes, rebuilt from `hello.band_groups` on every hello. */
@@ -1033,9 +1056,9 @@ function onHello(hello) {
   renderScore();
   stationState = null;
   renderStation();
-  // Ask for at least 20 QSOs, so the box has its rows whatever the map shows (TR-006).
-  // The band choice too, so a reconnected session gets the same filtered snapshot (FR-013).
-  for (const message of handshake({ limit: serverLimit(connection.limit), bands: shownBands() })) {
+  // Ask for enough QSOs for the map and for the rows the box can show (feature 018). The band
+  // choice too, so a reconnected session gets the same filtered snapshot (FR-013).
+  for (const message of handshake({ limit: serverLimit(connection.limit, boxRows), bands: shownBands() })) {
     socket.send(JSON.stringify(message));
   }
 }
@@ -1163,14 +1186,6 @@ function setupSelector() {
     autozoom.change();
   });
 
-  const size = document.getElementById('recent-size');
-  size.value = String(recentSize);
-  size.addEventListener('change', () => {
-    recentSize = Number.parseInt(size.value, 10);
-    saveRecentSize(localStore(), recentSize);
-    renderRecent();
-    autozoom.change();
-  });
   const order = document.getElementById('recent-order');
   order.value = recentOrder;
   order.addEventListener('change', () => {
@@ -1186,7 +1201,8 @@ if (hasWebGL(() => document.createElement('canvas'))) {
   setupAppearance();
   connect();
   window.addEventListener('resize', () => {
-    fitRecentRows();
+    // A taller or shorter column holds more or fewer rows (feature 018).
+    renderRecent();
     autozoom.change();
   });
   setInterval(() => runActions(autozoom.tick(Date.now())), 250);

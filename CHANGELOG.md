@@ -22,6 +22,11 @@ which becomes the GitHub release notes (`docs/releasing.md`).
 - The station status line, the score line and the last-QSO box moved from the bottom-left corner
   of the map into the left column; the box shows only whole rows. The score shows points, QSOs and
   multipliers on three lines.
+- The last-QSO box fills the column: each page counts the rows its column holds and asks the
+  service for enough QSOs.
+
+### Removed
+- The "Size" choice of the last-QSO box in the settings panel: the box now fills the column.
 
 ## [3.3.0] - 2026-10-24
 

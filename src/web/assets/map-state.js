@@ -58,10 +58,18 @@ export function setMapLimit(state, limit) {
   state.mapLimit = limit;
 }
 
-/** The window to ask the server for: at least 20, the largest box (feature 006, TR-006). */
-export function serverLimit(mapLimit) {
+// The windows the service accepts (`hello.limits`), smallest first.
+const WINDOWS = [10, 20, 50, 100, 200, 500, 1000];
+
+/**
+ * The window to ask the server for: enough for the map's limit and for the `boxRows` the box can
+ * show (feature 018), rounded up to a window the service accepts, at most 1000 (feature 014).
+ */
+export function serverLimit(mapLimit, boxRows) {
   // An old "All" (null) is the most a page receives (feature 014).
-  return mapLimit == null ? 1000 : Math.max(mapLimit, 20);
+  if (mapLimit == null) return 1000;
+  const wanted = Math.max(mapLimit, boxRows);
+  return WINDOWS.find((w) => w >= wanted) ?? 1000;
 }
 
 /** Shows only QSOs on `bands` (case-insensitive), or every QSO for `null` (feature 011). */

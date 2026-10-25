@@ -156,10 +156,11 @@ beside the map; the map's corners hold the rest:
     UTC time, CQ zone and the DXCC entity from cty.dat as `prefix · name`. Long names are cut,
     and hovering shows them in full. A small header row labels the columns, unless the operator
     turns it off.
-  - **Size and order** are chosen by each viewer in the settings panel: "Box: last" 3 to 20
-    (default 5), and "Newest" at the bottom (default) or at the top. They are separate from the
-    map's own "Map: last N QSOs" (default 20). The box can list QSOs the map doesn't show; those
-    rows are faded and can't be clicked.
+  - **Size**: the box lists as many QSOs as fill the column, more on a taller screen. Each page
+    works this out itself and asks the service for enough QSOs.
+  - **Order** is chosen by each viewer in the settings panel: "Newest" at the bottom (default) or
+    at the top. The box is separate from the map's own "Map: last N QSOs" (default 20): it can
+    list QSOs the map doesn't show; those rows are faded and can't be clicked.
   - Click any other row to open its popup; the **Last QSOs** checkbox in the settings panel hides
     the box. Popups show each QSO's entity too.
 - **Contest score**: above the box, always shown, from the score QARTest broadcasts every minute:
@@ -177,7 +178,7 @@ beside the map; the map's corners hold the rest:
 - **Scale**: a metric scale bar, shown on the flat map only.
 
 Each browser remembers every viewer choice across restarts: Globe/Flat, Auto-zoom, Last QSOs,
-the map's "Last N", the box size and order, the theme, the atmosphere, the grayline, the Sun
+the map's "Last N", the box order, the theme, the atmosphere, the grayline, the Sun
 position and the legend groups. The panel itself always starts closed.
 
 ## Configuration

@@ -268,7 +268,7 @@ loop (FR-012 to FR-014, research R6).
 - [X] T029 [US4] Extend the browser step `column` in `tests/browser/run.mjs`: `#version` is the
   last child of `#column`, its bottom edge is the column's bottom edge minus its padding (±2 px)
   at 1920×1080 with the box at size 20, and its text is `v` + the version from the program's
-  `--version` output (or `Cargo.toml`, read by the runner). At 1280×720 with box size 20:
+  `--version` output (or `Cargo.toml`, read by the runner). At 1280×720 with more QSOs than fit:
   `#version` is inside the window and every visible `#recent tbody tr` has its bottom at or above
   `#recent`'s bottom (spec edge case "box taller than the space left").
 

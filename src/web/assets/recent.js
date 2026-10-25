@@ -4,9 +4,13 @@
 import { held } from './map-state.js';
 
 /**
- * The `size` most recent QSOs the page holds, by QSO time, independent of the map's limit
- * (feature 006, FR-009): oldest first for 'bottom' (newest last), newest first for 'top'.
+ * How many rows of `rowHeight` pixels the box's `available` height holds (feature 018): the box
+ * lists that many QSOs. 0 before a row height is known.
  */
+export function boxCapacity(available, rowHeight) {
+  return rowHeight > 0 && available > 0 ? Math.floor(available / rowHeight) : 0;
+}
+
 /**
  * How many whole rows fit in `available` pixels, counting from the newest (feature 018, R1).
  * `rowHeights` lists the rows newest first.
@@ -22,6 +26,10 @@ export function rowsThatFit(rowHeights, available) {
   return count;
 }
 
+/**
+ * The `size` most recent QSOs the page holds, by QSO time, independent of the map's limit
+ * (feature 006, FR-009): oldest first for 'bottom' (newest last), newest first for 'top'.
+ */
 export function recentQsos(state, size = 5, order = 'bottom') {
   const all = held(state);
   const newest = all.slice(Math.max(0, all.length - size));

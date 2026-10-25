@@ -148,20 +148,13 @@ test('the scale is shown only on the flat map (FR-024)', () => {
   assert.equal(scaleVisible('globe'), false);
 });
 
-import { loadRecentSize, saveRecentSize, loadRecentOrder, saveRecentOrder } from '../src/web/assets/view.js';
+import * as view from '../src/web/assets/view.js';
+import { loadRecentOrder, saveRecentOrder } from '../src/web/assets/view.js';
 
-test('box size defaults to 5 and round-trips the allowed sizes (feature 006)', () => {
-  assert.equal(loadRecentSize(memoryStorage()), 5);
-  for (const size of [3, 5, 10, 15, 20]) {
-    const storage = memoryStorage();
-    saveRecentSize(storage, size);
-    assert.equal(storage.data['lqm.recent.size'], String(size));
-    assert.equal(loadRecentSize(storage), size);
-  }
-  assert.equal(loadRecentSize(memoryStorage({ 'lqm.recent.size': '7' })), 5);
-  assert.equal(loadRecentSize(memoryStorage({ 'lqm.recent.size': 'many' })), 5);
-  assert.equal(loadRecentSize(throwingStorage), 5);
-  assert.doesNotThrow(() => saveRecentSize(throwingStorage, 10));
+// Feature 018: the box fills the column, so its size is no longer a viewer setting.
+test('the box size is no longer a setting', () => {
+  assert.equal(view.loadRecentSize, undefined);
+  assert.equal(view.saveRecentSize, undefined);
 });
 
 test('box order defaults to newest at the bottom and round-trips (feature 006)', () => {

@@ -9,7 +9,7 @@ import {
   markers,
   visible,
 } from '../src/web/assets/map-state.js';
-import { recentQsos, headerCells, rowCells, shortName, entityLabel, onMap, rowsThatFit } from '../src/web/assets/recent.js';
+import { recentQsos, headerCells, rowCells, shortName, entityLabel, onMap, rowsThatFit, boxCapacity } from '../src/web/assets/recent.js';
 
 function qso(n, overrides = {}) {
   const minute = String(n).padStart(2, '0');
@@ -167,4 +167,14 @@ test('rowsThatFit counts the whole rows that fit, newest first', () => {
   assert.equal(rowsThatFit([20, 20, 20], 0), 0);
   assert.equal(rowsThatFit([], 100), 0);
   assert.equal(rowsThatFit([10, 30, 10], 39), 1);
+});
+
+// Feature 018: the box lists as many QSOs as its height holds, computed by the page.
+test('boxCapacity counts the rows a height holds', () => {
+  assert.equal(boxCapacity(600, 20), 30);
+  assert.equal(boxCapacity(619, 20), 30);
+  assert.equal(boxCapacity(19, 20), 0);
+  assert.equal(boxCapacity(0, 20), 0);
+  assert.equal(boxCapacity(-5, 20), 0);
+  assert.equal(boxCapacity(600, 0), 0, 'no row height measured yet');
 });
