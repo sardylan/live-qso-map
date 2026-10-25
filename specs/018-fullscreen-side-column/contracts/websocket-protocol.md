@@ -37,7 +37,8 @@ source tree carries the token `__LQM_VERSION__`, which never reaches a browser t
 ## Page behaviour on `hello`
 
 1. Read the page version from the meta (missing, empty or `__LQM_VERSION__` → no version).
-2. Read the tab's reload flag `sessionStorage['lqm.reloaded-for']` (unreadable → none).
+2. Read the tab's reload flag `sessionStorage['lqm.reloaded-for']`; when session storage is
+   unavailable, skip to step 4 (no reload without a loop guard).
 3. If both versions are present, they differ, and the flag is not the service version: write the
    service version to the flag and reload the page. Nothing else from this `hello` is handled.
 4. Otherwise: show `v<version>` in `#version` (empty when the service sent none) and handle `hello`
