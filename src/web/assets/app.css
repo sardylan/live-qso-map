@@ -358,10 +358,27 @@ body {
   padding: 2px 0;
 }
 
-/* The contest score: always one line (FR-005, FR-006). */
+/* The contest score (FR-005, FR-006); in the column it may wrap rather than spill (feature 018). */
 .score {
-  white-space: nowrap;
   font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* The column's size ladder (feature 018, FR-008, data-model): status, clock, score, box. */
+.column .station {
+  font-size: 2.4rem;
+  line-height: 1.15;
+}
+
+.column .clock {
+  font-size: 2rem;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+
+.column #score {
+  font-size: 1.6rem;
+  line-height: 1.2;
 }
 
 /* No score for 5 minutes (FR-007). */

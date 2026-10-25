@@ -1,6 +1,18 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createConnection, backoffDelay, onOpen, onClose, onHello, loadLimit, saveLimit, LIMITS } from '../src/web/assets/connection.js';
+import {
+  createConnection,
+  backoffDelay,
+  onOpen,
+  onClose,
+  onHello,
+  loadLimit,
+  saveLimit,
+  LIMITS,
+  shouldReload,
+  pageVersion,
+  RELOAD_KEY,
+} from '../src/web/assets/connection.js';
 
 test('backoff doubles from 1 s and caps at 30 s', () => {
   const noJitter = () => 0.5;
@@ -102,4 +114,38 @@ test('the map limit behaves the same in any storage (moved to local storage, Pri
     assert.equal(loadLimit(storage), 1000);
   }
   assert.equal(loadLimit(throwing), 20);
+});
+
+// Feature 018, research R6 and data-model "Reload decision".
+test('shouldReload only when the page and the service versions differ', () => {
+  assert.equal(shouldReload('3.3.0', '3.3.0', null), false);
+  assert.equal(shouldReload('3.3.0', '3.4.0', null), true);
+  assert.equal(shouldReload('3.3.0', '3.4.0', '3.2.0'), true);
+});
+
+test('shouldReload never twice for the same service version', () => {
+  assert.equal(shouldReload('3.3.0', '3.4.0', '3.4.0'), false);
+});
+
+test('shouldReload never without both versions', () => {
+  for (const missing of [undefined, null, '']) {
+    assert.equal(shouldReload('3.3.0', missing, null), false);
+    assert.equal(shouldReload(missing, '3.4.0', null), false);
+  }
+  assert.equal(shouldReload('__LQM_VERSION__', '3.4.0', null), false);
+});
+
+test('pageVersion reads the version meta', () => {
+  const doc = (content) => ({
+    querySelector: (selector) =>
+      selector === 'meta[name="lqm-version"]' && content !== undefined ? { content } : null,
+  });
+  assert.equal(pageVersion(doc('3.3.0')), '3.3.0');
+  assert.equal(pageVersion(doc(undefined)), null);
+  assert.equal(pageVersion(doc('')), null);
+  assert.equal(pageVersion(doc('__LQM_VERSION__')), null);
+});
+
+test('the reload flag key', () => {
+  assert.equal(RELOAD_KEY, 'lqm.reloaded-for');
 });

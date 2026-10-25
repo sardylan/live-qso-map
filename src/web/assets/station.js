@@ -18,3 +18,9 @@ export function lastQsoTitle(qsoAt) {
 export function localQsoTime(ageS, now) {
   return ageS == null ? null : now - ageS * 1000;
 }
+
+/** The column's clock, `HH:MM:SS UTC` (feature 018, research R4; HR-1). */
+export function utcClock(date) {
+  const two = (n) => String(n).padStart(2, '0');
+  return `${two(date.getUTCHours())}:${two(date.getUTCMinutes())}:${two(date.getUTCSeconds())} UTC`;
+}

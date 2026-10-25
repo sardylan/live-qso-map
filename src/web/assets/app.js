@@ -53,7 +53,7 @@ import { solarElevation, subsolarPoint } from './sun.js';
 import { tilePixels, graylineBeforeId, graylineTiles, parseGraylineUrl, rgbOf } from './grayline.js';
 import { recentQsos, headerCells, rowCells, markerKeyOf, entityLabel, onMap, rowsThatFit } from './recent.js';
 import { scoreText, isStale, updatedTitle } from './score.js';
-import { stationText, STATION_STALE_MS, lastQsoTitle, localQsoTime } from './station.js';
+import { stationText, STATION_STALE_MS, lastQsoTitle, localQsoTime, utcClock } from './station.js';
 import { createAutoZoom } from './autozoom.js';
 import {
   framedPoints,
@@ -536,6 +536,11 @@ function fitRecentRows() {
   newestFirst.forEach((tr, i) => {
     tr.hidden = i >= keep;
   });
+}
+
+/** The column's UTC clock, from the device clock (feature 018, FR-007). */
+function renderClock() {
+  document.getElementById('clock').textContent = utcClock(new Date());
 }
 
 /** The score line: plain text only (FR-005, FR-007, FR-008). */
@@ -1161,6 +1166,8 @@ if (hasWebGL(() => document.createElement('canvas'))) {
     renderScore();
     renderStation();
   }, SCORE_TICK_MS);
+  renderClock();
+  setInterval(renderClock, 1000);
 } else {
   // FR-012: no renderer can run, so do not connect either.
   show('map', false);
