@@ -49,6 +49,8 @@ screen read from a distance. A page that reconnects to an updated service reload
 - Owner's request after the visual test: the settings open in a modal dialog, from a gear button
   at the foot of the column (next to the version tag); the box always lists the newest QSO on top
   (the "Newest" setting goes); callsigns use a monospace font.
+- Owner's request after the visual test: the map's zoom, Globe/Flat and Auto-zoom buttons move to
+  the top right of the map.
 
 ## User Scenarios & Testing *(mandatory)*
 

@@ -26,7 +26,8 @@ which becomes the GitHub release notes (`docs/releasing.md`).
   service for enough QSOs.
 
 - The settings open in a modal dialog in the middle of the window, from a gear button at the foot
-  of the left column (it was a side panel opened from the top right of the map).
+  of the left column (it was a side panel opened from the top right of the map). The zoom,
+  Globe/Flat and Auto-zoom buttons moved to the top right of the map, away from the column.
 - The last-QSO box lists the newest QSO on top. Callsigns in the box, in popups and in the
   station status line use a monospace font.
 

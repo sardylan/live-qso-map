@@ -1023,6 +1023,13 @@ const steps = {
   // Feature 018: the column beside the map, and the strip above it on narrow windows.
   async column() {
     await setBox('recent-shown', true);
+    // The map's buttons sit at its top right, away from the column (feature 018).
+    const corners = await q(`({
+      right: ['.maplibregl-ctrl-zoom-in', '.projection-control', '.toggle-control']
+        .every((s) => !!document.querySelector('.maplibregl-ctrl-top-right ' + s)),
+      leftEmpty: document.querySelector('.maplibregl-ctrl-top-left').children.length === 0,
+    })`);
+    if (!corners.right || !corners.leftEmpty) throw new Error('the map controls are not at the top right');
     for (const [width, height] of [[1920, 1080], [1280, 720]]) {
       const size = `${width}x${height}`;
       await page.resize(width, height);
