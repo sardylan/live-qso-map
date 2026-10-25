@@ -284,16 +284,16 @@ loop (FR-012 to FR-014, research R6).
 
 ## Phase 8: Polish & Cross-Cutting Concerns
 
-- [ ] T031 [P] Browser docs: list step 14 `column` in `tests/browser/README.md` and in
+- [X] T031 [P] Browser docs: list step 14 `column` in `tests/browser/README.md` and in
   `specs/012-page-fixes-browser-tests/contracts/browser-test.md`, pointing to this feature's
   research R9.
-- [ ] T032 [P] Documentation:
+- [X] T032 [P] Documentation:
   - **`README.md`**: the layout table row "bottom left" (line ~93) and the "Last QSOs" line
     (~145) describe the left column (status, UTC clock, score, box, version), the strip below
     600 px, and the automatic reload after an update;
   - **`specs/001-live-qso-map/contracts/websocket-protocol.md`**: a note pointing to
     `specs/018-fullscreen-side-column/contracts/websocket-protocol.md` for `hello.version`.
-- [ ] T033 [P] Entries under `## [Unreleased]` in `CHANGELOG.md` (`docs/releasing.md`): Added (the
+- [X] T033 [P] Entries under `## [Unreleased]` in `CHANGELOG.md` (`docs/releasing.md`): Added (the
   column with the UTC clock and version tag; the automatic reload after an update; `hello.version`,
   protocol unchanged), Changed (text sizes scale with the screen; the bottom-left corner moved to
   the column).

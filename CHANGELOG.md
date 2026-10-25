@@ -7,6 +7,21 @@ which becomes the GitHub release notes (`docs/releasing.md`).
 
 ## [Unreleased]
 
+### Added
+- A full-height column on the left, beside the map, holds the station status line, a UTC clock
+  (`HH:MM:SS UTC`), the score line, the last-QSO box and, at the bottom, the software version.
+  Below 600 px wide it becomes a strip above the map, without the box.
+- Open pages reload themselves once after the service is updated: the service now sends its
+  version in `hello` (protocol version unchanged) and in the page, and a page whose version
+  differs reloads, keeping its settings.
+
+### Changed
+- Text sizes follow the window height, for full-screen viewing on monitors and TVs: a 4K screen
+  shows the page in the same proportions as a 1080p one, never smaller than before on a 720p
+  window.
+- The station status line, the score line and the last-QSO box moved from the bottom-left corner
+  of the map into the left column; the box shows only whole rows.
+
 ## [3.3.0] - 2026-10-24
 
 ### Added
