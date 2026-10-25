@@ -903,11 +903,12 @@ function createMap(hello) {
   map.addControl(
     new maplibregl.AttributionControl({ compact: false, customAttribution: hello.basemap.attribution || undefined }),
   );
-  map.addControl(new maplibregl.NavigationControl(), 'top-left');
+  // Top right, away from the column (feature 018).
+  map.addControl(new maplibregl.NavigationControl(), 'top-right');
   projectionControl = new ProjectionControl();
-  map.addControl(projectionControl, 'top-left');
+  map.addControl(projectionControl, 'top-right');
   autoZoomControl = new AutoZoomControl();
-  map.addControl(autoZoomControl, 'top-left');
+  map.addControl(autoZoomControl, 'top-right');
   updateScale();
   // Fires for the first style and after every theme switch of the default base map.
   map.on('style.load', onStyleLoad);

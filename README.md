@@ -89,7 +89,7 @@ beside the map; the map's corners hold the rest:
 | Place | Holds |
 |-------|-------|
 | left column | from the top: the station status line, the UTC clock, the contest score line, the last-QSO box when shown, and at the bottom the gear that opens the settings and the software version |
-| map, top left | zoom, **Globe/Flat**, **Auto-zoom** |
+| map, top right | zoom, **Globe/Flat**, **Auto-zoom** |
 | map, bottom right | the band legend |
 
 - **Large screens**: text grows with the window height, so a 4K TV shows the page in the same
