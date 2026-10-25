@@ -25,6 +25,63 @@ body,
   margin: 0;
 }
 
+/* The column beside the map area (feature 018, research R1). */
+body {
+  display: flex;
+}
+
+.stage {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Grows with its text (rem), capped so the map keeps at least 55% of the window. */
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: clamp(280px, 24rem, 45vw);
+  flex-shrink: 0;
+  box-sizing: border-box;
+  padding: 10px;
+  overflow: hidden;
+  background: var(--panel-solid);
+  color: var(--text);
+  box-shadow: 2px 0 8px var(--shadow);
+  z-index: 3;
+}
+
+.column[hidden] {
+  display: none;
+}
+
+/* Fills what is left; whole rows only, the oldest give way (app.js fitRecentRows). */
+.column .recent {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Phones: a strip above the map, without the box (FR-005). */
+@media (max-width: 599px) {
+  body {
+    flex-direction: column;
+  }
+
+  .column {
+    width: 100%;
+  }
+
+  .column .recent {
+    display: none;
+  }
+
+  .stage {
+    min-height: 0;
+  }
+}
+
 /* Behind the globe: space, in the theme's colour (feature 011, research R5). */
 #map {
   background: var(--space);
@@ -296,37 +353,9 @@ body {
   color: var(--text);
 }
 
-/* Bottom-left column (feature 007, FR-012): the station status line (feature 017, which shares
-   the score line's look) and the score line above the last-QSO box. It sits above
-   the attribution line (which can run under it on narrow windows) and above the scale bar when it
-   is shown. A hidden box takes no room, so the score line drops to its place. */
-.corner-bl {
-  position: absolute;
-  left: 10px;
-  bottom: 30px;
-  z-index: 2;
-  max-width: 45%;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-}
-
-/* `display: flex` would otherwise win over the hidden attribute (no-WebGL page). */
-.corner-bl[hidden] {
-  display: none;
-}
-
-body.scale-on .corner-bl {
-  bottom: 56px;
-}
-
 .recent,
 .score {
-  background: var(--panel);
-  padding: 6px 8px;
-  border-radius: 4px;
-  box-shadow: 0 1px 4px var(--shadow);
+  padding: 2px 0;
 }
 
 /* The contest score: always one line (FR-005, FR-006). */

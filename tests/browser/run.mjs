@@ -63,6 +63,7 @@ const STEPS = [
   'grayline',
   'autozoom-fit',
   'station',
+  'column',
 ];
 // The house of `--station-locator JM49OF` (the square's centre), for the test clock.
 const HOUSE = { lat: 39.229, lon: 9.208 };
@@ -514,6 +515,35 @@ const stationLine = () => q(`(() => {
   };
 })()`);
 
+/** Where the column, the map and their parts sit (feature 018, research R9). */
+const layout = () => q(`(() => {
+  const r = (id) => {
+    const e = document.getElementById(id);
+    const b = e.getBoundingClientRect();
+    return { left: b.left, right: b.right, top: b.top, bottom: b.bottom, width: b.width, height: b.height, shown: e.offsetParent !== null };
+  };
+  const status = document.getElementById('status');
+  const wasHidden = status.hidden;
+  status.hidden = false;
+  const banner = r('status');
+  status.hidden = wasHidden;
+  return {
+    w: innerWidth,
+    h: innerHeight,
+    column: r('column'),
+    map: r('map'),
+    station: r('station'),
+    score: r('score'),
+    recent: r('recent'),
+    banner,
+    inColumn: ['station', 'score', 'recent'].every((id) => document.getElementById(id).closest('#column') !== null),
+    padding: (document.getElementById('map').dataset.padding ?? '').split(',').map(Number),
+  };
+})()`);
+
+const overlaps = (a, b) => !(a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top);
+const near = (a, b, tolerance = 1) => Math.abs(a - b) <= tolerance;
+
 const steps = {
   async load() {
     await page.goto(`${origin}/`);
@@ -868,6 +898,47 @@ const steps = {
     }, { timeout: STEP_MS, what: 'the band and operator of the latest QSO, not greyed' });
     if (!(await stationLine()).clear) throw new Error('the station line overlaps the score line or the box (FR-011)');
     await shot('13-station');
+  },
+
+  // Feature 018: the column beside the map, and the strip above it on narrow windows.
+  async column() {
+    await setBox('recent-shown', true);
+    for (const [width, height] of [[1920, 1080], [1280, 720]]) {
+      const size = `${width}x${height}`;
+      await page.resize(width, height);
+      await sleep(1_500);
+      const l = await layout();
+      if (!(near(l.column.top, 0) && near(l.column.height, l.h))) throw new Error(`${size}: the column does not run the full height (FR-001)`);
+      if (!near(l.map.left, l.column.right)) throw new Error(`${size}: the map starts at ${l.map.left}, the column ends at ${l.column.right} (FR-001)`);
+      if (!near(l.map.right, l.w)) throw new Error(`${size}: the map does not reach the right edge (FR-001)`);
+      if (!l.inColumn) throw new Error(`${size}: the station line, score line or box is outside the column (FR-002)`);
+      for (const part of ['station', 'score', 'recent']) {
+        if (overlaps(l[part], l.map)) throw new Error(`${size}: #${part} overlaps the map (FR-003)`);
+      }
+      if (!(near(l.banner.left + l.banner.width / 2, l.map.left + l.map.width / 2, 2) && !overlaps(l.banner, l.column))) {
+        throw new Error(`${size}: the reconnect banner is not centred on the map`);
+      }
+      if (width === 1920) {
+        await waitFor(async () => (await layout()).padding[3] < 100, {
+          timeout: STEP_MS,
+          what: `${size}: auto-zoom adds no left padding for the column (FR-004)`,
+        });
+      }
+      await shot(`14-column-${size}`);
+    }
+    await page.resize(375, 812);
+    await sleep(1_000);
+    const narrow = await layout();
+    if (!(near(narrow.column.width, narrow.w) && near(narrow.map.top, narrow.column.bottom))) {
+      throw new Error('375x812: the column is not a strip above the map (FR-005)');
+    }
+    if (narrow.recent.shown) throw new Error('375x812: the box is shown in the strip (FR-005)');
+    if (!(narrow.station.shown && narrow.score.shown)) throw new Error('375x812: the strip lacks the status or the score (FR-005)');
+    await shot('14-column-375x812');
+    await page.resize(1920, 1080);
+    await sleep(1_000);
+    if (!(await layout()).recent.shown) throw new Error('1920x1080: the box did not come back after the strip (FR-005)');
+    await page.clearSize();
   },
 };
 
