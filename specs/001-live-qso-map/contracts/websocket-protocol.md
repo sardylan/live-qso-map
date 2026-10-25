@@ -1,5 +1,9 @@
 # Contract: WebSocket Protocol
 
+> **Added by feature 018**: `hello.version`, the service's software version; a page whose own
+> version differs reloads itself once. Protocol version stays 4. See
+> [`../../018-fullscreen-side-column/contracts/websocket-protocol.md`](../../018-fullscreen-side-column/contracts/websocket-protocol.md).
+>
 > **Added by feature 017**: a new server message, `station_status` (band and operator of the
 > latest QSO, with its age), after every `snapshot`, `upsert` and `remove`. Protocol version stays
 > 4. See [`../../017-station-status-box/contracts/websocket-protocol.md`](../../017-station-status-box/contracts/websocket-protocol.md).

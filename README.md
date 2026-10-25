@@ -83,14 +83,22 @@ Notes:
 ## The map page
 
 The page renders with [MapLibre GL JS](https://maplibre.org/) 5.24.0, loaded from cdnjs and
-checked with Subresource Integrity. It is laid out for windows 1024 px wide or wider:
+checked with Subresource Integrity. A column on the left runs the full height of the window,
+beside the map; the map's corners hold the rest:
 
-| Corner | Holds |
-|--------|-------|
-| top left | zoom, **Globe/Flat**, **Auto-zoom** |
-| top right | the gear that opens the settings panel |
-| bottom right | the band legend |
-| bottom left | the station status line, the contest score line, and the last-QSO box under them when shown |
+| Place | Holds |
+|-------|-------|
+| left column | from the top: the station status line, the UTC clock, the contest score line, the last-QSO box when shown, and the software version at the bottom |
+| map, top left | zoom, **Globe/Flat**, **Auto-zoom** |
+| map, top right | the gear that opens the settings panel |
+| map, bottom right | the band legend |
+
+- **Large screens**: text grows with the window height, so a 4K TV shows the page in the same
+  proportions as a 1080p one; it never gets smaller than on a 720p laptop.
+- **Phones**: below 600 px wide, the column becomes a strip above the map, without the last-QSO
+  box.
+- **Updates**: when the service is updated and restarted, every open page reconnects, sees the
+  new version and reloads itself once, keeping its settings.
 
 - **Settings panel**: the gear at the top right opens a panel on the right edge (full width on
   narrow screens), with every viewer setting in four groups:
@@ -142,7 +150,8 @@ checked with Subresource Integrity. It is laid out for windows 1024 px wide or w
     around the house when the entity is unknown.
   - On the globe, it switches to the flat map only when the QSOs cannot all fit on one side of the
     Earth, and returns to the globe when they fit again. Your saved choice is never changed.
-- **Last QSOs**: a box at the bottom left lists the newest QSOs (by QSO time).
+- **Last QSOs**: a box in the left column lists the newest QSOs (by QSO time). When the column is
+  too short for them all, the oldest rows give way.
   - **Columns** are chosen by the operator (see Configuration). The default is callsign, band,
     UTC time, CQ zone and the DXCC entity from cty.dat as `prefix · name`. Long names are cut,
     and hovering shows them in full. A small header row labels the columns, unless the operator
