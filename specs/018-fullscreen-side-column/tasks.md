@@ -250,8 +250,11 @@ loop (FR-012 to FR-014, research R6).
   inside one `try`/`catch`, when `shouldReload(pageVersion(document), message.version,
   sessionStorage.getItem(RELOAD_KEY))`, store the version under `RELOAD_KEY`, call
   `location.reload()` and return; when session storage throws, do not reload (research R6).
-- [ ] T028 [US5] Run quickstart §4 steps 1–4; confirm the `reconnect` browser step (same binary)
+- [X] T028 [US5] Run quickstart §4 steps 1–4; confirm the `reconnect` browser step (same binary)
   still passes with no reload.
+  *Done 2026-10-25: a page served by 3.3.0 reloaded itself into a 3.4.0-test service and kept
+  its marker across a same-version restart (steps 1–3, scripted over CDP). Step 4, the stale
+  cached tab, is covered by the `shouldReload` unit tests only.*
 
 **Checkpoint**: US2, US1, US3 and US5 work.
 
