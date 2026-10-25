@@ -35,7 +35,7 @@ it; both are P1. US5 needs only the foundational `hello.version`.
 
 ## Phase 1: Setup
 
-- [ ] T001 Confirm the baseline is green before any change: `cargo test` and `node --test web/`,
+- [X] T001 Confirm the baseline is green before any change: `cargo test` and `node --test web/`,
   run from the repository root, pass on `feature/018-fullscreen-side-column`. No file changes.
 
 ---
@@ -47,11 +47,11 @@ it; both are P1. US5 needs only the foundational `hello.version`.
 
 ### Tests ⚠️ write first, see them fail
 
-- [ ] T002 [P] Unit test in `src/web/protocol.rs` (`#[cfg(test)] mod tests`): the JSON of
+- [X] T002 [P] Unit test in `src/web/protocol.rs` (`#[cfg(test)] mod tests`): the JSON of
   `ServerMessage::hello(..)` has `"version"` equal to `env!("CARGO_PKG_VERSION")` and `"protocol"`
   still `4`; extend the existing hello serialisation test next to the `assert_eq!(v["protocol"], 4)`
   asserts rather than adding a new fixture.
-- [ ] T003 [P] Contract tests in `tests/ws_protocol.rs`:
+- [X] T003 [P] Contract tests in `tests/ws_protocol.rs`:
   - in `every_page_receives_hello_snapshot_and_live_upserts`, assert
     `hello["version"] == env!("CARGO_PKG_VERSION")`;
   - new `the_page_carries_the_service_version`: `GET /` returns a body that contains
@@ -60,10 +60,10 @@ it; both are P1. US5 needs only the foundational `hello.version`.
 
 ### Implementation
 
-- [ ] T004 In `src/web/protocol.rs`: add `version: &'static str` to `ServerMessage::Hello`, right
+- [X] T004 In `src/web/protocol.rs`: add `version: &'static str` to `ServerMessage::Hello`, right
   after `protocol`, doc comment `/// The service's software version (feature 018, research R5).`,
   filled with `env!("CARGO_PKG_VERSION")` in `ServerMessage::hello`. T002 passes.
-- [ ] T005 In `src/web/assets/index.html` add `<meta name="lqm-version" content="__LQM_VERSION__">`
+- [X] T005 In `src/web/assets/index.html` add `<meta name="lqm-version" content="__LQM_VERSION__">`
   in `<head>` after the viewport meta. In `src/web/mod.rs`: a
   `static INDEX_PAGE: LazyLock<String>` = `INDEX_HTML.replace("__LQM_VERSION__", env!("CARGO_PKG_VERSION"))`
   with a one-line comment (feature 018, R5), and the `/` route serving it with the same headers as

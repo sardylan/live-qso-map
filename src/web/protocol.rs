@@ -115,6 +115,8 @@ impl HelloStation {
 pub enum ServerMessage {
     Hello {
         protocol: u32,
+        /// The service's software version (feature 018, research R5).
+        version: &'static str,
         limits: Vec<Option<usize>>,
         default_limit: usize,
         bands: Vec<BandColor>,
@@ -213,6 +215,7 @@ impl ServerMessage {
     pub fn hello(map: &MapConfig, filter: Option<&BandSet>, station: &HelloStation) -> Self {
         ServerMessage::Hello {
             protocol: PROTOCOL_VERSION,
+            version: env!("CARGO_PKG_VERSION"),
             limits: LIMITS.to_vec(),
             default_limit: DEFAULT_LIMIT,
             bands: bands_in_order(&map.bands)
@@ -391,6 +394,7 @@ mod tests {
             json!({
                 "type": "hello",
                 "protocol": 4,
+                "version": env!("CARGO_PKG_VERSION"),
                 "limits": [10, 20, 50, 100, 200, 500, 1000],
                 "default_limit": 20,
                 "bands": [

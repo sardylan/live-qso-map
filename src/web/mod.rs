@@ -4,8 +4,8 @@
 pub mod protocol;
 pub mod session;
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, LazyLock};
 use std::time::Instant;
 
 use axum::Router;
@@ -26,6 +26,9 @@ use crate::web::protocol::{ClientMessage, HelloStation, ServerMessage};
 use crate::web::session::{MessageSink, drive};
 
 const INDEX_HTML: &str = include_str!("assets/index.html");
+/// The page with the release that serves it, so a stale copy can tell (feature 018, R5).
+static INDEX_PAGE: LazyLock<String> =
+    LazyLock::new(|| INDEX_HTML.replace("__LQM_VERSION__", env!("CARGO_PKG_VERSION")));
 const APP_JS: &str = include_str!("assets/app.js");
 const MAP_STATE_JS: &str = include_str!("assets/map-state.js");
 const GEODESIC_JS: &str = include_str!("assets/geodesic.js");
@@ -75,7 +78,10 @@ pub async fn serve(
         shutdown: shutdown.clone(),
     };
     let app = Router::new()
-        .route("/", get(|| asset("text/html; charset=utf-8", INDEX_HTML)))
+        .route(
+            "/",
+            get(|| asset("text/html; charset=utf-8", INDEX_PAGE.as_str())),
+        )
         .route("/app.js", get(|| asset("text/javascript", APP_JS)))
         .route(
             "/map-state.js",
