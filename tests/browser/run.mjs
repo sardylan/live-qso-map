@@ -538,6 +538,9 @@ const layout = () => q(`(() => {
     banner,
     inColumn: ['station', 'score', 'recent'].every((id) => document.getElementById(id).closest('#column') !== null),
     padding: (document.getElementById('map').dataset.padding ?? '').split(',').map(Number),
+    // The most the map's own left-hand controls can add to the left padding, gap included.
+    controlsLeft: 12 + Math.max(0, ...[...document.querySelectorAll('.maplibregl-ctrl-top-left, .maplibregl-ctrl-bottom-left')]
+      .map((e) => e.getBoundingClientRect().right - document.getElementById('map').getBoundingClientRect().left)),
   };
 })()`);
 
@@ -923,7 +926,9 @@ const steps = {
     await ensureGlobe();
     await setAutoZoom(true);
     const points = [[HOUSE.lat, HOUSE.lon], ...SNAPSHOT_QSOS.map((s) => locatorCentre(s.grid))];
-    for (const [width, height] of [[1024, 768], [1920, 1080]]) {
+    // 1280x800, not 1024x768 (feature 018): beside the column, a 1024 px window leaves a map
+    // narrower than the flat world at the zoom that fills its height, so no fit exists there.
+    for (const [width, height] of [[1280, 800], [1920, 1080]]) {
       const size = `${width}x${height}`;
       await page.resize(width, height);
       // The resize refit waits for the 250 ms tick and the 1 s spacing (feature 004 FR-014), and data-view
@@ -1008,7 +1013,10 @@ const steps = {
       }
       if (width === 1920) {
         await clockTicks(size);
-        await waitFor(async () => (await layout()).padding[3] < 100, {
+        await waitFor(async () => {
+          const l = await layout();
+          return l.padding[3] <= l.controlsLeft + 1;
+        }, {
           timeout: STEP_MS,
           what: `${size}: auto-zoom adds no left padding for the column (FR-004)`,
         });

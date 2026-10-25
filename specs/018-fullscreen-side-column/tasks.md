@@ -90,9 +90,10 @@ research R1, R2).
     `#map`'s left edge equals `#column`'s right edge (±1 px); `#map`'s right edge is the window's;
   - `#station`, `#score` and `#recent` are inside `#column` (DOM ancestry) and none of their
     rectangles overlaps `#map`'s;
-  - at 1920×1080 with the box shown, `#map`'s `dataset.padding` left value is below 100 (auto-zoom
-    adds no padding for the column, FR-004); before this change it is the box's width plus
-    `FIT.gap`, above 300;
+  - at 1920×1080 with the box shown, `#map`'s `dataset.padding` left value is at most what the
+    map's own left-hand controls account for (their right edge plus `FIT.gap`): auto-zoom adds no
+    padding for the column (FR-004); before this change it is the box's width plus `FIT.gap`,
+    above 300;
   - `#status`, made visible, is horizontally centred on `#map` (±2 px) and does not overlap
     `#column`;
   - at 375×812: `#column` spans the full width above `#map` (`#map`'s top equals `#column`'s
@@ -297,7 +298,7 @@ loop (FR-012 to FR-014, research R6).
   column with the UTC clock and version tag; the automatic reload after an update; `hello.version`,
   protocol unchanged), Changed (text sizes scale with the screen; the bottom-left corner moved to
   the column).
-- [ ] T034 Run the complete gates: `cargo fmt --check`,
+- [X] T034 Run the complete gates: `cargo fmt --check`,
   `cargo clippy --all-targets -- -D warnings`, `cargo test`, `node --test web/`, and
   `cargo build --release && node tests/browser/run.mjs`.
 - [ ] T035 Per LL-007, run a manual rehearsal pipeline on the branch and tick this task with its
