@@ -541,6 +541,32 @@ const layout = () => q(`(() => {
   };
 })()`);
 
+/** The clock sits between the status and the score, ticks, is UTC and never greys (feature 018, FR-007 to FR-009). */
+async function clockTicks(size) {
+  const read = () => q(`(() => {
+    const clock = document.getElementById('clock');
+    const order = [...document.getElementById('column').children].map((e) => e.id);
+    const px = (selector) => parseFloat(getComputedStyle(document.querySelector(selector)).fontSize);
+    return {
+      text: clock.textContent,
+      utcHour: new Date().getUTCHours(),
+      stale: clock.classList.contains('stale'),
+      order: order.indexOf('station') < order.indexOf('clock') && order.indexOf('clock') < order.indexOf('score'),
+      sizes: [px('#station'), px('#clock'), px('#score'), px('#recent td')],
+    };
+  })()`);
+  const first = await read();
+  if (!first.order) throw new Error(`${size}: the clock is not between the status and the score (FR-002)`);
+  if (!/^\d\d:\d\d:\d\d UTC$/.test(first.text)) throw new Error(`${size}: clock reads "${first.text}" (FR-007)`);
+  if (Number(first.text.slice(0, 2)) !== first.utcHour && Number(first.text.slice(0, 2)) !== (first.utcHour + 23) % 24) {
+    throw new Error(`${size}: clock hour ${first.text} is not the UTC hour ${first.utcHour} (HR-1)`);
+  }
+  if (first.stale) throw new Error(`${size}: the clock is greyed (FR-009)`);
+  const [station, clock, score, box] = first.sizes;
+  if (!(station > clock && clock > score && score > box)) throw new Error(`${size}: text sizes ${first.sizes} are not in order (FR-008)`);
+  await waitFor(async () => (await read()).text !== first.text, { timeout: 3_000, what: `${size}: the clock to tick` });
+}
+
 const overlaps = (a, b) => !(a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top);
 const near = (a, b, tolerance = 1) => Math.abs(a - b) <= tolerance;
 
@@ -919,6 +945,7 @@ const steps = {
         throw new Error(`${size}: the reconnect banner is not centred on the map`);
       }
       if (width === 1920) {
+        await clockTicks(size);
         await waitFor(async () => (await layout()).padding[3] < 100, {
           timeout: STEP_MS,
           what: `${size}: auto-zoom adds no left padding for the column (FR-004)`,

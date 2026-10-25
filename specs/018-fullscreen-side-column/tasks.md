@@ -149,12 +149,12 @@ the score below in smaller text (FR-007 to FR-009, research R4, R8).
 
 ### Tests for User Story 1 ⚠️ write first, see them fail
 
-- [ ] T013 [P] [US1] Node tests in `web/station.test.js` for `utcClock(date)`:
+- [X] T013 [P] [US1] Node tests in `web/station.test.js` for `utcClock(date)`:
   `new Date('2026-10-25T00:00:00Z')` → `'00:00:00 UTC'`;
   `new Date('2026-10-25T09:05:07Z')` → `'09:05:07 UTC'`;
   `new Date('2026-10-25T23:59:59.999Z')` → `'23:59:59 UTC'`;
   a date built from a local-time string with a non-zero offset gives the UTC hour, not the local one.
-- [ ] T014 [US1] Extend the browser step `column` in `tests/browser/run.mjs`:
+- [X] T014 [US1] Extend the browser step `column` in `tests/browser/run.mjs`:
   - `#clock` is inside `#column` between `#station` and `#score` (DOM order) and matches
     `/^\d\d:\d\d:\d\d UTC$/`; after 2 s its text has changed; its hour equals
     `new Date().getUTCHours()` evaluated in the page (the test clock shift from step 10 applies to
@@ -164,16 +164,16 @@ the score below in smaller text (FR-007 to FR-009, research R4, R8).
 
 ### Implementation for User Story 1
 
-- [ ] T015 [P] [US1] In `src/web/assets/station.js` export `utcClock(date)` returning
+- [X] T015 [P] [US1] In `src/web/assets/station.js` export `utcClock(date)` returning
   `HH:MM:SS UTC` from `getUTCHours`/`getUTCMinutes`/`getUTCSeconds`, zero-padded, with a JSDoc line
   citing feature 018 R4 and HR-1. T013 passes.
-- [ ] T016 [US1] In `src/web/assets/index.html` add
+- [X] T016 [US1] In `src/web/assets/index.html` add
   `<div id="clock" class="clock" aria-hidden="true"></div>` between `#station` and `#score`
   (`aria-hidden`: a per-second change must not flood screen readers).
-- [ ] T017 [US1] In `src/web/assets/app.js`: import `utcClock`; `renderClock()` writes
+- [X] T017 [US1] In `src/web/assets/app.js`: import `utcClock`; `renderClock()` writes
   `utcClock(new Date())` to `#clock` via `textContent`; call it once at start-up and from a new
   `setInterval(renderClock, 1000)` in the WebGL branch next to the existing intervals.
-- [ ] T018 [US1] In `src/web/assets/app.css`: column sizes from data-model.md: `.station`
+- [X] T018 [US1] In `src/web/assets/app.css`: column sizes from data-model.md: `.station`
   `2.4rem` bold, `.clock` `2rem` with `font-variant-numeric: tabular-nums`, `#score` `1.6rem`;
   long values wrap (`overflow-wrap: anywhere`) inside the column; `.stale` still greys
   `#station` and `#score` only. T014 passes (with T022's root size, sizes are relative; the order
