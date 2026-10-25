@@ -1043,6 +1043,7 @@ function onHello(hello) {
 function onMessage(message) {
   if (message.type === 'hello') {
     if (reloadForUpdate(message.version)) return;
+    document.getElementById('version').textContent = message.version ? `v${message.version}` : '';
     onHello(message);
     return;
   }
