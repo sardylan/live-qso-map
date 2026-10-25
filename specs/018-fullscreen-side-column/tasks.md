@@ -264,7 +264,7 @@ loop (FR-012 to FR-014, research R6).
 
 ### Tests for User Story 4 ⚠️ write first, see them fail
 
-- [ ] T029 [US4] Extend the browser step `column` in `tests/browser/run.mjs`: `#version` is the
+- [X] T029 [US4] Extend the browser step `column` in `tests/browser/run.mjs`: `#version` is the
   last child of `#column`, its bottom edge is the column's bottom edge minus its padding (±2 px)
   at 1920×1080 with the box at size 20, and its text is `v` + the version from the program's
   `--version` output (or `Cargo.toml`, read by the runner). At 1280×720 with box size 20:
@@ -273,7 +273,7 @@ loop (FR-012 to FR-014, research R6).
 
 ### Implementation for User Story 4
 
-- [ ] T030 [US4] In `src/web/assets/index.html` add `<div id="version" class="version"></div>` as
+- [X] T030 [US4] In `src/web/assets/index.html` add `<div id="version" class="version"></div>` as
   the last child of `#column`; in `src/web/assets/app.css` `.version { margin-top: auto;
   font-size: 0.8rem; color: var(--muted) }`; in `src/web/assets/app.js` set its `textContent` to
   `` `v${message.version}` `` on `hello`, or `''` when `version` is missing. T029 passes.

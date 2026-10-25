@@ -232,15 +232,18 @@ async fn static_assets_are_served() {
         "sha512-KIMsMWIdnoG9OwZa+oaIafmbDonqck1UCmq+/zcUi2aaZ97N9QE6TqpTM+n36EO40HGh64hU/375zxtjx7WTyQ=="
     ));
     assert!(!index.to_lowercase().contains("leaflet"));
-    // Feature 011 layout: one gear-opened side panel holding the box switch; feature 007 column.
+    // Feature 011 layout: one gear-opened side panel holding the box switch; feature 018 column.
     for id in [
         r#"id="panel""#,
         r#"id="recent-shown""#,
-        r#"id="corner-bl""#,
+        r#"id="column""#,
+        r#"id="clock""#,
         r#"id="score""#,
+        r#"id="version""#,
     ] {
         assert!(index.contains(id), "{id}");
     }
+    assert!(!index.contains(r#"id="corner-bl""#));
     assert!(!index.contains(r#"class="limit-control""#));
     let app = reqwest::get(format!("http://{}/app.js", service.http_addr))
         .await

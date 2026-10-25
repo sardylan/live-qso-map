@@ -7,7 +7,7 @@
 // 2 = bad usage or a missing/unstartable program or browser. Node built-ins only.
 
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, openSync, writeFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { createServer } from 'node:net';
 import { createSocket } from 'node:dgram';
@@ -567,6 +567,41 @@ async function clockTicks(size) {
   await waitFor(async () => (await read()).text !== first.text, { timeout: 3_000, what: `${size}: the clock to tick` });
 }
 
+/** The release in Cargo.toml, which the program reports in hello (feature 018). */
+const VERSION = readFileSync(path.join(ROOT, 'Cargo.toml'), 'utf8').match(/^version\s*=\s*"([^"]+)"/m)[1];
+
+/** The version tag closes the column, even with a full box on a short window (feature 018, FR-011). */
+async function versionAtTheBottom() {
+  for (const { call, grid } of SNAPSHOT_QSOS) await sendQso({ call, band: '20m', grid });
+  await q(`(() => { const s = document.getElementById('recent-size'); s.value = '20'; s.dispatchEvent(new Event('change')); })()`);
+  for (const [width, height] of [[1920, 1080], [1280, 720]]) {
+    const size = `${width}x${height}`;
+    await page.resize(width, height);
+    await sleep(1_000);
+    const v = await q(`(() => {
+      const column = document.getElementById('column');
+      const tag = document.getElementById('version');
+      const box = document.getElementById('recent').getBoundingClientRect();
+      const pad = parseFloat(getComputedStyle(column).paddingBottom);
+      return {
+        last: column.lastElementChild === tag,
+        text: tag.textContent,
+        gap: column.getBoundingClientRect().bottom - pad - tag.getBoundingClientRect().bottom,
+        inside: tag.getBoundingClientRect().bottom <= innerHeight,
+        rowsFit: [...document.querySelectorAll('#recent tbody tr')]
+          .filter((tr) => !tr.hidden)
+          .every((tr) => tr.getBoundingClientRect().bottom <= box.bottom + 0.5),
+        rows: [...document.querySelectorAll('#recent tbody tr')].filter((tr) => !tr.hidden).length,
+      };
+    })()`);
+    if (!v.last) throw new Error(`${size}: the version tag is not the column's last element (FR-002)`);
+    if (v.text !== `v${VERSION}`) throw new Error(`${size}: version tag "${v.text}", expected v${VERSION} (FR-011)`);
+    if (!(Math.abs(v.gap) <= 2 && v.inside)) throw new Error(`${size}: the version tag is not at the column's bottom (gap ${v.gap})`);
+    if (!v.rowsFit || v.rows === 0) throw new Error(`${size}: ${v.rows} rows shown, some cut by the column's edge (R1)`);
+    console.log(`   14-column ${size}: ${v.rows} box rows shown`);
+  }
+}
+
 /** Text and the column grow with the window height, 13 px floor (feature 018, FR-010, SC-003, TR-026). */
 async function textScales() {
   const measure = async (width, height) => {
@@ -980,6 +1015,7 @@ const steps = {
       }
       await shot(`14-column-${size}`);
     }
+    await versionAtTheBottom();
     await textScales();
     await page.resize(375, 812);
     await sleep(1_000);

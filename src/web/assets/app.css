@@ -69,6 +69,13 @@ body {
   overflow: hidden;
 }
 
+/* The release that serves the page, at the column's foot (FR-011). */
+.version {
+  margin-top: auto;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
 /* Phones: a strip above the map, without the box (FR-005). */
 @media (max-width: 599px) {
   body {
