@@ -37,6 +37,10 @@ screen read from a distance. A page that reconnects to an updated service reload
   map with status, score and version; the last QSOs box is not shown.
 - Q: What does the page compare the service version against? → A: The version the page itself was
   built for; it reloads whenever the service reports a different one, on its first connection too.
+- Q (found in implementation): beside the column, a 1024 × 768 window leaves a 712 px map, narrower
+  than the flat world at the zoom that fills its height, so feature 016's world-wide fit (SC-004)
+  cannot hold there. Keep the column, narrow it, or float it over the map below 1280 px? → A: Keep
+  the column; feature 016's check moves to 1280 × 800.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -176,6 +180,9 @@ reload on their own.
   other way round): no reload is triggered by a missing version; the tag shows nothing.
 - **Repeated reloads**: a page that reloads and still sees a version different from its own (for
   example a cache serving an old page) must not reload in a loop; see FR-012.
+- **Windows narrower than about 1,110 px** (and wider than 600 px): the map is narrower than the
+  flat world at the zoom that fills its height, so QSOs spread around the whole world cannot all be
+  framed at once; auto-zoom shows as much as fits (clarification above).
 - **Settings panel open**: the panel on the right (feature 011) is unaffected by the column on the
   left.
 

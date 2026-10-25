@@ -236,7 +236,9 @@ centring rule of the active view).
 - **SC-004**: For the live-example frame at 1024 × 768 and at 1920 × 1080, with the globe
   preference and the default border, the page shows the flat view, centred on the house, at a zoom
   within 0.25 levels of the highest one that keeps everything in the free map area. Today it
-  shows the globe 30–40 px in radius, or the flat view at about level 0.85.
+  shows the globe 30–40 px in radius, or the flat view at about level 0.85. *(Feature 018 moved
+  the small size to 1280 × 800: beside its left column, a 1024 px window leaves the map narrower
+  than the flat world at the zoom that fills the map's height.)*
 - **SC-005**: For any fixed set of positions and window size, the zoom auto-zoom chooses is within
   0.25 levels of the highest zoom that satisfies the active view's rules (FR-002 or FR-008).
 - **SC-006**: All existing automated checks for features 002, 004, 011, 012 and 013 pass unchanged,
