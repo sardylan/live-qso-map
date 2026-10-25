@@ -88,9 +88,8 @@ beside the map; the map's corners hold the rest:
 
 | Place | Holds |
 |-------|-------|
-| left column | from the top: the station status line, the UTC clock, the contest score line, the last-QSO box when shown, and the software version at the bottom |
+| left column | from the top: the station status line, the UTC clock, the contest score line, the last-QSO box when shown, and at the bottom the gear that opens the settings and the software version |
 | map, top left | zoom, **Globe/Flat**, **Auto-zoom** |
-| map, top right | the gear that opens the settings panel |
 | map, bottom right | the band legend |
 
 - **Large screens**: text grows with the window height, so a 4K TV shows the page in the same
@@ -100,16 +99,16 @@ beside the map; the map's corners hold the rest:
 - **Updates**: when the service is updated and restarted, every open page reconnects, sees the
   new version and reloads itself once, keeping its settings.
 
-- **Settings panel**: the gear at the top right opens a panel on the right edge (full width on
-  narrow screens), with every viewer setting in four groups:
+- **Settings panel**: the gear at the foot of the left column opens a dialog in the middle of the
+  window, over the dimmed page, with every viewer setting in four groups:
   - **Map**: "Last N QSOs" (10 to 1000), **Atmosphere on the globe**, **Grayline (day and night)** and
     **Sun position**;
-  - **Last QSOs box**: shown or hidden, its size and where the newest row goes;
+  - **Last QSOs box**: shown or hidden;
   - **Appearance**: the theme;
   - **Legend**: which band groups to show.
 
-  Every change applies at once. The panel closes with ✕, Escape, the gear, or after 5 minutes
-  without input in it; the map stays usable beside it.
+  Every change applies at once. The panel closes with ✕, Escape, a click outside it, or after
+  5 minutes without input in it.
 - **Themes**: Light, Dim and Dark, for the panels, the legend, the base map and the globe.
   - **Automatic (device)**, the default, follows the device's light/dark preference.
   - **Automatic (sun at station)** follows the sun at the house: Light by day, Dim in civil
@@ -158,9 +157,9 @@ beside the map; the map's corners hold the rest:
     turns it off.
   - **Size**: the box lists as many QSOs as fill the column, more on a taller screen. Each page
     works this out itself and asks the service for enough QSOs.
-  - **Order** is chosen by each viewer in the settings panel: "Newest" at the bottom (default) or
-    at the top. The box is separate from the map's own "Map: last N QSOs" (default 20): it can
-    list QSOs the map doesn't show; those rows are faded and can't be clicked.
+  - **Order**: the newest QSO is always on top. Callsigns are in a monospace font.
+  - The box is separate from the map's own "Map: last N QSOs" (default 20): it can list QSOs the
+    map doesn't show; those rows are faded and can't be clicked.
   - Click any other row to open its popup; the **Last QSOs** checkbox in the settings panel hides
     the box. Popups show each QSO's entity too.
 - **Contest score**: above the box, always shown, from the score QARTest broadcasts every minute:
@@ -178,7 +177,7 @@ beside the map; the map's corners hold the rest:
 - **Scale**: a metric scale bar, shown on the flat map only.
 
 Each browser remembers every viewer choice across restarts: Globe/Flat, Auto-zoom, Last QSOs,
-the map's "Last N", the box order, the theme, the atmosphere, the grayline, the Sun
+the map's "Last N", the theme, the atmosphere, the grayline, the Sun
 position and the legend groups. The panel itself always starts closed.
 
 ## Configuration

@@ -213,7 +213,7 @@ async function pageReady(timeout = LOAD_MS) {
         noWebgl: !document.getElementById('no-webgl').hidden,
         connected: document.getElementById('status').hidden,
         legend: !document.getElementById('legend').hidden,
-        gear: !!document.querySelector('.settings-control button'),
+        gear: !!document.getElementById('settings'),
       })`);
       if (state.noWebgl) throw new Error('WebGL unavailable: the page shows its no-WebGL message');
       const fatal = fatalSinceLastCheck();
@@ -591,11 +591,15 @@ async function versionAtTheBottom() {
       const tag = document.getElementById('version');
       const box = document.getElementById('recent').getBoundingClientRect();
       const pad = parseFloat(getComputedStyle(column).paddingBottom);
+      const foot = document.getElementById('column-foot');
+      const firstCall = document.querySelector('#recent tbody tr td.call');
       return {
-        last: column.lastElementChild === tag,
+        last: column.lastElementChild === foot && foot.contains(tag) && foot.contains(document.getElementById('settings')),
+        firstCall: firstCall?.textContent ?? null,
+        mono: /mono/i.test(getComputedStyle(firstCall ?? document.body).fontFamily),
         text: tag.textContent,
-        gap: column.getBoundingClientRect().bottom - pad - tag.getBoundingClientRect().bottom,
-        inside: tag.getBoundingClientRect().bottom <= innerHeight,
+        gap: column.getBoundingClientRect().bottom - pad - foot.getBoundingClientRect().bottom,
+        inside: foot.getBoundingClientRect().bottom <= innerHeight,
         rowsFit: [...document.querySelectorAll('#recent tbody tr')]
           .filter((tr) => !tr.hidden)
           .every((tr) => tr.getBoundingClientRect().bottom <= box.bottom + 0.5),
@@ -608,7 +612,10 @@ async function versionAtTheBottom() {
         })(),
       };
     })()`);
-    if (!v.last) throw new Error(`${size}: the version tag is not the column's last element (FR-002)`);
+    if (!v.last) throw new Error(`${size}: the version tag and the settings button are not at the column's foot (FR-002)`);
+    const newest = SNAPSHOT_QSOS.at(-1).call;
+    if (v.firstCall !== newest) throw new Error(`${size}: first box row is ${v.firstCall}, not the newest ${newest} (newest on top)`);
+    if (!v.mono) throw new Error(`${size}: box callsigns are not in a monospace font`);
     if (v.text !== `v${VERSION}`) throw new Error(`${size}: version tag "${v.text}", expected v${VERSION} (FR-011)`);
     if (!(Math.abs(v.gap) <= 2 && v.inside)) throw new Error(`${size}: the version tag is not at the column's bottom (gap ${v.gap})`);
     if (!v.rowsFit || v.rows === 0) throw new Error(`${size}: ${v.rows} rows shown, some cut by the column's edge (R1)`);
@@ -655,7 +662,7 @@ const steps = {
       zoom: !!document.querySelector('.maplibregl-ctrl-zoom-in'),
       projection: !!document.querySelector('.projection-control button'),
       autozoom: !!document.querySelector('.toggle-control button'),
-      gear: !!document.querySelector('.settings-control button'),
+      gear: !!document.getElementById('settings'),
     })`);
     for (const [name, present] of Object.entries(controls)) {
       if (!present) throw new Error(`missing control: ${name}`);
@@ -684,7 +691,7 @@ const steps = {
   },
 
   async 'panel-open'() {
-    await q(`document.querySelector('.settings-control button').click()`);
+    await q(`document.getElementById('settings').click()`);
     await until(`!document.getElementById('panel').hidden`, 'the panel to open');
     const panel = await q(`(() => {
       const panel = document.getElementById('panel');
@@ -692,12 +699,17 @@ const steps = {
       return {
         groups: [...panel.querySelectorAll('fieldset > legend')].map((l) => l.textContent.trim()),
         focusFirst: document.activeElement === first,
-        expanded: document.querySelector('.settings-control button').getAttribute('aria-expanded'),
+        // Feature 018: a modal dialog, opened by the gear at the foot of the column.
+        modal: panel.matches(':modal'),
+        gearInColumn: !!document.getElementById('settings').closest('#column-foot'),
+        expanded: document.getElementById('settings').getAttribute('aria-expanded'),
       };
     })()`);
     const groups = ['Map', 'Last QSOs box', 'Appearance', 'Legend'];
     if (JSON.stringify(panel.groups) !== JSON.stringify(groups)) throw new Error(`panel groups: ${panel.groups}`);
     if (!panel.focusFirst) throw new Error('focus is not on the panel\'s first control');
+    if (!panel.modal) throw new Error('the settings panel is not a modal dialog (feature 018)');
+    if (!panel.gearInColumn) throw new Error('the settings button is not at the foot of the column (feature 018)');
     if (panel.expanded !== 'true') throw new Error(`aria-expanded is ${panel.expanded}`);
     await sameList(groupLabels, ['All considered bands', 'HF contest (6 bands)'], 'the Legend group (B4)');
     await shot('03-panel-open');
@@ -740,8 +752,8 @@ const steps = {
     await page.press('Escape');
     await until(`document.getElementById('panel').hidden`, 'Escape to close the panel');
     const state = await q(`({
-      onGear: document.activeElement === document.querySelector('.settings-control button'),
-      expanded: document.querySelector('.settings-control button').getAttribute('aria-expanded'),
+      onGear: document.activeElement === document.getElementById('settings'),
+      expanded: document.getElementById('settings').getAttribute('aria-expanded'),
     })`);
     if (!state.onGear) throw new Error('focus did not return to the settings button');
     if (state.expanded !== 'false') throw new Error(`aria-expanded is ${state.expanded}`);
@@ -796,7 +808,7 @@ const steps = {
   },
 
   async 'legend-group'() {
-    await q(`document.querySelector('.settings-control button').click()`);
+    await q(`document.getElementById('settings').click()`);
     await until(`!document.getElementById('panel').hidden`, 'the panel to open');
     await sameList(
       groupLabels,
@@ -813,6 +825,9 @@ const steps = {
       timeout: STEP_MS,
       what: 'every band shown again after unticking WARC',
     });
+    // The panel is modal (feature 018): close it, so the later steps can drag the map.
+    await q(`document.getElementById('panel-close').click()`);
+    await until(`document.getElementById('panel').hidden`, 'the panel to close');
   },
 
   async atmosphere() {
