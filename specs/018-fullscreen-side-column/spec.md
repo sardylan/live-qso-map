@@ -46,6 +46,9 @@ screen read from a distance. A page that reconnects to an updated service reload
 - Owner's request after the visual test: the box's "Size" setting goes; the box always lists as
   many QSOs as fill the column, a number each page computes itself, and asks the service for a
   window large enough for it.
+- Owner's request after the visual test: the settings open in a modal dialog, from a gear button
+  at the foot of the column (next to the version tag); the box always lists the newest QSO on top
+  (the "Newest" setting goes); callsigns use a monospace font.
 
 ## User Scenarios & Testing *(mandatory)*
 

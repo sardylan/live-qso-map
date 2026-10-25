@@ -130,25 +130,6 @@ export function scaleVisible(projection) {
   return projection === 'mercator';
 }
 
-const RECENT_ORDER_KEY = 'lqm.recent.order';
-
-/** Where the newest QSO goes in the box: 'bottom' unless the viewer chose 'top' (feature 006). */
-export function loadRecentOrder(storage) {
-  try {
-    return storage?.getItem(RECENT_ORDER_KEY) === 'top' ? 'top' : 'bottom';
-  } catch {
-    return 'bottom';
-  }
-}
-
-export function saveRecentOrder(storage, order) {
-  try {
-    storage?.setItem(RECENT_ORDER_KEY, order);
-  } catch {
-    // Storage may be unavailable; the choice then lasts for this page only.
-  }
-}
-
 const ATMOSPHERE_KEY = 'lqm.atmosphere';
 
 /** Whether the globe shows its atmosphere: on unless the viewer switched it off (FR-010). */

@@ -22,7 +22,12 @@
     <div id="clock" class="clock" aria-hidden="true"></div>
     <div id="score" class="score" aria-live="polite">Score —</div>
     <div id="recent" class="recent" hidden aria-label="Last QSOs"></div>
-    <div id="version" class="version"></div>
+    <!-- The settings button and the release, at the column's foot (feature 018). -->
+    <div id="column-foot" class="column-foot">
+      <button type="button" id="settings" class="settings-button" aria-label="Settings" aria-controls="panel"
+              aria-expanded="false" title="Settings">⚙</button>
+      <div id="version" class="version"></div>
+    </div>
   </aside>
   <!-- The map area: its overlays are placed against it, not the window (feature 018, R1). -->
   <main id="stage" class="stage">
@@ -34,8 +39,8 @@
     <div id="basemap-error" class="banner banner-low" hidden>Base map unavailable; QSOs are still shown.</div>
     <div id="legend" class="legend" hidden></div>
   </main>
-  <!-- Every viewer setting, in a side panel opened by the gear button (feature 011, FR-005). -->
-  <aside id="panel" class="panel" role="dialog" aria-modal="false" aria-labelledby="panel-title" hidden>
+  <!-- Every viewer setting, in a modal dialog opened by the gear button (features 011, 018). -->
+  <dialog id="panel" class="panel" aria-labelledby="panel-title" hidden>
     <div class="panel-head">
       <h2 id="panel-title">Settings</h2>
       <button type="button" id="panel-close" class="panel-close" aria-label="Close settings">✕</button>
@@ -61,12 +66,6 @@
     <fieldset id="group-box">
       <legend>Last QSOs box</legend>
       <label><input type="checkbox" id="recent-shown"> Shown</label>
-      <label>Newest
-        <select id="recent-order">
-          <option value="bottom">bottom</option>
-          <option value="top">top</option>
-        </select>
-      </label>
     </fieldset>
     <fieldset id="group-appearance">
       <legend>Appearance</legend>
@@ -86,7 +85,7 @@
       <label><input type="checkbox" id="legend-all" checked> All considered bands</label>
       <div id="legend-groups"></div>
     </fieldset>
-  </aside>
+  </dialog>
   <script type="module" src="app.js"></script>
 </body>
 </html>

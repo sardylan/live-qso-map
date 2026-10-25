@@ -149,7 +149,6 @@ test('the scale is shown only on the flat map (FR-024)', () => {
 });
 
 import * as view from '../src/web/assets/view.js';
-import { loadRecentOrder, saveRecentOrder } from '../src/web/assets/view.js';
 
 // Feature 018: the box fills the column, so its size is no longer a viewer setting.
 test('the box size is no longer a setting', () => {
@@ -157,15 +156,10 @@ test('the box size is no longer a setting', () => {
   assert.equal(view.saveRecentSize, undefined);
 });
 
-test('box order defaults to newest at the bottom and round-trips (feature 006)', () => {
-  assert.equal(loadRecentOrder(memoryStorage()), 'bottom');
-  const storage = memoryStorage();
-  saveRecentOrder(storage, 'top');
-  assert.equal(storage.data['lqm.recent.order'], 'top');
-  assert.equal(loadRecentOrder(storage), 'top');
-  assert.equal(loadRecentOrder(memoryStorage({ 'lqm.recent.order': 'sideways' })), 'bottom');
-  assert.equal(loadRecentOrder(throwingStorage), 'bottom');
-  assert.doesNotThrow(() => saveRecentOrder(throwingStorage, 'top'));
+// Feature 018: the newest QSO is always on top, so the order is no longer a setting either.
+test('the box order is no longer a setting', () => {
+  assert.equal(view.loadRecentOrder, undefined);
+  assert.equal(view.saveRecentOrder, undefined);
 });
 
 test('a box hidden before feature 007 stays hidden once the switch is a checkbox (Principle IV)', () => {

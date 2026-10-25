@@ -33,8 +33,6 @@ import {
   loadRecent,
   saveRecent,
   scaleVisible,
-  loadRecentOrder,
-  saveRecentOrder,
   basemapFor,
   DEFAULT_STYLE_URL,
   loadAtmosphere,
@@ -81,7 +79,6 @@ const QTH_POPUP = 'qth';
 // Everything auto-zoom must keep clear of (FR-009); hidden ones measure as empty.
 const PANELS = [
   '#legend',
-  '#panel',
   '.maplibregl-ctrl-top-left',
   '.maplibregl-ctrl-top-right',
   '.maplibregl-ctrl-bottom-left',
@@ -131,7 +128,6 @@ let autoZoomControl = null;
 let recentShown = loadRecent(localStore());
 // How many rows the box can show, measured by the page: the box fills the column (feature 018).
 let boxRows = 0;
-let recentOrder = loadRecentOrder(localStore());
 const OFF_MAP_TITLE = 'Not on the map (outside its last N)';
 // The latest contest score, with its receive time on this page's clock (feature 007, R4).
 let scoreState = null;
@@ -400,55 +396,41 @@ class AutoZoomControl {
   }
 }
 
-/** The gear button that opens and closes the settings panel (feature 011, FR-005). */
-class SettingsControl {
-  onAdd() {
-    this.container = element('div', 'maplibregl-ctrl maplibregl-ctrl-group settings-control');
-    this.button = element('button', null, '⚙');
-    this.button.type = 'button';
-    this.button.setAttribute('aria-label', 'Settings');
-    this.button.setAttribute('aria-controls', 'panel');
-    this.button.setAttribute('aria-expanded', 'false');
-    this.button.title = 'Settings';
-    this.button.addEventListener('click', () => applyPanel(panelState.toggle(settingsPanel, Date.now())));
-    this.container.append(this.button);
-    return this.container;
-  }
-
-  onRemove() {
-    this.container.remove();
-  }
-}
-
 const settingsPanel = panelState.createPanel();
-let settingsControl = null;
 // How often an idle open panel is checked for its 5-minute auto-close (FR-007).
 const PANEL_TICK_MS = 15_000;
 
-/** Shows or hides the panel after a state change, and moves focus (FR-008). */
+/** Shows or hides the modal panel after a state change, and moves focus (FR-008, feature 018). */
 function applyPanel(result) {
   if (!result) return;
   const panel = document.getElementById('panel');
+  const gear = document.getElementById('settings');
   panel.hidden = !result.open;
-  if (settingsControl) settingsControl.button.setAttribute('aria-expanded', String(result.open));
+  if (result.open && !panel.open) panel.showModal();
+  if (!result.open && panel.open) panel.close();
+  gear.setAttribute('aria-expanded', String(result.open));
   if (result.open) {
     const first = panel.querySelector('select, input, button:not(.panel-close)');
     if (first) first.focus();
-  } else if (result.focusGear && settingsControl) {
-    settingsControl.button.focus();
+  } else if (result.focusGear) {
+    gear.focus();
   }
-  // The panel covers part of the map: auto-zoom keeps clear of it while it is open.
-  autozoom.change();
 }
 
 function setupPanel() {
   const panel = document.getElementById('panel');
+  document.getElementById('settings').addEventListener('click', () => applyPanel(panelState.toggle(settingsPanel, Date.now())));
   document.getElementById('panel-close').addEventListener('click', () => applyPanel(panelState.close(settingsPanel)));
-  document.addEventListener('keydown', (event) => {
-    if (event.key !== 'Escape' || !settingsPanel.open) return;
-    const inside = panel.contains(document.activeElement);
-    const onGear = settingsControl && document.activeElement === settingsControl.button;
-    if (inside || onGear) applyPanel(panelState.close(settingsPanel));
+  // Escape closes the modal dialog by itself; the panel state follows (FR-008).
+  panel.addEventListener('close', () => {
+    if (settingsPanel.open) applyPanel(panelState.close(settingsPanel));
+  });
+  // A click on the backdrop lands on the dialog itself, outside its box.
+  panel.addEventListener('click', (event) => {
+    if (event.target !== panel) return;
+    const box = panel.getBoundingClientRect();
+    const outside = event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom;
+    if (outside) applyPanel(panelState.close(settingsPanel));
   });
   for (const kind of ['pointerdown', 'keydown', 'focusin', 'input', 'wheel']) {
     panel.addEventListener(kind, () => panelState.activity(settingsPanel, Date.now()));
@@ -480,7 +462,8 @@ function renderRecent() {
   box.hidden = !recentShown || !state;
   updateBoxRows();
   if (box.hidden) return;
-  const qsos = recentQsos(state, boxRows, recentOrder);
+  // Newest on top (feature 018).
+  const qsos = recentQsos(state, boxRows, 'top');
   if (qsos.length === 0) {
     // The empty-state message replaces the header too (feature 006, FR-006a).
     box.replaceChildren(element('div', 'empty', 'No QSOs received yet'));
@@ -561,7 +544,7 @@ function fitRecentRows() {
   const rows = [...box.querySelectorAll('tbody tr')];
   if (rows.length === 0) return;
   for (const tr of rows) tr.hidden = false;
-  const newestFirst = recentOrder === 'top' ? rows : rows.reverse();
+  const newestFirst = rows;
   const style = getComputedStyle(box);
   const head = box.querySelector('thead')?.getBoundingClientRect().height ?? 0;
   const available = box.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom) - head;
@@ -623,7 +606,8 @@ function renderStation() {
   const line = document.getElementById('station');
   const text = stationText(stationState);
   if (line.textContent !== text) {
-    line.textContent = text;
+    // Same text as stationText, with the operator in its own span for the callsign font (feature 018).
+    line.replaceChildren(`${stationState?.band ?? '—'} · `, element('span', 'operator', stationState?.operator ?? '—'));
     // Its width may have changed: auto-zoom must keep clear of it.
     autozoom.change();
   }
@@ -924,8 +908,6 @@ function createMap(hello) {
   map.addControl(projectionControl, 'top-left');
   autoZoomControl = new AutoZoomControl();
   map.addControl(autoZoomControl, 'top-left');
-  settingsControl = new SettingsControl();
-  map.addControl(settingsControl, 'top-right');
   updateScale();
   // Fires for the first style and after every theme switch of the default base map.
   map.on('style.load', onStyleLoad);
@@ -1186,13 +1168,6 @@ function setupSelector() {
     autozoom.change();
   });
 
-  const order = document.getElementById('recent-order');
-  order.value = recentOrder;
-  order.addEventListener('change', () => {
-    recentOrder = order.value === 'top' ? 'top' : 'bottom';
-    saveRecentOrder(localStore(), recentOrder);
-    renderRecent();
-  });
 }
 
 if (hasWebGL(() => document.createElement('canvas'))) {
