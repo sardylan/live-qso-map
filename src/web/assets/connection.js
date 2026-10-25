@@ -60,3 +60,22 @@ export function saveLimit(storage, limit) {
     // Storage may be unavailable (private mode); the selection then lasts for this page only.
   }
 }
+
+// The tab's record of the service version it last reloaded for (feature 018, research R6).
+export const RELOAD_KEY = 'lqm.reloaded-for';
+const VERSION_TOKEN = '__LQM_VERSION__';
+
+/** The version the page was served with, from its meta; `null` when absent (research R5). */
+export function pageVersion(doc) {
+  const content = doc.querySelector('meta[name="lqm-version"]')?.content;
+  return content && content !== VERSION_TOKEN ? content : null;
+}
+
+/**
+ * Reload when the service runs another version than the page, once per service version so a
+ * stale cache cannot loop (research R6). A missing version on either side never reloads.
+ */
+export function shouldReload(pageVer, serviceVer, reloadedFor) {
+  const known = (v) => typeof v === 'string' && v !== '' && v !== VERSION_TOKEN;
+  return known(pageVer) && known(serviceVer) && pageVer !== serviceVer && reloadedFor !== serviceVer;
+}

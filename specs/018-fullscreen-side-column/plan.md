@@ -44,7 +44,7 @@ and browser ES modules
       operator as in feature 017.
 - [x] **IV. Persistent Viewer Settings**: no new viewer setting; existing settings live in
       `localStorage` and survive the automatic reload (FR-014). The reload flag is tab state, not a
-      setting, and a refusing storage falls back to memory (R6).
+      setting; without session storage the page never reloads by itself (R6).
 - [x] **V. Portable Development, Pipeline-Built Releases**: no platform-specific code.
 - [x] **Interface rules** (`docs/http-api.md`): `version` is a snake_case string field added to a
       JSON text frame; additive, so protocol stays 4 (R7); contract test planned.

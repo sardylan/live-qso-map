@@ -64,7 +64,17 @@ import {
   globeZoomForCap,
   flatFrameAround,
 } from './autozoom-geo.js';
-import { createConnection, onOpen, onClose, onHello as handshake, loadLimit, saveLimit } from './connection.js';
+import {
+  createConnection,
+  onOpen,
+  onClose,
+  onHello as handshake,
+  loadLimit,
+  saveLimit,
+  shouldReload,
+  pageVersion,
+  RELOAD_KEY,
+} from './connection.js';
 import * as panelState from './panel.js';
 import { offeredGroups, chosenBands, loadLegend, saveLegend, toggleGroup } from './legend.js';
 
@@ -536,6 +546,22 @@ function fitRecentRows() {
   newestFirst.forEach((tr, i) => {
     tr.hidden = i >= keep;
   });
+}
+
+/**
+ * Reloads the page when the service was updated (feature 018, FR-012); true when it does. The
+ * tab remembers the version it reloaded for, so a stale cache cannot loop (research R6).
+ */
+function reloadForUpdate(serviceVersion) {
+  try {
+    if (!shouldReload(pageVersion(document), serviceVersion, sessionStorage.getItem(RELOAD_KEY))) return false;
+    sessionStorage.setItem(RELOAD_KEY, serviceVersion);
+  } catch {
+    // No session storage, no loop guard across reloads: better to stay than to risk a loop.
+    return false;
+  }
+  location.reload();
+  return true;
 }
 
 /** The column's UTC clock, from the device clock (feature 018, FR-007). */
@@ -1016,6 +1042,7 @@ function onHello(hello) {
 
 function onMessage(message) {
   if (message.type === 'hello') {
+    if (reloadForUpdate(message.version)) return;
     onHello(message);
     return;
   }

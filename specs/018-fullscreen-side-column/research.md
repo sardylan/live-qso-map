@@ -86,9 +86,9 @@ design decisions the plan needs.
   `shouldReload(pageVersion, serviceVersion, reloadedFor)` is true only when both versions are
   non-empty strings, they differ, and `reloadedFor !== serviceVersion`. On `hello`, `app.js` calls it
   with `sessionStorage['lqm.reloaded-for']`; when true it stores the service version there and calls
-  `location.reload()` before handling the rest of `hello`. Storage errors count as "not reloaded yet"
-  only once per page load (the helper's caller keeps an in-memory flag too), so a browser that
-  refuses storage still cannot loop.
+  `location.reload()` before handling the rest of `hello`. A browser that refuses session storage
+  never reloads by itself: without the flag a stale cache could loop, and an in-memory flag does
+  not survive the reload.
 - **Rationale**: `sessionStorage` lives for the tab across reloads, which is exactly the loop to
   break (a proxy or cache still serving an old page). The template token left unreplaced (a page not
   served by the service, for example the browser tests' fixture) is treated as missing.

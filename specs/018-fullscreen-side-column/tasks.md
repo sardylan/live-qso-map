@@ -232,23 +232,23 @@ loop (FR-012 to FR-014, research R6).
 
 ### Tests for User Story 5 ⚠️ write first, see them fail
 
-- [ ] T024 [P] [US5] Node tests in `web/connection.test.js` for
+- [X] T024 [P] [US5] Node tests in `web/connection.test.js` for
   `shouldReload(pageVersion, serviceVersion, reloadedFor)`, every row of the table in
   data-model.md, plus: `'__LQM_VERSION__'` as page version → false; empty strings → false;
   `undefined`/`null` service version → false.
-- [ ] T025 [P] [US5] Node tests in `web/connection.test.js` for `pageVersion(doc)`: reads
+- [X] T025 [P] [US5] Node tests in `web/connection.test.js` for `pageVersion(doc)`: reads
   `meta[name="lqm-version"]` `content` from a stub `{ querySelector }`; missing meta, empty content
   or the token → `null`.
 
 ### Implementation for User Story 5
 
-- [ ] T026 [US5] In `src/web/assets/connection.js` export `shouldReload` and `pageVersion` (and
+- [X] T026 [US5] In `src/web/assets/connection.js` export `shouldReload` and `pageVersion` (and
   `RELOAD_KEY = 'lqm.reloaded-for'`), with a doc comment citing feature 018 R6. T024 and T025
   pass.
-- [ ] T027 [US5] In `src/web/assets/app.js`, at the top of the `hello` branch (before `onHello`):
-  read the flag with a `try`/`catch` around `sessionStorage.getItem(RELOAD_KEY)`, falling back to
-  a module-level `reloadedFor` variable; when `shouldReload(pageVersion(document), message.version, flag)`,
-  store the version in both (storage write in `try`/`catch`), call `location.reload()` and return.
+- [X] T027 [US5] In `src/web/assets/app.js`, at the top of the `hello` branch (before `onHello`):
+  inside one `try`/`catch`, when `shouldReload(pageVersion(document), message.version,
+  sessionStorage.getItem(RELOAD_KEY))`, store the version under `RELOAD_KEY`, call
+  `location.reload()` and return; when session storage throws, do not reload (research R6).
 - [ ] T028 [US5] Run quickstart §4 steps 1–4; confirm the `reconnect` browser step (same binary)
   still passes with no reload.
 

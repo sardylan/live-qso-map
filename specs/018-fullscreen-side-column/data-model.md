@@ -30,7 +30,7 @@ carries, and one flag the page keeps for the tab.
 | Value | the service version the tab last reloaded for |
 | Read | on every `hello` |
 | Written | just before `location.reload()` |
-| Not a viewer setting | Principle IV does not apply; a failing storage falls back to an in-memory flag (R6) |
+| Not a viewer setting | Principle IV does not apply; without session storage the page never reloads by itself (R6) |
 
 ## Reload decision
 
