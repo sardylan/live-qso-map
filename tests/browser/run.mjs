@@ -567,6 +567,33 @@ async function clockTicks(size) {
   await waitFor(async () => (await read()).text !== first.text, { timeout: 3_000, what: `${size}: the clock to tick` });
 }
 
+/** Text and the column grow with the window height, 13 px floor (feature 018, FR-010, SC-003, TR-026). */
+async function textScales() {
+  const measure = async (width, height) => {
+    await page.resize(width, height);
+    await sleep(1_000);
+    return q(`(() => {
+      const px = (e) => parseFloat(getComputedStyle(e).fontSize);
+      return {
+        root: px(document.documentElement),
+        legend: px(document.getElementById('legend')),
+        station: document.getElementById('station').getBoundingClientRect().height / innerHeight,
+        column: document.getElementById('column').getBoundingClientRect().width / innerWidth,
+      };
+    })()`);
+  };
+  const small = await measure(1280, 720);
+  const hd = await measure(1920, 1080);
+  const uhd = await measure(3840, 2160);
+  if (small.root !== 13) throw new Error(`1280x720: root font ${small.root}px, not 13px (FR-010)`);
+  if (!(hd.root >= 17 && hd.root <= 18)) throw new Error(`1920x1080: root font ${hd.root}px, not 17-18px (R3)`);
+  if (!near(uhd.root, 2 * hd.root)) throw new Error(`3840x2160: root font ${uhd.root}px, not twice ${hd.root}px (SC-003)`);
+  if (!(hd.legend > 13)) throw new Error(`1920x1080: legend at ${hd.legend}px (FR-010)`);
+  for (const key of ['station', 'column']) {
+    if (Math.abs(uhd[key] / hd[key] - 1) > 0.1) throw new Error(`3840x2160: ${key} share ${uhd[key]} vs ${hd[key]} at 1080p (SC-003)`);
+  }
+}
+
 const overlaps = (a, b) => !(a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top);
 const near = (a, b, tolerance = 1) => Math.abs(a - b) <= tolerance;
 
@@ -953,6 +980,7 @@ const steps = {
       }
       await shot(`14-column-${size}`);
     }
+    await textScales();
     await page.resize(375, 812);
     await sleep(1_000);
     const narrow = await layout();

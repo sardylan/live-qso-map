@@ -246,3 +246,31 @@ impl MessageSink for WsSink {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Text sizes follow the root, so a 4K screen gets the same proportions as a 1080p one
+    /// (feature 018, TR-026). Only the root and the buttons inside MapLibre's fixed 29 px controls
+    /// (research R3) keep pixel font sizes.
+    #[test]
+    fn text_sizes_scale_with_the_root() {
+        let mut offending = Vec::new();
+        for rule in APP_CSS.split('}') {
+            let Some((selector, body)) = rule.split_once('{') else {
+                continue;
+            };
+            if selector.contains("-control button") {
+                continue;
+            }
+            offending.extend(
+                body.lines()
+                    .map(str::trim)
+                    .filter(|l| l.starts_with("font-size:") || l.starts_with("font:"))
+                    .filter(|l| l.contains("px") && !l.contains("clamp(13px, 1.6vh, 48px)")),
+            );
+        }
+        assert!(offending.is_empty(), "pixel font sizes: {offending:?}");
+    }
+}
