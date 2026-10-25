@@ -332,7 +332,9 @@ async function glowOnSunSide(shotName, { minAbsX = 0.5 } = {}) {
 async function noHaze() {
   const view = parseView(await stableView('before the haze check'));
   const rect = await mapRect();
-  const [cx, cy] = centre(rect);
+  // The globe's own centre: auto-zoom's padding moves it off the map's middle, and a box placed
+  // from the middle can land on the bright limb (release 3.4.0's browser-test).
+  const [cx, cy] = (await globeCentre(rect)) ?? centre(rect);
   const r = apparentRadiusPx(view, rect.height);
   const side = sunSide(view, sunNow()).side === 'left' ? -1 : 1;
   const boxes = [
