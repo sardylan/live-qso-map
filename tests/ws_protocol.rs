@@ -51,6 +51,7 @@ async fn every_page_receives_hello_snapshot_and_live_upserts() {
         assert_eq!(hello["type"], "hello");
         assert_eq!(hello["default_limit"], 20);
         assert_eq!(hello["protocol"], 4);
+        assert_eq!(hello["version"], env!("CARGO_PKG_VERSION"));
         // test_config(): IS0MZK at JM49NH.
         assert_eq!(hello["station"]["callsign"], "IS0MZK");
         assert_eq!(hello["station"]["locator"], "JM49NH");
@@ -158,6 +159,27 @@ async fn every_page_asset_on_disk_is_served() {
         checked += 1;
     }
     assert!(checked >= 16, "only {checked} assets found");
+}
+
+/// The page knows the release that served it, so a stale copy can reload (feature 018, R5).
+#[tokio::test]
+async fn the_page_carries_the_service_version() {
+    let service = start(test_config(), None).await.unwrap();
+    live_qso_map::install_crypto_provider();
+    let response = reqwest::get(format!("http://{}/", service.http_addr))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), 200);
+    let header = |name: &str| response.headers()[name].to_str().unwrap().to_string();
+    assert!(header("content-type").starts_with("text/html"));
+    assert_eq!(header("cache-control"), "no-cache");
+    let body = response.text().await.unwrap();
+    let meta = format!(
+        r#"<meta name="lqm-version" content="{}">"#,
+        env!("CARGO_PKG_VERSION")
+    );
+    assert!(body.contains(&meta), "no version meta");
+    assert!(!body.contains("__LQM_VERSION__"));
 }
 
 #[tokio::test]
