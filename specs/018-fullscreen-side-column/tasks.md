@@ -134,8 +134,9 @@ research R1, R2).
   measure the visible rows of `#recent tbody`, call `rowsThatFit`, and set the `hidden` attribute
   on the oldest rows beyond that count (the top rows when newest is at the bottom, the bottom rows
   otherwise), clearing it on the others, so the box can grow back. Rows are never removed.
-- [ ] T012 [US2] Run quickstart §2 steps 1, 3 and 5 and §3 step 3, in Light and Dark, globe and
+- [X] T012 [US2] Run quickstart §2 steps 1, 3 and 5 and §3 step 3, in Light and Dark, globe and
   flat; click a QSO row in the box (FR-006, US2 #5).
+  *Closed by the owner after the visual test, 2026-10-25.*
 
 **Checkpoint**: the column works on its own (MVP).
 
@@ -179,8 +180,9 @@ the score below in smaller text (FR-007 to FR-009, research R4, R8).
   long values wrap (`overflow-wrap: anywhere`) inside the column; `.stale` still greys
   `#station` and `#score` only. T014 passes (with T022's root size, sizes are relative; the order
   check holds already).
-- [ ] T019 [US1] Run quickstart §2 steps 2, 4 and 6; send a portable call `IS0/IK0ABC/P` as
+- [X] T019 [US1] Run quickstart §2 steps 2, 4 and 6; send a portable call `IS0/IK0ABC/P` as
   operator and check it stays inside the column.
+  *Closed by the owner after the visual test, 2026-10-25.*
 
 **Checkpoint**: US2 and US1 work.
 
@@ -217,8 +219,9 @@ TR-026).
   `font: 12px/29px`, research R3); the legend swatch, popup and panel paddings and the
   panel width (`320px` → `24rem`, capped by the existing narrow-screen rule) in `rem`; leave
   MapLibre's own controls alone. T020 and T021 pass.
-- [ ] T023 [US3] Run quickstart §3 steps 1 and 2 (a 4K screen or a browser window zoomed to emulate
+- [X] T023 [US3] Run quickstart §3 steps 1 and 2 (a 4K screen or a browser window zoomed to emulate
   it), and the settings panel at 1920×1080 and 375 px.
+  *Closed by the owner after the visual test, 2026-10-25.*
 
 **Checkpoint**: US2, US1 and US3 work.
 
@@ -304,7 +307,7 @@ loop (FR-012 to FR-014, research R6).
 - [X] T034 Run the complete gates: `cargo fmt --check`,
   `cargo clippy --all-targets -- -D warnings`, `cargo test`, `node --test web/`, and
   `cargo build --release && node tests/browser/run.mjs`.
-- [ ] T035 Per LL-007, run a manual rehearsal pipeline on the branch and tick this task with its
+- [X] T035 Per LL-007, run a manual rehearsal pipeline on the branch and tick this task with its
   pipeline number once the `column` browser step is green there. Record SC-001 to SC-006 in
   `checklists/verification.md`:
   - SC-001 from T019 (read from 3 m, owner);
