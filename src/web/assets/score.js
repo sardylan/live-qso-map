@@ -9,10 +9,10 @@ export function groupDigits(n) {
   return String(n).replace(/\B(?=(\d{3})+$)/g, '.');
 }
 
-/** The one-line score, or `Score —` before the first one (FR-005). */
+/** Score, QSOs and multipliers, one per line (feature 018), or `Score —` before the first one (FR-005). */
 export function scoreText(score) {
   if (!score) return 'Score —';
-  return `${groupDigits(score.score)} pts · ${groupDigits(score.qsos)} QSO · ${groupDigits(score.mults)} mults`;
+  return `${groupDigits(score.score)} pts\n${groupDigits(score.qsos)} QSO\n${groupDigits(score.mults)} mults`;
 }
 
 /** Whether a score received at `localReceived` (page clock, ms) is too old at `now`. */

@@ -41,6 +41,8 @@ screen read from a distance. A page that reconnects to an updated service reload
   than the flat world at the zoom that fills its height, so feature 016's world-wide fit (SC-004)
   cannot hold there. Keep the column, narrow it, or float it over the map below 1280 px? → A: Keep
   the column; feature 016's check moves to 1280 × 800.
+- Owner's request after the visual test: the score shows points, QSOs and multipliers on three
+  separate lines instead of one.
 
 ## User Scenarios & Testing *(mandatory)*
 

@@ -20,7 +20,8 @@ which becomes the GitHub release notes (`docs/releasing.md`).
   shows the page in the same proportions as a 1080p one, never smaller than before on a 720p
   window.
 - The station status line, the score line and the last-QSO box moved from the bottom-left corner
-  of the map into the left column; the box shows only whole rows.
+  of the map into the left column; the box shows only whole rows. The score shows points, QSOs and
+  multipliers on three lines.
 
 ## [3.3.0] - 2026-10-24
 

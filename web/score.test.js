@@ -20,10 +20,11 @@ test('scoreText shows a dash before the first score', () => {
   assert.equal(scoreText(null), 'Score —');
 });
 
-test('scoreText formats score, QSOs and multipliers on one line', () => {
-  assert.equal(scoreText({ score: 1234567, qsos: 1523, mults: 183 }), '1.234.567 pts · 1.523 QSO · 183 mults');
-  assert.equal(scoreText({ score: 0, qsos: 0, mults: 0 }), '0 pts · 0 QSO · 0 mults');
-  assert.equal(scoreText({ score: 12345678, qsos: 9876, mults: 1234 }), '12.345.678 pts · 9.876 QSO · 1.234 mults');
+// One line each for score, QSOs and multipliers (feature 018, owner's request after the visual test).
+test('scoreText formats score, QSOs and multipliers on three lines', () => {
+  assert.equal(scoreText({ score: 1234567, qsos: 1523, mults: 183 }), '1.234.567 pts\n1.523 QSO\n183 mults');
+  assert.equal(scoreText({ score: 0, qsos: 0, mults: 0 }), '0 pts\n0 QSO\n0 mults');
+  assert.equal(scoreText({ score: 12345678, qsos: 9876, mults: 1234 }), '12.345.678 pts\n9.876 QSO\n1.234 mults');
 });
 
 test('isStale only after more than five minutes', () => {
