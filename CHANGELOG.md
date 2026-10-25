@@ -7,6 +7,11 @@ which becomes the GitHub release notes (`docs/releasing.md`).
 
 ## [Unreleased]
 
+### Fixed
+- The release pipeline's browser test placed the atmosphere's no-haze samples from the map's
+  middle instead of the globe's centre; with the map controls on the right, one sample could land
+  on the globe's bright edge and block the release (3.4.0 was never published).
+
 ## [3.4.0] - 2026-10-25
 
 ### Added
