@@ -43,8 +43,9 @@ design decisions the plan needs.
   QSOs box `1rem`, version tag `0.8rem`. Legend, popups, banners and the settings panel use
   `1rem` or their current ratio to 13 px. Swatches, paddings and the column width use `rem` or `vw`
   so they scale together. MapLibre's own controls (zoom, attribution, scale bar) are left as they are,
-  and so are the projection and auto-zoom buttons (`.projection-control`, `.toggle-control`), which
-  keep `font: 12px/29px`: their height is MapLibre's fixed 29 px control size.
+  and so are our buttons inside MapLibre's controls (`.projection-control`, `.toggle-control`,
+  `.settings-control`), which keep their pixel sizes: their height is MapLibre's fixed 29 px
+  control size.
 - **Rationale**: tying the root to the viewport height makes SC-003 hold by construction; one
   number to tune on a real TV, with the ladder preserving the order FR-008 asks for. The lower bound
   keeps a 1280×720 laptop as today.

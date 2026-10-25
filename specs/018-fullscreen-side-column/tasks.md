@@ -194,23 +194,23 @@ TR-026).
 
 ### Tests for User Story 3 ⚠️ write first, see them fail
 
-- [ ] T020 [US3] Extend the browser step `column` in `tests/browser/run.mjs`:
+- [X] T020 [US3] Extend the browser step `column` in `tests/browser/run.mjs`:
   - the root (`html`) computed `font-size` is `13px` at 1280×720, between `17px` and `18px` at
     1920×1080 and twice the 1080 value (±1 px) at 3840×2160;
   - at 3840×2160 the ratio `#station` height / window height is within 10% of the 1920×1080 ratio
     (SC-003);
   - the legend's computed `font-size` at 1920×1080 is larger than 13 px;
   - `#column`'s width / window width at 3840×2160 is within 10% of the same ratio at 1920×1080.
-- [ ] T021 [US3] Unit test in `src/web/mod.rs` (`#[cfg(test)] mod tests`, add the module if
-  missing), `text_sizes_scale_with_the_root`: every `APP_CSS` line containing `font-size:` or
-  `font:` and `px` is either the root's `clamp(13px, 1.6vh, 48px)` line or the
-  `font: 12px/29px` line of the `.projection-control button, .toggle-control button` rule (a line
-  scan, comment citing TR-026 and research R3), so later edits keep the scale. Today it fails on
+- [X] T021 [US3] Unit test in `src/web/mod.rs` (`#[cfg(test)] mod tests`, add the module if
+  missing), `text_sizes_scale_with_the_root`: every `APP_CSS` `font-size:` or `font:` declaration
+  in `px` is either the root's `clamp(13px, 1.6vh, 48px)` or inside a rule whose selector is a map
+  control button (`-control button`: projection, auto-zoom, settings gear; research R3), so later
+  edits keep the scale. Today it fails on
   lines such as `font: 13px/1.4` and `font-size: 15px`.
 
 ### Implementation for User Story 3
 
-- [ ] T022 [US3] In `src/web/assets/app.css`: `html { font-size: clamp(13px, 1.6vh, 48px) }`; turn
+- [X] T022 [US3] In `src/web/assets/app.css`: `html { font-size: clamp(13px, 1.6vh, 48px) }`; turn
   every text size into `rem` (body `font: 1rem/1.4 …`; the 11 px, 12 px, 15 px and 16 px sizes
   become `0.85rem`, `0.92rem`, `1.15rem`, `1.23rem`; the map control buttons keep
   `font: 12px/29px`, research R3); the legend swatch, popup and panel paddings and the
