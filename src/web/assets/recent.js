@@ -7,6 +7,21 @@ import { held } from './map-state.js';
  * The `size` most recent QSOs the page holds, by QSO time, independent of the map's limit
  * (feature 006, FR-009): oldest first for 'bottom' (newest last), newest first for 'top'.
  */
+/**
+ * How many whole rows fit in `available` pixels, counting from the newest (feature 018, R1).
+ * `rowHeights` lists the rows newest first.
+ */
+export function rowsThatFit(rowHeights, available) {
+  let used = 0;
+  let count = 0;
+  for (const height of rowHeights) {
+    used += height;
+    if (used > available) break;
+    count += 1;
+  }
+  return count;
+}
+
 export function recentQsos(state, size = 5, order = 'bottom') {
   const all = held(state);
   const newest = all.slice(Math.max(0, all.length - size));

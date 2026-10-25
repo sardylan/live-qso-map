@@ -51,7 +51,7 @@ import {
 import { PALETTES, applyPalette, resolveTheme, loadTheme, saveTheme, themeStatus } from './themes.js';
 import { solarElevation, subsolarPoint } from './sun.js';
 import { tilePixels, graylineBeforeId, graylineTiles, parseGraylineUrl, rgbOf } from './grayline.js';
-import { recentQsos, headerCells, rowCells, markerKeyOf, entityLabel, onMap } from './recent.js';
+import { recentQsos, headerCells, rowCells, markerKeyOf, entityLabel, onMap, rowsThatFit } from './recent.js';
 import { scoreText, isStale, updatedTitle } from './score.js';
 import { stationText, STATION_STALE_MS, lastQsoTitle, localQsoTime } from './station.js';
 import { createAutoZoom } from './autozoom.js';
@@ -73,9 +73,6 @@ const QTH_POPUP = 'qth';
 // Everything auto-zoom must keep clear of (FR-009); hidden ones measure as empty.
 const PANELS = [
   '#legend',
-  '#recent',
-  '#score',
-  '#station',
   '#panel',
   '.maplibregl-ctrl-top-left',
   '.maplibregl-ctrl-top-right',
@@ -522,6 +519,23 @@ function renderRecent() {
   }
   table.append(body);
   box.replaceChildren(table);
+  fitRecentRows();
+}
+
+/** Whole rows only: the oldest give way when the column is short (feature 018, research R1). */
+function fitRecentRows() {
+  const box = document.getElementById('recent');
+  const rows = [...box.querySelectorAll('tbody tr')];
+  if (rows.length === 0) return;
+  for (const tr of rows) tr.hidden = false;
+  const newestFirst = recentOrder === 'top' ? rows : rows.reverse();
+  const style = getComputedStyle(box);
+  const head = box.querySelector('thead')?.getBoundingClientRect().height ?? 0;
+  const available = box.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom) - head;
+  const keep = rowsThatFit(newestFirst.map((tr) => tr.getBoundingClientRect().height), available);
+  newestFirst.forEach((tr, i) => {
+    tr.hidden = i >= keep;
+  });
 }
 
 /** The score line: plain text only (FR-005, FR-007, FR-008). */
@@ -603,8 +617,6 @@ function updateScale() {
     map.removeControl(scaleControl);
     scaleControl = null;
   }
-  // The last-QSO box sits above the scale.
-  document.body.classList.toggle('scale-on', wanted);
 }
 
 function showProjection(next) {
@@ -1140,7 +1152,10 @@ if (hasWebGL(() => document.createElement('canvas'))) {
   setupPanel();
   setupAppearance();
   connect();
-  window.addEventListener('resize', () => autozoom.change());
+  window.addEventListener('resize', () => {
+    fitRecentRows();
+    autozoom.change();
+  });
   setInterval(() => runActions(autozoom.tick(Date.now())), 250);
   setInterval(() => {
     renderScore();
@@ -1149,6 +1164,6 @@ if (hasWebGL(() => document.createElement('canvas'))) {
 } else {
   // FR-012: no renderer can run, so do not connect either.
   show('map', false);
-  show('corner-bl', false);
+  show('column', false);
   show('no-webgl', true);
 }

@@ -83,7 +83,7 @@ research R1, R2).
 
 ### Tests for User Story 2 ⚠️ write first, see them fail
 
-- [ ] T006 [US2] Browser step `column` in `tests/browser/run.mjs` (add `'column'` at the end of
+- [X] T006 [US2] Browser step `column` in `tests/browser/run.mjs` (add `'column'` at the end of
   `STEPS`; set sizes with CDP `Emulation.setDeviceMetricsOverride` and clear it at the end of the
   step). Checks, after at least one QSO is on the page:
   - at 1920×1080 and at 1280×720: `#column` has `top` 0 and `height` equal to the window height;
@@ -102,12 +102,12 @@ research R1, R2).
 
 ### Implementation for User Story 2
 
-- [ ] T007 [US2] In `src/web/assets/index.html`: replace `<div id="corner-bl">…</div>` with
+- [X] T007 [US2] In `src/web/assets/index.html`: replace `<div id="corner-bl">…</div>` with
   `<aside id="column" class="column">` placed first in `<body>`, holding in order `#station`,
   `#score`, `#recent` (ids, classes and `aria-*` unchanged); update the comment to cite feature 018
   FR-002. After it, a `<main id="stage">` holding `#map`, `#no-webgl`, `#status`, `#basemap-error`
   and `#legend` (research R1). `#panel` stays a child of `<body>`.
-- [ ] T008 [US2] In `src/web/assets/app.css`:
+- [X] T008 [US2] In `src/web/assets/app.css`:
   - `body`: `display: flex; height: 100%`; `#stage`: `position: relative; flex: 1;
     min-width: 0`; `#map`: `height: 100%` (keep its background); `.banner`, `.legend` and
     `.no-webgl` keep their absolute positions, now relative to `#stage`;
@@ -119,17 +119,17 @@ research R1, R2).
     auto height, `#recent { display: none }`, `#stage { flex: 1; min-height: 0 }`;
   - delete `.corner-bl`, `.corner-bl[hidden]` and `body.scale-on .corner-bl`; drop the floating
     `background`/`box-shadow` from `.recent, .score` now that the column has them.
-- [ ] T009 [US2] In `src/web/assets/app.js`:
+- [X] T009 [US2] In `src/web/assets/app.js`:
   - remove `'#recent'`, `'#score'` and `'#station'` from `PANELS` (R2);
   - the no-WebGL branch: replace `show('corner-bl', false)` with `show('column', false)`;
   - remove any remaining `corner-bl` reference (`grep -n corner-bl src/web/assets`) and the
     `scale-on` toggle in `updateScale` (its only CSS rule goes in T008).
   T006 passes.
-- [ ] T010 [P] [US2] Node tests in `web/recent.test.js` for `rowsThatFit(rowHeights, available)`:
+- [X] T010 [P] [US2] Node tests in `web/recent.test.js` for `rowsThatFit(rowHeights, available)`:
   `[20, 20, 20]` in 60 → 3; in 59 → 2; in 0 → 0; `[]` → 0; a header height counted by the caller
   (pass `available` already reduced). Then export `rowsThatFit` from `src/web/assets/recent.js`
   (how many whole rows fit, counting from the newest), with a doc comment citing feature 018 R1.
-- [ ] T011 [US2] In `src/web/assets/app.js`, after every `renderRecent()` and on window resize:
+- [X] T011 [US2] In `src/web/assets/app.js`, after every `renderRecent()` and on window resize:
   measure the visible rows of `#recent tbody`, call `rowsThatFit`, and set the `hidden` attribute
   on the oldest rows beyond that count (the top rows when newest is at the bottom, the bottom rows
   otherwise), clearing it on the others, so the box can grow back. Rows are never removed.

@@ -9,7 +9,7 @@ import {
   markers,
   visible,
 } from '../src/web/assets/map-state.js';
-import { recentQsos, headerCells, rowCells, shortName, entityLabel, onMap } from '../src/web/assets/recent.js';
+import { recentQsos, headerCells, rowCells, shortName, entityLabel, onMap, rowsThatFit } from '../src/web/assets/recent.js';
 
 function qso(n, overrides = {}) {
   const minute = String(n).padStart(2, '0');
@@ -158,4 +158,13 @@ test('entityLabel gives prefix · name, or a dash', () => {
   assert.equal(entityLabel({ prefix: 'TL', name: 'Central African Republic' }), 'TL · Central African Republic');
   assert.equal(entityLabel(null), '—');
   assert.equal(entityLabel(undefined), '—');
+});
+
+// Feature 018, research R1: the box keeps only whole rows when the column is short of space.
+test('rowsThatFit counts the whole rows that fit, newest first', () => {
+  assert.equal(rowsThatFit([20, 20, 20], 60), 3);
+  assert.equal(rowsThatFit([20, 20, 20], 59), 2);
+  assert.equal(rowsThatFit([20, 20, 20], 0), 0);
+  assert.equal(rowsThatFit([], 100), 0);
+  assert.equal(rowsThatFit([10, 30, 10], 39), 1);
 });
