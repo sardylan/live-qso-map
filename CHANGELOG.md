@@ -7,6 +7,8 @@ which becomes the GitHub release notes (`docs/releasing.md`).
 
 ## [Unreleased]
 
+## [3.4.0] - 2026-10-25
+
 ### Added
 - A full-height column on the left, beside the map, holds the station status line, a UTC clock
   (`HH:MM:SS UTC`), the score line, the last-QSO box and, at the bottom, the software version.
