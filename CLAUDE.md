@@ -18,12 +18,12 @@ each answer before asking the next. Never batch several questions in one message
 - Rust (edition 2024) tests + POSIX sh CI checks; no new crates (015-example-config-release)
 - Rust (edition 2024) + browser ES modules; no new crates (016-map-autozoom-fixes)
 - Rust (edition 2024) + browser ES modules; no new crates; status derived from the in-memory history, nothing stored (017-station-status-box)
+- Rust (edition 2024) + browser ES modules; no new crates; one per-tab `sessionStorage` reload flag, nothing stored on the service (018-fullscreen-side-column)
 
 ### Recent Changes
 
+- 018-fullscreen-side-column: permanent left column beside the map (status, UTC clock, score, last QSOs box, version tag; strip above the map below 600 px); rem text sizes on a viewport-height root; `hello.version` + version meta in `/`, the page reloads once when they differ, protocol still 4
 - 017-station-status-box: station status box (band and operator of the latest QSO by QSO time; operator falls back to the station callsign) via a new `station_status` WebSocket message, protocol still 4; greyed after 15 min
 - 016-map-autozoom-fixes: flat auto-zoom centred on the QTH; globe kept only while markers stay `map.globe_border_deg` (default 10°) inside the visible horizon, else flat; the globe no longer shrinks to a dot
-- 015-example-config-release: `config.example.toml` (every setting commented out, `"<…>"` placeholders for credentials and station) in every release file, in `/usr/share/doc/live-qso-map/` of the .deb and image, and as a standalone release download; Debian gets a short live `config.toml`
-- 014-adif-persistence: QSO history in a local ADIF file (load and re-enrich at startup, save at graceful stop, `--enrich-only [FILE]`); no server history limit, page capped at 1000
 
 <!-- SPECKIT END -->
