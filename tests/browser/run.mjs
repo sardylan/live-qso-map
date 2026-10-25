@@ -307,7 +307,14 @@ async function glowOnSunSide(shotName, { minAbsX = 0.5 } = {}) {
   const boxes = limbSamples(view, rect, await globeCentre(rect));
   if (!boxes) throw new Error(`the limb is off the map at ${viewText}`);
   const expected = sunSide(view, sunNow());
-  const [left, right] = await settledMeasure(boxes, path.join(out, `${shotName}.png`));
+  // The glow is a ring 2-3 px wide: a single box can land on its steep edge, and a sub-pixel move
+  // of the globe then decides the reading (seen once the column moved the map, feature 018). So
+  // each side reads 1 px columns across ±2 % of the radius and keeps the brightest.
+  const span = Math.max(3, Math.round(apparentRadiusPx(view, rect.height) * 0.02));
+  const columns = boxes.flatMap((box) =>
+    Array.from({ length: 2 * span + 1 }, (_, k) => ({ ...box, x: Math.round(box.x) - span + k, w: 1 })));
+  const values = await settledMeasure(columns, path.join(out, `${shotName}.png`));
+  const [left, right] = [values.slice(0, 2 * span + 1), values.slice(2 * span + 1)].map((side) => Math.max(...side));
   if (currentStep) addScreenshot(currentStep, `${shotName}.png`);
   const brighter = left > right ? 'left' : 'right';
   const reading = `glow brighter on the ${brighter} (L ${left.toFixed(1)} / R ${right.toFixed(1)}), Sun on the ${expected.side} (x ${expected.x.toFixed(2)}), view ${viewText}`;
